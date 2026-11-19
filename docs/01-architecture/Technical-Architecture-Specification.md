@@ -1708,3 +1708,92 @@ La sécurité est vérifiée tout au long du développement et de l'exploitation
 - Tests spécifiques des droits d'accès et des protections des données.
 
 Les mécanismes détaillés de mise en œuvre seront précisés dans les phases de développement et de déploiement.
+
+
+## 9. Architecture de déploiement et infrastructure
+
+### 9.1. Environnements de déploiement
+
+PEST AI OS disposera de trois environnements distincts :
+
+**Développement (Development)**
+- Utilisé par les développeurs pour construire et tester les fonctionnalités.
+- Permet de vérifier les modifications avant leur validation.
+
+**Préproduction (Staging)**
+- Reproduit autant que possible les conditions de production.
+- Permet de tester les nouvelles versions avant leur publication.
+- Sert à effectuer les vérifications fonctionnelles et techniques.
+
+**Production (Production)**
+- Correspond à l'environnement réel utilisé par les organisations, producteurs, agents, agronomes et partenaires.
+- Héberge la version officiellement disponible de PEST AI OS.
+
+Les environnements doivent être isolés, notamment au niveau des bases de données, des configurations et des secrets techniques.
+
+### 9.2. Hébergement et infrastructure cloud
+
+PEST AI OS adoptera une infrastructure cloud managée, modulaire et évolutive.
+
+L'orientation initiale comprend :
+
+- Frontend web : Vercel ou service équivalent.
+- Backend Django et API : Render ou service équivalent.
+- Base de données : PostgreSQL avec PostGIS sur une offre managée.
+- Stockage des fichiers : Cloudflare R2 ou stockage compatible S3.
+- Traitements en arrière-plan : Celery et Redis.
+
+Les fournisseurs définitifs seront choisis après vérification de la compatibilité technique, des coûts, des performances, de la disponibilité, des sauvegardes et de la localisation des données.
+
+L'infrastructure doit permettre de faire évoluer chaque composant indépendamment.
+
+### 9.3. Automatisation des déploiements (CI/CD)
+
+PEST AI OS adoptera un processus d'intégration et de déploiement continus (CI/CD) connecté à GitHub.
+
+Le processus cible comprend :
+1. Publication du code sur GitHub.
+2. Exécution automatique des vérifications et tests.
+3. Déploiement dans l'environnement de développement.
+4. Validation en préproduction.
+5. Autorisation et déploiement en production.
+
+Les déploiements en production devront être contrôlés et traçables.
+
+### 9.4. Surveillance de l'infrastructure
+
+Une solution de monitoring permettra de suivre :
+- Disponibilité de la plateforme.
+- Performances du backend et des API.
+- État de la base de données.
+- Utilisation du stockage.
+- Erreurs techniques.
+- État des tâches Celery.
+- Consommation des ressources serveur.
+
+Des alertes automatiques seront prévues pour signaler les anomalies importantes aux responsables techniques.
+
+### 9.5. Évolutivité de l'infrastructure
+
+L'infrastructure devra accompagner la croissance de PEST AI OS sans nécessiter une reconstruction complète.
+
+Les principes retenus sont :
+- Augmentation verticale des ressources lorsque nécessaire.
+- Mise à l'échelle horizontale du backend.
+- Capacité indépendante de traitement pour les tâches IA, satellitaires et de synchronisation.
+- Stockage extensible pour les photos, documents et données géographiques.
+- Surveillance de la charge et anticipation des besoins.
+
+### 9.6. Gestion des coûts cloud
+
+La maîtrise des coûts constitue un principe important de l'infrastructure.
+
+Les mécanismes prévus comprennent :
+- Suivi des coûts par service.
+- Alertes en cas de dépassement des seuils budgétaires.
+- Surveillance de la consommation de stockage et de calcul.
+- Optimisation des traitements IA et satellitaires.
+- Suppression des ressources inutilisées.
+- Adaptation du budget à la croissance de la plateforme.
+
+L'objectif est de maintenir une infrastructure fiable et évolutive tout en maîtrisant les dépenses.
