@@ -311,3 +311,189 @@ L'architecture devra permettre l'intégration progressive de nouvelles capacité
 - Interfaces d'intégration destinées aux partenaires.
 
 Ces évolutions ne sont pas toutes incluses dans le MVP. Leur intégration devra respecter les principes architecturaux définis dans ce document.
+
+
+# 3. Architecture fonctionnelle globale
+
+## 3.1 Présentation
+
+L'architecture fonctionnelle de PEST AI OS définit les principaux domaines métier de la plateforme, leurs responsabilités et leurs interactions.
+
+La plateforme est organisée autour de modules fonctionnels complémentaires qui partagent un socle commun de données, de sécurité et de gestion des accès.
+
+Cette organisation doit permettre de développer, maintenir et faire évoluer chaque domaine sans créer de dépendances inutiles entre les modules.
+
+## 3.2 Modules fonctionnels principaux
+
+### 3.2.1 Gestion des organisations
+
+Ce module permet de gérer les différentes structures utilisant PEST AI OS.
+
+Il couvre notamment :
+
+- La création et la gestion des coopératives.
+- La gestion des ONG et des organisations partenaires.
+- La gestion des informations administratives.
+- La gestion des statuts des organisations.
+- La gestion des relations entre les organisations.
+- La configuration des espaces de travail.
+
+### 3.2.2 Gestion des utilisateurs et des accès
+
+Ce module centralise les identités des utilisateurs et leurs autorisations.
+
+Il couvre :
+
+- La création et la gestion des comptes.
+- Les profils utilisateurs.
+- Les rôles et permissions.
+- Les appartenances à plusieurs organisations.
+- Les responsabilités opérationnelles.
+- Les accès temporaires ou limités à certains programmes.
+
+Un utilisateur peut appartenir à plusieurs organisations avec des rôles différents.
+
+### 3.2.3 Gestion des producteurs et des agents
+
+Ce module permet de gérer les acteurs agricoles et opérationnels.
+
+Il couvre :
+
+- Les profils des producteurs.
+- Les profils des agents de terrain.
+- Les informations de contact.
+- Les rattachements organisationnels.
+- Les affectations géographiques et opérationnelles.
+- L'historique des interventions.
+
+### 3.2.4 Gestion des parcelles AgroID
+
+AgroID constitue le système d'identification numérique des parcelles agricoles.
+
+Chaque parcelle doit disposer d'un identifiant unique permettant de retrouver et de suivre ses informations dans le temps.
+
+Le module couvre :
+
+- La création des parcelles.
+- L'attribution des identifiants AgroID.
+- La géolocalisation.
+- L'enregistrement des contours géographiques.
+- La gestion des producteurs associés.
+- L'historique des modifications géographiques.
+- Le suivi de l'exploitation agricole.
+
+### 3.2.5 Gestion des campagnes et des cycles agricoles
+
+Ce module organise les activités agricoles dans le temps.
+
+Il distingue :
+
+- Les saisons agricoles.
+- Les campagnes agricoles.
+- Les cycles de culture associés aux parcelles.
+- Les étapes de développement des cultures.
+- Les opérations agricoles planifiées et réalisées.
+
+Une campagne peut concerner plusieurs producteurs et plusieurs parcelles. Chaque parcelle peut disposer de son propre cycle agricole.
+
+### 3.2.6 Gestion des opérations de terrain
+
+Ce module organise les activités réalisées par les agents et les autres intervenants autorisés.
+
+Il couvre :
+
+- La planification des missions.
+- L'affectation des agents.
+- Les visites de parcelles.
+- La collecte des observations.
+- La prise de photographies.
+- Le suivi des interventions.
+- L'historique des opérations.
+
+### 3.2.7 Intelligence agricole et services IA
+
+Ce domaine regroupe les capacités d'analyse et de traitement intelligent des données agricoles.
+
+Il couvre progressivement :
+
+- L'analyse des images agricoles.
+- L'identification des problèmes pris en charge par les modèles.
+- La production de résultats de diagnostic assistés par IA.
+- La validation par les agronomes.
+- Les recommandations agronomiques.
+- L'analyse des risques agricoles.
+- L'exploitation des données historiques.
+
+Les résultats produits par l'intelligence artificielle ne remplacent pas automatiquement la validation agronomique.
+
+### 3.2.8 Calendrier agricole intelligent
+
+Ce module permet de planifier et de suivre les activités agricoles en tenant compte des zones agroécologiques et des cultures.
+
+Il couvre :
+
+- Les saisons agricoles par zone.
+- Les modèles de calendrier par culture.
+- Les étapes théoriques des cycles.
+- Les dates prévisionnelles.
+- Les étapes réellement observées.
+- Les opérations agricoles associées.
+
+Les dates prévisionnelles doivent être distinguées des événements réellement observés sur le terrain.
+
+### 3.2.9 Intelligence géospatiale et environnementale
+
+Ce module organise les données géographiques et environnementales.
+
+Il couvre progressivement :
+
+- La cartographie des parcelles.
+- Les zones agroécologiques.
+- Les données satellitaires.
+- Les indicateurs de végétation.
+- Les données météorologiques.
+- Les données environnementales.
+- Les couches géographiques thématiques.
+
+### 3.2.10 Reporting et analyse des données
+
+Ce module permet de transformer les données opérationnelles en indicateurs utiles à la prise de décision.
+
+Il couvre :
+
+- Les tableaux de bord des coopératives.
+- Les rapports des programmes ONG.
+- Les indicateurs agricoles.
+- Le suivi des activités des agents.
+- Les statistiques des parcelles et des producteurs.
+- Les rapports destinés aux partenaires autorisés.
+
+## 3.3 Services transversaux
+
+Certains services sont communs à plusieurs modules :
+
+- Authentification et autorisation.
+- Notifications.
+- Journalisation et audit.
+- Gestion des fichiers et des médias.
+- Synchronisation mobile.
+- Gestion des tâches en arrière-plan.
+- Documentation et intégration des API.
+
+Ces services constituent le socle technique partagé de la plateforme.
+
+## 3.4 PEST AI Cloud
+
+PEST AI Cloud constitue la couche de traitement et d'intelligence de la plateforme.
+
+Elle organise les traitements de données, les services d'intelligence artificielle et les interactions avec les sources de données externes.
+
+Elle doit permettre de faire évoluer progressivement les capacités analytiques de PEST AI sans rendre les modules métier dépendants d'un modèle ou d'un fournisseur spécifique.
+
+## 3.5 Organisation du périmètre fonctionnel
+
+Les modules fonctionnels ne seront pas tous développés simultanément.
+
+Le MVP donnera la priorité à la gestion des organisations, des utilisateurs, des producteurs, des agents, des parcelles AgroID, des campagnes, des cycles agricoles, des opérations terrain et des premières capacités d'intelligence artificielle validées par les agronomes.
+
+Les fonctionnalités avancées seront intégrées progressivement selon les priorités du projet.
