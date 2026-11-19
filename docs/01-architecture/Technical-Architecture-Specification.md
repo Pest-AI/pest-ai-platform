@@ -1,5 +1,3 @@
----
-
 # 1. Introduction et vision de la plateforme
 
 ## 1.1 Présentation générale du projet
@@ -98,5 +96,3 @@ La première version opérationnelle de PEST AI OS doit prioritairement couvrir 
 - Les tableaux de bord et les rapports essentiels.
 
 Les fonctionnalités avancées de financement agricole, d'assurance, d'IoT et d'analyse satellitaire approfondie pourront être développées progressivement selon les priorités et les capacités du projet.
-
----
