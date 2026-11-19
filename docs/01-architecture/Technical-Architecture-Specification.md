@@ -1582,3 +1582,129 @@ Cette section définit l'architecture de référence des API de PEST AI OS.
 Elle établit les principes de communication, d'authentification, d'autorisation, de synchronisation et d'intégration.
 
 Elle ne constitue pas encore une documentation exhaustive de tous les endpoints. Ceux-ci seront spécifiés progressivement au cours du développement des différents modules backend.
+
+
+
+## 8. Architecture de sécurité
+
+### 8.1. Principes généraux
+
+PEST AI OS adopte une architecture de sécurité multicouche. Chaque composant contribue à protéger les utilisateurs, les organisations, les données agricoles et les services de la plateforme.
+
+La sécurité repose sur plusieurs niveaux :
+- Application : authentification et contrôle des accès.
+- Backend : vérification des rôles et autorisations.
+- Base de données : isolation des données entre organisations.
+- Stockage : protection des fichiers et documents.
+- Infrastructure : protection des serveurs, secrets et communications.
+- Traçabilité : journalisation des événements importants.
+
+### 8.2. Protection des comptes utilisateurs
+
+- Stockage des mots de passe sous forme de hash sécurisé, jamais en clair.
+- Politique de mots de passe robustes.
+- Limitation des tentatives de connexion.
+- Réinitialisation sécurisée des mots de passe.
+- Gestion des sessions, déconnexion et révocation des accès.
+- Authentification à deux facteurs (2FA) obligatoire pour les superadministrateurs et recommandée pour les autres comptes sensibles.
+
+### 8.3. Chiffrement des données
+
+Deux niveaux de chiffrement sont prévus :
+
+**Chiffrement en transit :**
+- Utilisation obligatoire de HTTPS/TLS pour les communications entre les applications, les API et les serveurs.
+
+**Chiffrement au repos :**
+- Protection des données sensibles stockées dans la base de données.
+- Chiffrement des sauvegardes.
+- Protection des fichiers, photos et documents stockés.
+
+La gestion des clés de chiffrement devra être sécurisée et séparée des données protégées.
+
+### 8.4. Isolation des données entre organisations
+
+PEST AI OS doit garantir une séparation stricte des données entre les organisations.
+
+- Une organisation ne peut accéder qu'aux données auxquelles elle est autorisée.
+- Les administrateurs d'une organisation ne peuvent pas modifier les données d'une autre organisation.
+- Les agronomes intervenant dans plusieurs organisations disposent uniquement des accès explicitement accordés.
+- PEST AI conserve un rôle de superadministrateur avec une visibilité globale encadrée.
+
+Le contrôle des autorisations est effectué côté serveur à chaque opération. L'identifiant d'organisation transmis par le client ne constitue jamais, à lui seul, une preuve d'autorisation.
+
+### 8.5. Protection des données agricoles et personnelles
+
+Les principes suivants sont retenus :
+- Collecter uniquement les informations nécessaires.
+- Limiter l'accès aux données selon les rôles et autorisations.
+- Encadrer le partage avec les banques, assurances et partenaires externes, notamment par le consentement lorsque celui-ci est requis.
+- Enregistrer les accès et modifications portant sur les données sensibles.
+- Définir des règles de conservation et de suppression des données.
+
+### 8.6. Sécurité mobile et fonctionnement hors ligne
+
+L'application mobile doit rester sécurisée même sans connexion Internet.
+
+- Protection des données enregistrées localement sur les appareils.
+- Limitation de la conservation des informations sensibles.
+- Protection des photos et documents collectés.
+- Synchronisation sécurisée dès le retour de la connexion.
+- Gestion de la déconnexion et révocation des accès en cas de perte ou de vol d'un appareil.
+- Contrôle des accès lors des changements de compte ou d'organisation.
+
+### 8.7. Sauvegardes et récupération des données
+
+La stratégie de sauvegarde comprend :
+- Des sauvegardes automatiques et régulières de PostgreSQL.
+- Des sauvegardes des fichiers et documents.
+- Un stockage séparé du serveur principal.
+- Une politique de conservation des sauvegardes.
+- Des tests réguliers de restauration pour vérifier leur intégrité et leur exploitabilité.
+
+### 8.8. Surveillance et journalisation des événements
+
+La plateforme conserve des traces des opérations importantes, notamment :
+- Connexions et déconnexions.
+- Création, modification et suppression de données.
+- Gestion des parcelles et producteurs.
+- Création et validation des diagnostics.
+- Consultation et partage de documents sensibles.
+- Gestion des commandes fournisseurs.
+- Modification des rôles et autorisations.
+
+Les journaux doivent être protégés contre les modifications non autorisées et permettre d'identifier l'auteur, la date et la nature des opérations.
+
+### 8.9. Gestion des incidents de sécurité
+
+Une procédure de gestion des incidents est prévue :
+- Détection des activités suspectes.
+- Blocage temporaire des comptes compromis.
+- Révocation des sessions et jetons d'accès.
+- Identification des données potentiellement exposées.
+- Restauration des données si nécessaire.
+- Information des personnes et organisations concernées selon les obligations applicables.
+- Documentation de l'incident et des mesures correctives.
+
+### 8.10. Protection des API
+
+Les API de PEST AI OS doivent intégrer :
+- Une vérification des autorisations pour chaque requête.
+- Une limitation du nombre de requêtes (rate limiting).
+- Une validation des données reçues.
+- Une protection des connexions avec les services externes.
+- Une gestion sécurisée des clés et secrets techniques.
+- Une surveillance des tentatives d'accès anormales.
+
+Aucun secret technique ne doit être exposé dans le frontend ou l'application mobile.
+
+### 8.11. Tests et maintenance de la sécurité
+
+La sécurité est vérifiée tout au long du développement et de l'exploitation :
+- Tests réguliers de sécurité.
+- Vérification de l'isolation entre organisations.
+- Mise à jour des frameworks et dépendances.
+- Contrôles avant chaque mise en production.
+- Tests spécifiques des droits d'accès et des protections des données.
+
+Les mécanismes détaillés de mise en œuvre seront précisés dans les phases de développement et de déploiement.
