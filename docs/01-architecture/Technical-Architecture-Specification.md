@@ -497,3 +497,193 @@ Les modules fonctionnels ne seront pas tous développés simultanément.
 Le MVP donnera la priorité à la gestion des organisations, des utilisateurs, des producteurs, des agents, des parcelles AgroID, des campagnes, des cycles agricoles, des opérations terrain et des premières capacités d'intelligence artificielle validées par les agronomes.
 
 Les fonctionnalités avancées seront intégrées progressivement selon les priorités du projet.
+
+# 4. Acteurs, rôles et espaces de travail
+
+## 4.1 Principes généraux
+
+PEST AI OS est conçu pour être utilisé par plusieurs catégories d'acteurs intervenant dans l'écosystème agricole.
+
+Chaque acteur dispose de responsabilités, de permissions et d'un espace de travail adaptés à son rôle.
+
+La plateforme doit permettre à un même utilisateur d'intervenir dans plusieurs organisations, sans multiplier inutilement ses comptes.
+
+Les autorisations sont définies en fonction de son identité, de son rôle, de son organisation de rattachement et, lorsque nécessaire, de son périmètre d'intervention.
+
+## 4.2 Administrateur central PEST AI
+
+L'administrateur central dispose des responsabilités nécessaires à la gestion globale de la plateforme.
+
+Ses principales responsabilités sont :
+
+- Gérer les organisations enregistrées.
+- Administrer les comptes et les accès.
+- Configurer les paramètres globaux.
+- Superviser les activités de la plateforme.
+- Gérer les services et modules communs.
+- Consulter les journaux d'audit autorisés.
+- Assurer le suivi technique et opérationnel global.
+
+Son espace de travail est l'administration centrale PEST AI.
+
+## 4.3 Administrateur d'organisation
+
+Chaque organisation dispose d'un ou plusieurs administrateurs responsables de son espace.
+
+Ses responsabilités sont :
+
+- Gérer les informations de son organisation.
+- Inviter et gérer ses membres.
+- Attribuer les rôles autorisés.
+- Organiser les équipes.
+- Gérer les accès aux données de l'organisation.
+- Superviser les activités de sa structure.
+
+Un administrateur d'organisation ne doit pas pouvoir administrer les données internes d'une autre organisation sans autorisation explicite.
+
+## 4.4 Responsable opérationnel
+
+Le responsable opérationnel supervise les activités agricoles et les équipes de son organisation.
+
+Ses responsabilités peuvent inclure :
+
+- Superviser les agents de terrain.
+- Organiser les missions.
+- Suivre les campagnes agricoles.
+- Superviser les producteurs et les parcelles.
+- Consulter les observations.
+- Suivre les indicateurs opérationnels.
+- Produire des rapports d'activité.
+
+Ses permissions sont définies par l'administrateur de son organisation, dans les limites de ses propres autorisations.
+
+## 4.5 Agent de terrain
+
+L'agent de terrain intervient directement auprès des producteurs et sur les parcelles agricoles.
+
+Ses principales responsabilités sont :
+
+- Consulter les missions qui lui sont affectées.
+- Identifier les producteurs.
+- Consulter les parcelles AgroID autorisées.
+- Enregistrer les visites de terrain.
+- Collecter les observations agricoles.
+- Prendre et joindre des photographies.
+- Enregistrer les informations relatives aux cultures.
+- Synchroniser les données collectées.
+
+L'agent utilise l'application mobile PEST AI dans un espace adapté à ses missions.
+
+## 4.6 Producteur agricole
+
+Le producteur utilise l'application mobile PEST AI pour accéder aux informations relatives à son exploitation.
+
+Ses fonctionnalités peuvent inclure :
+
+- Consulter ses parcelles AgroID.
+- Consulter les informations relatives à ses cultures.
+- Suivre les étapes de ses cycles agricoles.
+- Consulter les recommandations validées qui lui sont destinées.
+- Consulter les observations et interventions autorisées.
+- Recevoir des notifications.
+- Transmettre des informations relatives à son exploitation.
+
+Le producteur ne peut accéder qu'aux données auxquelles il est autorisé.
+
+## 4.7 Agronome
+
+L'agronome dispose d'un espace de travail professionnel lui permettant d'intervenir sur les données agricoles et les diagnostics.
+
+Ses responsabilités peuvent inclure :
+
+- Examiner les observations de terrain.
+- Analyser les résultats produits par l'intelligence artificielle.
+- Valider ou rejeter les diagnostics proposés.
+- Ajouter des commentaires techniques.
+- Produire ou valider des recommandations agronomiques.
+- Suivre les cas nécessitant une expertise.
+- Intervenir dans plusieurs organisations ou programmes lorsqu'il dispose des autorisations nécessaires.
+
+Les interventions d'un agronome doivent être tracées et associées à son identité.
+
+## 4.8 Responsable ONG et gestionnaire de programme
+
+Les ONG peuvent utiliser PEST AI OS pour gérer leurs programmes agricoles et suivre les activités réalisées avec plusieurs coopératives.
+
+Leurs responsabilités peuvent inclure :
+
+- Créer et administrer des programmes autorisés.
+- Associer plusieurs coopératives à un même programme.
+- Définir les zones d'intervention.
+- Suivre les producteurs et les parcelles concernés.
+- Consulter les indicateurs du programme.
+- Suivre les activités des équipes.
+- Produire des rapports destinés aux partenaires et aux bailleurs.
+
+L'accès aux données des coopératives participantes doit être limité au périmètre autorisé par le programme et les accords applicables.
+
+## 4.9 Partenaire externe
+
+Un partenaire externe peut être une institution, une entreprise agricole, un fournisseur de services ou un organisme disposant d'un accès spécifique.
+
+Ses permissions dépendent de la nature de son partenariat et des données auxquelles il est autorisé à accéder.
+
+Les accès partenaires peuvent notamment concerner :
+
+- La consultation de rapports.
+- L'accès à certains indicateurs.
+- La consultation de données agricoles autorisées.
+- L'utilisation d'API spécifiques.
+- Le suivi de projets ou de programmes.
+
+## 4.10 Espaces de travail de la plateforme
+
+PEST AI OS sera organisé autour des espaces suivants :
+
+**Administration centrale :** gestion globale de la plateforme.
+
+**Espace Coopérative :** gestion des producteurs, agents, parcelles, campagnes, opérations et rapports.
+
+**Espace ONG :** gestion des programmes, des coopératives participantes et des indicateurs.
+
+**Espace Agronome :** expertise, validation des diagnostics et recommandations.
+
+**Espace Partenaire :** accès limité aux informations et services autorisés.
+
+**Application mobile Agent :** missions, visites, collecte et synchronisation des données de terrain.
+
+**Application mobile Producteur :** consultation et suivi de son exploitation agricole.
+
+Les espaces Agent et Producteur seront intégrés dans une application mobile commune. L'interface et les fonctionnalités disponibles dépendront du rôle et des permissions de l'utilisateur.
+
+## 4.11 Gestion des programmes multi-organisations
+
+Un programme agricole peut impliquer plusieurs organisations.
+
+Par exemple, une ONG peut créer un programme et y associer plusieurs coopératives intervenant dans différentes zones géographiques.
+
+La relation entre un programme et une organisation participante doit permettre de définir :
+
+- L'organisation participante.
+- Son rôle dans le programme.
+- Son périmètre d'intervention.
+- Ses dates de participation.
+- Son statut.
+- Les permissions accordées.
+
+Une organisation peut également participer à plusieurs programmes.
+
+Cette relation doit être gérée explicitement afin de contrôler les accès et de garantir la traçabilité des interventions.
+
+## 4.12 Règles générales de gestion des accès
+
+Les règles suivantes doivent être respectées :
+
+- **ACC-001 :** chaque organisation dispose d'un périmètre de données isolé.
+- **ACC-002 :** les administrateurs d'organisation gèrent uniquement les membres et les données relevant de leurs autorisations.
+- **ACC-003 :** les agronomes peuvent intervenir dans plusieurs organisations uniquement sur la base d'affectations et d'autorisations explicites.
+- **ACC-004 :** les ONG accèdent uniquement aux données nécessaires à leurs programmes autorisés.
+- **ACC-005 :** un utilisateur peut appartenir à plusieurs organisations avec des rôles différents.
+- **ACC-006 :** les opérations sensibles doivent être enregistrées dans les journaux d'audit.
+- **ACC-007 :** les synchronisations mobiles ne doivent provoquer ni perte silencieuse ni duplication des données.
+- **ACC-008 :** un résultat produit par l'intelligence artificielle ne constitue pas automatiquement un diagnostic agronomique validé.
