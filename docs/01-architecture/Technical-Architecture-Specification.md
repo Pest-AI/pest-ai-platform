@@ -687,3 +687,131 @@ Les règles suivantes doivent être respectées :
 - **ACC-006 :** les opérations sensibles doivent être enregistrées dans les journaux d'audit.
 - **ACC-007 :** les synchronisations mobiles ne doivent provoquer ni perte silencieuse ni duplication des données.
 - **ACC-008 :** un résultat produit par l'intelligence artificielle ne constitue pas automatiquement un diagnostic agronomique validé.
+
+
+## 5. Architecture technique et choix des technologies
+
+### 5.1. Principes techniques
+
+L'architecture technique de PEST AI OS repose sur les principes suivants :
+
+- **Modularité :** organiser le système en modules fonctionnels indépendants.
+- **Évolutivité :** permettre l'ajout progressif de nouvelles fonctionnalités.
+- **API-first :** centraliser les échanges entre les applications et le backend à travers des API.
+- **Sécurité :** protéger les données et contrôler les accès selon les organisations et les rôles.
+- **Géospatial :** intégrer nativement la gestion des parcelles, des coordonnées et des données géographiques.
+- **Offline-first :** permettre aux agents de terrain de collecter des données même sans connexion Internet.
+
+### 5.2. Stack technologique retenu
+
+Les technologies de référence pour le développement de PEST AI OS sont les suivantes :
+
+| Composant | Technologie | Responsabilité |
+|---|---|---|
+| Application web | React + TypeScript | Interface de gestion et d'administration |
+| Application mobile | React Native + Expo | Application mobile des agents et producteurs |
+| Backend | Django + Django REST Framework | Logique métier et API |
+| Base de données | PostgreSQL + PostGIS | Données métier et données géographiques |
+| Cartographie | MapLibre | Affichage et exploration des parcelles |
+| Tâches asynchrones | Celery + Redis | Traitements en arrière-plan |
+| Stockage de fichiers | Cloudflare R2 ou stockage compatible S3 | Images, documents et fichiers |
+| Documentation technique | MkDocs | Portail documentaire des développeurs |
+
+### 5.3. Architecture du backend
+
+Le backend sera développé avec Django et Django REST Framework.
+
+Il constituera le cœur métier de PEST AI OS et sera responsable notamment de :
+
+- La gestion des utilisateurs et des authentifications.
+- La gestion des organisations et des permissions.
+- La gestion des parcelles AgroID.
+- La gestion des producteurs, agents et agronomes.
+- La gestion des programmes et campagnes agricoles.
+- La collecte et la validation des observations agricoles.
+- La gestion des cycles et calendriers agricoles.
+- L'orchestration des traitements d'intelligence artificielle.
+- La communication avec les services externes.
+
+Le backend adoptera une architecture de type **modular monolith** pour la première version. Les modules seront organisés de manière cohérente au sein d'une application backend unique.
+
+Une évolution vers des microservices pourra être envisagée ultérieurement si les besoins techniques et opérationnels le justifient.
+
+### 5.4. Architecture de la base de données
+
+PostgreSQL sera utilisé comme système principal de gestion des données.
+
+L'extension PostGIS permettra de gérer les informations géographiques, notamment :
+
+- Les coordonnées GPS.
+- Les polygones et contours des parcelles.
+- Les surfaces agricoles.
+- Les zones agroécologiques.
+- Les données géographiques associées aux programmes.
+- Les analyses spatiales et satellitaires.
+
+La base de données devra prendre en charge les relations entre les organisations, les utilisateurs, les producteurs, les parcelles et les activités agricoles.
+
+### 5.5. Applications clientes
+
+**Application web**
+
+Développée avec React et TypeScript, elle permettra aux organisations d'accéder à leurs espaces de travail respectifs.
+
+Elle prendra notamment en charge les espaces d'administration, de gestion des coopératives, des programmes et des opérations agricoles.
+
+**Application mobile**
+
+Développée avec React Native et Expo, elle reposera sur une application commune pour les agents de terrain et les producteurs.
+
+Les fonctionnalités accessibles dépendront du rôle et des autorisations de chaque utilisateur.
+
+L'application devra notamment prendre en charge la collecte de données hors connexion et leur synchronisation lorsque le réseau sera disponible.
+
+### 5.6. Traitements asynchrones et stockage
+
+Celery et Redis seront utilisés pour exécuter les traitements qui ne doivent pas bloquer les applications clientes.
+
+Les cas d'utilisation pourront inclure :
+
+- Les traitements d'images agricoles.
+- Les analyses d'intelligence artificielle.
+- Les traitements de données satellitaires.
+- La génération de rapports.
+- Les notifications et tâches planifiées.
+
+Les images, documents et autres fichiers volumineux seront conservés dans un stockage objet compatible avec le protocole S3.
+
+### 5.7. Organisation des environnements
+
+Le développement de PEST AI OS reposera progressivement sur trois environnements distincts :
+
+- **Development :** environnement de développement et de tests techniques.
+- **Staging :** environnement de préproduction destiné à valider les nouvelles fonctionnalités.
+- **Production :** environnement utilisé par les organisations et les utilisateurs finaux.
+
+Les déploiements devront être contrôlés afin de limiter les risques de régression et de perte de données.
+
+### 5.8. Documentation et maintenance technique
+
+La documentation technique sera centralisée dans le dépôt GitHub du projet.
+
+MkDocs sera utilisé pour construire progressivement un portail documentaire destiné aux développeurs.
+
+La documentation devra couvrir notamment :
+
+- L'architecture générale.
+- Les modules backend et frontend.
+- Le modèle de données.
+- Les API.
+- Les règles de sécurité.
+- Les procédures de déploiement.
+- Les procédures de maintenance.
+
+Les décisions techniques importantes devront être documentées et mises à jour au fur et à mesure de l'évolution de la plateforme.
+
+### 5.9. Statut des décisions techniques
+
+Les technologies présentées dans cette section constituent le stack technique de référence validé pour la conception de PEST AI OS.
+
+Les versions précises des technologies, les fournisseurs d'hébergement et les configurations de production seront définis au cours des étapes d'implémentation.
