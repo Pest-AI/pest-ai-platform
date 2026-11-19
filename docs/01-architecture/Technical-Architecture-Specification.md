@@ -815,3 +815,483 @@ Les décisions techniques importantes devront être documentées et mises à jou
 Les technologies présentées dans cette section constituent le stack technique de référence validé pour la conception de PEST AI OS.
 
 Les versions précises des technologies, les fournisseurs d'hébergement et les configurations de production seront définis au cours des étapes d'implémentation.
+
+
+## 6. Architecture de la base de données
+
+### 6.1. Objectifs
+
+La base de données de PEST AI OS doit permettre de centraliser, organiser, sécuriser et exploiter l'ensemble des données agricoles, géographiques, opérationnelles et institutionnelles de la plateforme.
+
+Elle doit notamment permettre :
+
+- La gestion de plusieurs organisations et de leurs utilisateurs.
+- L'identification numérique unique des parcelles à travers AgroID.
+- Le suivi des producteurs, des unités de culture et des cycles agricoles.
+- La gestion des programmes, campagnes et activités agricoles.
+- La collecte et l'historisation des observations terrain.
+- La gestion des diagnostics, recommandations et analyses d'intelligence artificielle.
+- L'intégration des données satellitaires, météorologiques et IoT.
+- Le calcul et l'historisation du score SFA.
+- La gestion des fournisseurs, des produits agricoles et des commandes.
+- La gestion des autorisations, de la traçabilité et de la synchronisation hors connexion.
+
+L'architecture doit être évolutive afin de supporter les fonctionnalités du MVP et les futures extensions de PEST AI OS.
+
+### 6.2. Principes de conception
+
+La conception de la base de données reposera sur les principes suivants :
+
+**1. Architecture relationnelle**
+
+PostgreSQL sera utilisé comme système principal de gestion de base de données. Les informations seront organisées en entités reliées entre elles par des clés primaires et étrangères.
+
+**2. Gestion géospatiale**
+
+PostGIS permettra de stocker et d'exploiter les données géographiques, notamment les coordonnées, les contours des parcelles, les unités de culture et les zones agricoles.
+
+**3. Identité unique des parcelles**
+
+Chaque parcelle disposera d'un identifiant AgroID unique dans l'ensemble de PEST AI OS. Cet identifiant sera conservé même en cas de changement de producteur, d'exploitant ou d'organisation.
+
+**4. Architecture multi-organisations**
+
+Une même plateforme pourra accueillir plusieurs coopératives, ONG, institutions, programmes et partenaires. Les données seront cloisonnées selon les organisations et les autorisations accordées.
+
+**5. Historisation**
+
+Les données importantes devront conserver leur historique : changements d'affectation, cycles agricoles, diagnostics, recommandations, scores SFA, opérations et modifications.
+
+**6. Traçabilité**
+
+Les actions importantes devront être associées à leur auteur, leur date, leur organisation de rattachement et leur contexte.
+
+**7. Évolutivité**
+
+La structure devra permettre l'ajout de nouvelles cultures, de nouveaux modèles IA, de nouveaux capteurs, de nouveaux partenaires et de nouveaux services sans remettre en cause l'ensemble de l'architecture.
+
+### 6.3. Organisation des domaines de données
+
+La base de données sera organisée autour des domaines fonctionnels suivants.
+
+#### 6.3.1. Organisations et gestion des accès
+
+Ce domaine gère les organisations présentes dans PEST AI OS et les accès de leurs membres.
+
+Entités principales :
+
+- `Organization` : coopérative, ONG, institution, entreprise ou partenaire.
+- `OrganizationType` : catégorie d'organisation.
+- `User` : compte utilisateur de la plateforme.
+- `OrganizationMembership` : relation entre un utilisateur et une organisation.
+- `Role` : rôle attribué à un utilisateur.
+- `Permission` : autorisation associée à une fonctionnalité.
+- `ProgramMembership` : participation d'un utilisateur à un programme, lorsque nécessaire.
+
+Un utilisateur peut appartenir à plusieurs organisations et disposer de rôles différents selon chacune d'elles.
+
+Le statut d'une adhésion est indépendant du compte utilisateur : une adhésion peut être en attente, active, suspendue ou révoquée sans désactiver automatiquement le compte dans les autres organisations.
+
+PEST AI conserve un rôle de superadministration sur la plateforme.
+
+#### 6.3.2. Producteurs et agents
+
+Ce domaine représente les personnes intervenant dans les activités agricoles.
+
+Entités principales :
+
+- `Producer` : profil central du producteur.
+- `ProducerOrganizationAssignment` : rattachement d'un producteur à une organisation.
+- `FieldAgent` : profil opérationnel d'un agent terrain.
+- `AgronomistProfile` : profil professionnel d'un agronome.
+- `ProducerContact` : informations de contact et moyens de communication.
+
+Un producteur peut être affilié à plusieurs organisations ou programmes tout en conservant un profil central.
+
+L'affiliation agricole d'un producteur est distincte de l'accès à un compte utilisateur. Un producteur peut donc être enregistré dans PEST AI OS sans posséder de compte de connexion.
+
+#### 6.3.3. Parcelles agricoles et AgroID
+
+Ce domaine constitue l'un des éléments centraux de PEST AI OS.
+
+Entités principales :
+
+- `Parcel` : parcelle agricole identifiée par un AgroID unique.
+- `ParcelGeometry` : géométrie géographique de la parcelle.
+- `ParcelAssignment` : relation historique entre une parcelle et son exploitant.
+- `ParcelOwnership` : informations relatives à la propriété ou aux droits sur la parcelle.
+- `CultivationUnit` : unité géographique représentant une partie de la parcelle consacrée à une culture.
+- `GeographicZone` : zone géographique ou agricole de référence.
+
+La propriété foncière doit être distinguée de l'exploitation agricole réelle.
+
+Une parcelle peut avoir plusieurs exploitants successifs au cours du temps. Ces changements doivent être historisés.
+
+Une même parcelle peut également contenir plusieurs unités de culture. Chaque unité possède sa propre géométrie et peut accueillir des cultures différentes.
+
+Les unités de culture doivent être géographiquement cohérentes avec les limites de la parcelle principale.
+
+#### 6.3.4. Cycles de culture et campagnes agricoles
+
+Ce domaine permet de suivre les activités agricoles dans le temps.
+
+Entités principales :
+
+- `AgriculturalCampaign` : campagne agricole correspondant à une période opérationnelle.
+- `CropCycle` : cycle réel d'une culture sur une parcelle ou une unité de culture.
+- `Crop` : type de culture.
+- `CropVariety` : variété cultivée.
+- `CropStage` : stade de développement.
+- `CropCalendar` : calendrier prévisionnel de culture.
+
+Une campagne agricole et un cycle de culture représentent deux notions différentes.
+
+Une campagne peut concerner plusieurs cultures et plusieurs parcelles. Un cycle de culture représente une culture effectivement pratiquée sur une parcelle ou une unité de culture.
+
+Une parcelle peut accueillir plusieurs cycles successifs au cours d'une même année.
+
+Les stades prévisionnels doivent être distingués des stades réellement observés.
+
+#### 6.3.5. Programmes agricoles
+
+Ce domaine permet de gérer les initiatives d'accompagnement portées par des ONG, institutions, entreprises ou partenaires.
+
+Entités principales :
+
+- `Program` : programme agricole.
+- `ProgramOrganization` : association entre un programme et les organisations participantes.
+- `ProgramBeneficiary` : bénéficiaire d'un programme.
+- `ProgramParcel` : parcelle suivie dans le cadre d'un programme.
+
+Un programme peut intégrer plusieurs coopératives et organisations. Une organisation peut participer à plusieurs programmes.
+
+Un programme peut suivre des producteurs et des parcelles sur plusieurs campagnes agricoles.
+
+Un producteur indépendant peut également être bénéficiaire d'un programme sans être affilié à une coopérative participante.
+
+#### 6.3.6. Missions et activités terrain
+
+Ce domaine permet de planifier et de suivre le travail des agents et des agronomes.
+
+Entités principales :
+
+- `FieldMission` : mission terrain.
+- `MissionAgent` : agents affectés à une mission.
+- `MissionParcel` : parcelles concernées par une mission.
+- `FieldVisit` : visite réellement effectuée.
+- `FieldVisitReport` : compte rendu de visite.
+
+Une mission peut être affectée à plusieurs agents et concerner plusieurs parcelles.
+
+Une parcelle peut faire l'objet de plusieurs visites au fil du temps.
+
+La planification d'une mission doit être distinguée de la visite réellement effectuée.
+
+#### 6.3.7. Observations, diagnostics et intelligence artificielle
+
+Ce domaine centralise les observations et les analyses produites par les systèmes d'intelligence artificielle et les professionnels agricoles.
+
+Entités principales :
+
+- `Observation` : observation réalisée sur le terrain.
+- `ObservationMedia` : photos, vidéos et autres éléments associés.
+- `AIAnalysisJob` : traitement ou analyse effectuée par un modèle IA.
+- `AIModel` : modèle d'intelligence artificielle.
+- `AIModelVersion` : version du modèle utilisée.
+- `Diagnostic` : résultat d'un diagnostic.
+- `DiagnosticEvidence` : éléments justificatifs du diagnostic.
+- `DiagnosticReview` : validation, correction ou rejet par un agronome.
+
+Une observation peut déclencher plusieurs analyses IA.
+
+Chaque analyse doit conserver le modèle et la version utilisés, les résultats, les éléments de preuve et le niveau de confiance lorsque celui-ci est disponible.
+
+Un agronome peut confirmer, corriger ou rejeter un résultat généré par l'IA.
+
+Il peut également créer directement un diagnostic sans utiliser l'intelligence artificielle.
+
+Les diagnostics générés par l'IA et ceux créés directement par un agronome doivent être clairement distingués.
+
+Les résultats initiaux de l'IA et les validations humaines doivent être conservés dans l'historique. Une validation humaine ne doit pas effacer le résultat initial.
+
+#### 6.3.8. Recommandations et produits agricoles
+
+Ce domaine gère les recommandations agronomiques et les produits pouvant être associés à ces recommandations.
+
+Entités principales :
+
+- `Recommendation` : recommandation agricole.
+- `RecommendationAction` : action concrète à effectuer.
+- `RecommendationFollowup` : suivi de l'application d'une recommandation.
+- `AgriculturalProduct` : produit agricole référencé.
+- `ProductRecommendation` : association entre une recommandation et un produit pertinent.
+
+Les recommandations peuvent être générées par l'intelligence artificielle ou créées directement par un agronome.
+
+Elles peuvent être liées à un diagnostic, à une observation ou à d'autres données agricoles.
+
+Les produits suggérés peuvent notamment concerner les semences, engrais, produits phytosanitaires et autres intrants agricoles.
+
+Les recommandations agronomiques doivent rester indépendantes des intérêts commerciaux des fournisseurs. La présence d'un produit dans le catalogue ne doit pas influencer le diagnostic.
+
+#### 6.3.9. Données satellitaires et environnementales
+
+Ce domaine permet de centraliser les informations environnementales et géospatiales utiles au suivi agricole.
+
+Entités principales :
+
+- `SatelliteScene` : scène ou image satellitaire.
+- `ParcelSatelliteMetric` : indicateur satellitaire associé à une parcelle et à une date.
+- `WeatherStation` : station météorologique.
+- `WeatherObservation` : observation météorologique.
+- `WeatherForecast` : prévision météorologique.
+- `EnvironmentalMeasurement` : mesure environnementale.
+- `MicroclimateRecord` : donnée relative au microclimat.
+- `GeospatialLayer` : couche géographique exploitable.
+
+Les données satellitaires doivent être historisées afin de permettre la comparaison de l'évolution des parcelles au fil des dates et des campagnes.
+
+Les indicateurs pourront notamment inclure le NDVI, le NDWI et d'autres mesures pertinentes pour l'analyse agricole.
+
+Ces données pourront alimenter les modèles IA, les alertes et les outils de suivi des cultures.
+
+#### 6.3.10. IoT et capteurs
+
+Ce domaine permet d'intégrer les dispositifs connectés utilisés pour la collecte de données agricoles et environnementales.
+
+Entités principales :
+
+- `IoTDevice` : dispositif connecté.
+- `DeviceType` : type de dispositif.
+- `Sensor` : capteur associé à un dispositif.
+- `DeviceInstallation` : installation d'un dispositif sur un emplacement.
+- `SensorMeasurement` : mesure transmise par un capteur.
+- `DeviceAlert` : alerte liée à un dispositif.
+- `DeviceMaintenance` : intervention de maintenance.
+
+Un dispositif peut être installé sur une parcelle, une zone agricole, une station météo ou un autre emplacement géographique autorisé.
+
+L'architecture doit permettre l'intégration de différents fabricants et protocoles de communication.
+
+Les mesures doivent conserver leur date, leur origine, leur unité et leur contexte géographique.
+
+#### 6.3.11. Finance, assurance et SFA
+
+Ce domaine permet de préparer les dossiers agricoles et de faciliter les échanges avec les institutions financières et les assureurs.
+
+Entités principales :
+
+- `FinancialInstitution` : banque ou institution financière.
+- `InsuranceCompany` : compagnie d'assurance.
+- `FinancialProduct` : produit financier.
+- `InsuranceProduct` : produit d'assurance.
+- `SFAAssessment` : évaluation SFA.
+- `SFAScoreHistory` : historique des scores.
+- `AgriculturalRiskAssessment` : évaluation du risque agricole.
+- `FinancingApplication` : dossier de demande de financement.
+- `InsuranceApplication` : dossier de demande d'assurance.
+- `FinancialDataConsent` : autorisation de partage des données.
+- `FinancialPartnerAccess` : accès accordé à un partenaire.
+
+Le SFA est un indicateur dynamique et historisé de fiabilité agricole.
+
+PEST AI OS fournit les données agricoles, les analyses de risque et les dossiers nécessaires à l'évaluation des producteurs.
+
+Les banques restent responsables de leurs décisions de crédit. Les compagnies d'assurance restent responsables de leurs décisions de couverture et d'indemnisation.
+
+Le partage des informations avec un partenaire financier ou assurantiel doit respecter les autorisations accordées par le producteur.
+
+#### 6.3.12. Fournisseurs, catalogue et commandes
+
+Ce domaine permet de mettre en relation les producteurs, les coopératives et les fournisseurs d'intrants agricoles.
+
+Entités principales :
+
+- `Supplier` : fournisseur partenaire.
+- `SupplierMembership` : utilisateurs rattachés à un fournisseur.
+- `AgriculturalProduct` : produit référencé dans le catalogue.
+- `SupplierProduct` : offre d'un fournisseur pour un produit.
+- `ProductOrder` : commande.
+- `OrderItem` : ligne de commande.
+- `OrderBeneficiary` : bénéficiaire d'une commande groupée.
+- `SupplierContact` : demande de contact avec un fournisseur.
+- `OrderStatusHistory` : historique des changements de statut.
+- `PaymentRecord` : information relative au suivi du paiement.
+
+Les fournisseurs disposent d'un espace professionnel leur permettant de gérer leur catalogue et de suivre les commandes reçues.
+
+Un producteur peut commander pour ses propres besoins. Une coopérative peut également passer une commande groupée pour plusieurs membres.
+
+Une commande groupée doit conserver le détail des quantités demandées par chaque bénéficiaire.
+
+Les utilisateurs peuvent consulter les produits, contacter les fournisseurs ou passer commande depuis la plateforme.
+
+Les commandes doivent conserver leur fournisseur, leurs produits, leurs quantités, leurs statuts et leur historique.
+
+Dans la première version, les paiements pourront être organisés directement entre le client et le fournisseur, en dehors de PEST AI OS. Une intégration ultérieure de moyens de paiement tels que Wave ou Orange Money pourra être envisagée.
+
+#### 6.3.13. Notifications et traçabilité
+
+Ce domaine gère les notifications, les alertes et l'historique des actions réalisées dans la plateforme.
+
+Entités principales :
+
+- `Notification` : notification adressée à un utilisateur.
+- `NotificationTemplate` : modèle de notification.
+- `NotificationPreference` : préférences de réception.
+- `NotificationDelivery` : suivi de livraison d'une notification.
+- `Alert` : alerte opérationnelle ou agricole.
+- `AuditEvent` : événement de traçabilité.
+- `SystemEvent` : événement technique.
+- `UserActivity` : activité réalisée par un utilisateur.
+
+Les notifications pourront être envoyées par différents canaux : application, notifications mobiles, SMS et e-mail.
+
+Chaque action importante devra pouvoir être retracée : auteur, date, organisation, action réalisée et donnée concernée.
+
+Les notifications et les informations transmises devront respecter les rôles et autorisations de chaque utilisateur.
+
+#### 6.3.14. Synchronisation hors connexion
+
+Ce domaine prend en charge le fonctionnement Offline-first de l'application mobile.
+
+Entités principales à prévoir :
+
+- `MobileDevice` : appareil utilisé pour accéder à l'application.
+- `SyncBatch` : ensemble d'opérations à synchroniser.
+- `SyncEvent` : opération de synchronisation.
+- `SyncConflict` : conflit détecté pendant la synchronisation.
+
+Les opérations réalisées hors connexion devront être conservées localement avant leur transmission au serveur.
+
+La synchronisation devra gérer :
+
+- Les données en attente de synchronisation.
+- Les tentatives de synchronisation.
+- Les erreurs et les nouvelles tentatives.
+- La détection des doublons.
+- Les conflits de modification.
+- La confirmation de réception par le serveur.
+
+Aucune modification importante ne devra être écrasée silencieusement.
+
+Les données locales devront également respecter les règles de sécurité et les droits d'accès des utilisateurs.
+
+### 6.4. Relations principales entre les entités
+
+Les relations structurantes de la base de données sont les suivantes :
+
+| Relation | Type de relation | Description |
+|---|---|---|
+| User ↔ Organization | N:N | Un utilisateur peut appartenir à plusieurs organisations via OrganizationMembership. |
+| Producer ↔ Organization | N:N | Un producteur peut être affilié à plusieurs organisations via ProducerOrganizationAssignment. |
+| Producer ↔ Parcel | N:N dans le temps | Les affectations successives sont conservées via ParcelAssignment. |
+| Parcel ↔ CultivationUnit | 1:N | Une parcelle peut contenir plusieurs unités de culture. |
+| Parcel / CultivationUnit ↔ CropCycle | 1:N | Une parcelle ou unité peut accueillir plusieurs cycles de culture successifs. |
+| Program ↔ Organization | N:N | Un programme peut être porté ou suivi par plusieurs organisations. |
+| Program ↔ Parcel | N:N | Un programme peut suivre plusieurs parcelles et une parcelle peut participer à plusieurs programmes. |
+| FieldMission ↔ FieldAgent | N:N | Une mission peut être affectée à plusieurs agents. |
+| FieldMission ↔ Parcel | N:N | Une mission peut concerner plusieurs parcelles. |
+| Parcel ↔ FieldVisit | 1:N | Une parcelle peut faire l'objet de plusieurs visites. |
+| Observation ↔ AIAnalysisJob | 1:N | Une observation peut déclencher plusieurs analyses IA. |
+| Diagnostic ↔ DiagnosticReview | 1:N | Un diagnostic peut faire l'objet de plusieurs validations ou corrections. |
+| Recommendation ↔ AgriculturalProduct | N:N | Une recommandation peut proposer plusieurs produits pertinents. |
+| CropCycle ↔ AgriculturalOperation | 1:N | Un cycle de culture possède un historique d'opérations agricoles. |
+| CropCycle ↔ HarvestRecord | 1:N | Un cycle peut comporter plusieurs enregistrements de récolte. |
+| Parcel ↔ ParcelSatelliteMetric | 1:N | Une parcelle possède un historique de mesures satellitaires. |
+| IoTDevice ↔ DeviceInstallation | 1:N | Un dispositif peut avoir plusieurs installations successives. |
+| Sensor ↔ SensorMeasurement | 1:N | Un capteur produit plusieurs mesures. |
+| Producer ↔ SFAAssessment | 1:N | Un producteur peut avoir plusieurs évaluations SFA dans le temps. |
+| Supplier ↔ SupplierProduct | 1:N | Un fournisseur peut proposer plusieurs produits. |
+| ProductOrder ↔ OrderItem | 1:N | Une commande contient une ou plusieurs lignes de produits. |
+| ProductOrder ↔ Supplier | N:1 | Une commande est adressée à un fournisseur donné. |
+| User ↔ Notification | 1:N | Un utilisateur peut recevoir plusieurs notifications. |
+
+Les relations ci-dessus constituent le modèle conceptuel de référence. Les cardinalités et contraintes précises seront détaillées lors de la conception logique et physique de la base de données.
+
+### 6.5. Gestion de l'historique et de la provenance des données
+
+Les données importantes de PEST AI OS devront conserver leur historique et leur provenance.
+
+Pour les entités concernées, les informations suivantes devront être disponibles :
+
+- Identifiant unique.
+- Organisation de rattachement, lorsque nécessaire.
+- Auteur ou source de création.
+- Date de création.
+- Date de dernière modification.
+- Statut.
+- Historique des modifications lorsque nécessaire.
+
+Les données générées par l'IA devront également conserver le modèle, sa version, la date de traitement et les résultats associés.
+
+Les changements d'affectation des producteurs, des parcelles et des utilisateurs devront être historisés.
+
+### 6.6. Sécurité et cloisonnement des données
+
+La base de données devra respecter le modèle multi-organisations de PEST AI OS.
+
+Les règles de sécurité devront garantir :
+
+- L'accès uniquement aux données autorisées.
+- Le cloisonnement des informations entre organisations.
+- La gestion des rôles et permissions.
+- La traçabilité des opérations sensibles.
+- La protection des données personnelles et agricoles.
+- Le contrôle des accès des partenaires externes.
+- La révocation des autorisations lorsqu'un accès n'est plus valide.
+
+Les utilisateurs professionnels, notamment les agronomes, pourront intervenir dans plusieurs organisations uniquement lorsque les autorisations nécessaires leur auront été accordées.
+
+### 6.7. Priorisation : MVP et évolutions futures
+
+L'architecture globale est conçue pour couvrir la vision complète de PEST AI OS. Cependant, toutes les fonctionnalités ne seront pas nécessairement développées dès le MVP.
+
+**Priorité MVP :**
+
+- Organisations, utilisateurs et gestion des accès.
+- Producteurs et agents.
+- Parcelles et AgroID.
+- Unités de culture et cycles agricoles.
+- Missions et visites terrain.
+- Observations et diagnostics.
+- Recommandations agronomiques.
+- Opérations agricoles et récoltes.
+- Premières données satellitaires.
+- SFA et constitution des dossiers agricoles.
+- Notifications essentielles.
+- Fonctionnement hors connexion et synchronisation.
+
+**Évolutions progressives :**
+
+- Gestion avancée des programmes et campagnes.
+- Multiplication des modèles et services IA.
+- Analyses satellitaires avancées.
+- Intégration étendue des capteurs IoT.
+- Connexion aux banques et compagnies d'assurance.
+- Catalogue complet des fournisseurs.
+- Commandes groupées et espace fournisseur avancé.
+- Intégration des paiements.
+- Automatisation avancée des notifications et des processus.
+
+Cette priorisation ne signifie pas que les domaines futurs seront ignorés dans la conception. Les choix structurants devront permettre leur intégration sans refonte majeure.
+
+### 6.8. Technologies associées
+
+Les technologies de référence pour la mise en œuvre de cette architecture sont :
+
+- **PostgreSQL** : stockage relationnel principal.
+- **PostGIS** : stockage et traitement des données géospatiales.
+- **Django ORM** : définition et gestion des modèles de données.
+- **Django REST Framework** : exposition des données à travers les API.
+- **Redis et Celery** : traitements asynchrones et tâches en arrière-plan.
+
+La structure détaillée des tables, les champs, les contraintes, les index et les migrations seront définis dans le domaine de conception de la base de données et lors du développement backend.
+
+### 6.9. Statut de cette spécification
+
+Cette section constitue la référence conceptuelle de l'architecture des données de PEST AI OS.
+
+Elle définit les principaux domaines fonctionnels, les entités structurantes et leurs relations.
+
+Elle ne constitue pas encore le schéma physique définitif de PostgreSQL. Celui-ci sera élaboré progressivement pendant la conception technique et le développement du backend.
