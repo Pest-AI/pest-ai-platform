@@ -1295,3 +1295,290 @@ Cette section constitue la référence conceptuelle de l'architecture des donné
 Elle définit les principaux domaines fonctionnels, les entités structurantes et leurs relations.
 
 Elle ne constitue pas encore le schéma physique définitif de PostgreSQL. Celui-ci sera élaboré progressivement pendant la conception technique et le développement du backend.
+
+
+## 7. Architecture des API
+
+### 7.1. Objectifs
+
+L'architecture des API de PEST AI OS définit les mécanismes de communication entre les applications clientes, le backend et les services externes.
+
+Elle doit permettre :
+
+- L'accès centralisé aux fonctionnalités de PEST AI OS.
+- La communication entre les applications web et mobiles et le backend.
+- La gestion des utilisateurs, organisations et permissions.
+- L'accès sécurisé aux données agricoles et géospatiales.
+- L'intégration des services d'intelligence artificielle.
+- La synchronisation des données hors connexion.
+- La communication avec les partenaires et services externes.
+- L'évolution progressive de la plateforme sans rupture majeure.
+
+### 7.2. Architecture générale
+
+PEST AI OS reposera sur une architecture API centralisée.
+
+Les applications web et mobiles communiqueront avec le backend à travers les API. Le backend sera responsable de l'authentification, des autorisations, de la logique métier, de l'accès aux données et de l'orchestration des services.
+
+Les applications ne devront jamais accéder directement à la base de données.
+
+Les principaux composants seront :
+
+- Applications web React et TypeScript.
+- Applications mobiles React Native et Expo.
+- API Backend Django REST Framework.
+- Base PostgreSQL avec PostGIS.
+- Services d'intelligence artificielle.
+- Redis et Celery pour les traitements asynchrones.
+- Stockage objet compatible S3.
+- Connecteurs vers les services externes.
+
+### 7.3. Style architectural et versionnement
+
+PEST AI OS utilisera une architecture REST centralisée, avec des API versionnées.
+
+La première version sera accessible à travers le préfixe :
+
+`/api/v1/`
+
+Exemples :
+
+- `/api/v1/auth/`
+- `/api/v1/organizations/`
+- `/api/v1/producers/`
+- `/api/v1/parcels/`
+- `/api/v1/diagnostics/`
+- `/api/v1/recommendations/`
+- `/api/v1/orders/`
+
+Le versionnement permettra de faire évoluer les API sans imposer immédiatement une modification de toutes les applications clientes.
+
+Les changements incompatibles devront être gérés à travers une nouvelle version.
+
+### 7.4. Organisation des endpoints
+
+Les endpoints seront organisés selon les domaines fonctionnels de PEST AI OS.
+
+| Domaine | Préfixe |
+|---|---|
+| Authentification | `/api/v1/auth/` |
+| Organisations | `/api/v1/organizations/` |
+| Utilisateurs et accès | `/api/v1/users/` |
+| Producteurs | `/api/v1/producers/` |
+| Parcelles AgroID | `/api/v1/parcels/` |
+| Unités de culture | `/api/v1/cultivation-units/` |
+| Cycles agricoles | `/api/v1/crop-cycles/` |
+| Programmes | `/api/v1/programs/` |
+| Campagnes | `/api/v1/campaigns/` |
+| Missions terrain | `/api/v1/missions/` |
+| Observations | `/api/v1/observations/` |
+| Diagnostics | `/api/v1/diagnostics/` |
+| Recommandations | `/api/v1/recommendations/` |
+| Données satellitaires | `/api/v1/satellite/` |
+| IoT et capteurs | `/api/v1/iot/` |
+| SFA | `/api/v1/sfa/` |
+| Finance et assurance | `/api/v1/finance/` |
+| Fournisseurs | `/api/v1/suppliers/` |
+| Produits agricoles | `/api/v1/products/` |
+| Commandes | `/api/v1/orders/` |
+| Notifications | `/api/v1/notifications/` |
+| Synchronisation | `/api/v1/sync/` |
+
+Cette organisation constitue une structure fonctionnelle de référence. Les endpoints détaillés seront définis pendant le développement de chaque domaine.
+
+### 7.5. Authentification et gestion des sessions
+
+L'authentification reposera sur des JSON Web Tokens (JWT).
+
+Le mécanisme comprendra :
+
+- `Access Token` : jeton temporaire utilisé pour accéder aux API protégées.
+- `Refresh Token` : jeton permettant de renouveler une session.
+- Révocation des sessions lorsqu'un compte ou un accès doit être désactivé.
+- Gestion des sessions adaptée aux applications web et mobiles.
+
+La durée de validité des jetons, leur stockage et leur renouvellement seront définis dans la spécification de sécurité.
+
+Les mécanismes de session devront tenir compte des utilisateurs qui interviennent dans plusieurs organisations.
+
+### 7.6. Gestion des rôles et autorisations
+
+Chaque requête vers une ressource protégée devra faire l'objet de vérifications d'accès.
+
+Le backend devra vérifier :
+
+1. L'identité de l'utilisateur.
+2. L'organisation dans laquelle il intervient.
+3. Son rôle et ses permissions.
+4. Le périmètre des données auquel il peut accéder.
+5. L'autorisation d'effectuer l'action demandée.
+
+Les contrôles devront être appliqués côté serveur, même lorsque les applications clientes masquent certaines fonctionnalités.
+
+Un utilisateur d'une organisation ne devra pas pouvoir consulter ou modifier les données privées d'une autre organisation en manipulant simplement un identifiant ou une URL.
+
+Les accès des agronomes, partenaires financiers, fournisseurs et autres acteurs externes devront également respecter leurs périmètres d'autorisation.
+
+### 7.7. Format des échanges
+
+Le format JSON sera utilisé comme standard des échanges entre les applications clientes et les API.
+
+Les réponses devront être structurées et cohérentes.
+
+Les API devront notamment prévoir :
+
+- Des codes HTTP adaptés.
+- Des messages d'erreur compréhensibles.
+- Une structure de réponse standardisée.
+- La pagination des résultats volumineux.
+- La validation des données reçues.
+- La gestion des filtres et des paramètres de recherche.
+
+Les échanges de fichiers binaires utiliseront des mécanismes adaptés, notamment les requêtes multipart ou les URL de transfert sécurisées.
+
+### 7.8. Gestion des fichiers et médias
+
+Les fichiers et médias seront conservés dans un stockage objet sécurisé compatible S3, avec Cloudflare R2 comme solution envisagée.
+
+Le backend sera responsable de la validation et du contrôle des accès.
+
+La base PostgreSQL conservera les métadonnées et les références des fichiers.
+
+Les mécanismes à prévoir comprennent :
+
+- Vérification des types et formats autorisés.
+- Limitation de la taille des fichiers.
+- Compression et optimisation des images.
+- Contrôle des autorisations.
+- Accès temporaire sécurisé aux fichiers.
+- Conservation des métadonnées et de la provenance.
+- Accès contrôlé des services IA aux fichiers nécessaires.
+
+Les images de cultures, les documents agricoles, les photographies de parcelles et les pièces justificatives devront être pris en charge.
+
+### 7.9. Synchronisation Offline-first
+
+Les API devront prendre en charge le fonctionnement hors connexion des applications mobiles.
+
+Les applications devront pouvoir enregistrer localement les opérations réalisées sans accès à Internet, puis les transmettre au backend lorsque la connexion sera disponible.
+
+La synchronisation devra gérer :
+
+- Les opérations en attente.
+- Les identifiants uniques générés côté mobile.
+- Les nouvelles tentatives de transmission.
+- La détection des doublons.
+- La validation des autorisations.
+- La détection des conflits.
+- La confirmation de réception par le serveur.
+
+Les conflits devront être identifiés et traités selon des règles définies. Aucune modification importante ne devra être écrasée silencieusement.
+
+La synchronisation devra notamment couvrir les missions, visites, observations, informations AgroID, opérations agricoles et médias associés.
+
+### 7.10. Intégration des services externes
+
+Les échanges avec les services externes seront centralisés dans le backend à travers des connecteurs dédiés.
+
+Les intégrations envisagées comprennent :
+
+- Services satellitaires.
+- Services météorologiques.
+- Modèles et services d'intelligence artificielle.
+- Services SMS et e-mail.
+- Banques et compagnies d'assurance.
+- Fournisseurs d'intrants agricoles.
+- Services de paiement, notamment Wave et Orange Money dans une évolution future.
+
+Les applications web et mobiles ne devront pas dépendre directement des interfaces techniques de chaque prestataire.
+
+Cette approche facilitera le remplacement d'un fournisseur ou l'ajout d'un nouveau service.
+
+### 7.11. Traitements asynchrones
+
+Les opérations longues seront exécutées en arrière-plan afin de ne pas bloquer les applications clientes.
+
+Les technologies de référence seront :
+
+- Celery pour l'exécution des tâches.
+- Redis comme système de gestion de file d'attente et de coordination.
+
+Les traitements concernés pourront inclure :
+
+- Analyses d'images agricoles.
+- Analyses satellitaires.
+- Calculs SFA.
+- Génération de rapports.
+- Traitements de données volumineuses.
+- Opérations déclenchées après synchronisation.
+
+Chaque traitement devra disposer d'un identifiant et d'un état de suivi : en attente, en cours, terminé ou échoué.
+
+Les résultats pourront être communiqués aux utilisateurs par les API et les notifications.
+
+### 7.12. Documentation et tests
+
+Les API devront être documentées à l'aide du standard OpenAPI, avec une interface de consultation et de test telle que Swagger UI.
+
+La documentation devra présenter :
+
+- Les endpoints disponibles.
+- Les paramètres attendus.
+- Les formats de requête et de réponse.
+- Les mécanismes d'authentification.
+- Les règles d'autorisation.
+- Les codes d'erreur.
+- Les exemples d'utilisation.
+
+Des tests automatisés devront être développés pour vérifier le comportement des API.
+
+Les tests devront notamment couvrir :
+
+- Authentification et gestion des sessions.
+- Permissions et cloisonnement multi-organisations.
+- Création et modification des données.
+- Parcelles et géométries.
+- Observations et diagnostics.
+- Recommandations.
+- Commandes et fournisseurs.
+- Synchronisation mobile.
+- Gestion des erreurs et des accès non autorisés.
+
+### 7.13. Sécurité et fiabilité
+
+L'architecture devra intégrer des mécanismes de sécurité adaptés à une plateforme multi-organisations.
+
+Les mesures à prévoir comprennent :
+
+- Validation systématique des données reçues.
+- Contrôle des autorisations côté serveur.
+- Protection des jetons et des sessions.
+- Limitation des requêtes lorsque nécessaire (rate limiting).
+- Journalisation des opérations sensibles.
+- Protection contre les accès non autorisés.
+- Gestion sécurisée des secrets et clés d'API.
+- Surveillance des erreurs et des performances.
+- Protection des interfaces destinées aux partenaires externes.
+
+Les API devront être conçues pour gérer les erreurs réseau, les interruptions de service et les nouvelles tentatives sans créer de doublons ou de pertes de données.
+
+### 7.14. Technologies de référence
+
+Les technologies retenues pour l'architecture des API sont :
+
+- **Django** : framework backend.
+- **Django REST Framework** : développement des API REST.
+- **JWT** : authentification par jetons.
+- **JSON** : format standard des échanges.
+- **PostgreSQL et PostGIS** : stockage des données.
+- **Celery et Redis** : traitements asynchrones.
+- **Cloudflare R2 ou stockage compatible S3** : stockage des fichiers.
+- **OpenAPI / Swagger** : documentation des API.
+
+### 7.15. Statut de cette spécification
+
+Cette section définit l'architecture de référence des API de PEST AI OS.
+
+Elle établit les principes de communication, d'authentification, d'autorisation, de synchronisation et d'intégration.
+
+Elle ne constitue pas encore une documentation exhaustive de tous les endpoints. Ceux-ci seront spécifiés progressivement au cours du développement des différents modules backend.
