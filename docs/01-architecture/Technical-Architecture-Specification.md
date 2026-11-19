@@ -1,53 +1,53 @@
-# PEST AI OS — Technical Architecture Specification
+# PEST AI OS — Spécifications de l'architecture technique
 
-## Document Information
+## Informations générales du document
 
-| Field | Value |
+| Champ | Valeur |
 |---|---|
-| Document ID | PESTAI-TAS-001 |
-| Project | PEST AI OS |
-| Document Title | Technical Architecture Specification |
+| Identifiant du document | PESTAI-TAS-001 |
+| Projet | PEST AI OS |
+| Titre du document | Spécifications de l'architecture technique |
 | Version | 1.0 |
-| Status | Draft — Under Review |
-| Document Owner | PEST AI Engineering |
-| Last Updated | November 2026 |
-| Language | French (explanations) / English (technical terms and code) |
+| Statut | Brouillon — En cours de validation |
+| Responsable du document | Équipe technique PEST AI |
+| Dernière mise à jour | Novembre 2026 |
+| Langue | Français (explications) / Anglais (termes techniques et code) |
 
 ---
 
-## Document Purpose
+## Objectif du document
 
-This document defines the functional and technical architecture of PEST AI OS.
+Ce document définit l'architecture fonctionnelle et technique de PEST AI OS.
 
-It serves as the official technical reference for the design, development, deployment, maintenance and evolution of the PEST AI platform.
+Il constitue la référence technique officielle pour la conception, le développement, le déploiement, la maintenance et l'évolution de la plateforme PEST AI.
 
-All technical contributors must refer to this document when making architectural decisions or implementing new platform capabilities.
+Tous les contributeurs techniques doivent s'appuyer sur ce document pour prendre des décisions architecturales et développer de nouvelles fonctionnalités.
 
-## Document Scope
+## Périmètre du document
 
-This specification covers:
+Ce document couvre les domaines suivants :
 
-- Overall platform architecture.
-- Functional architecture and user roles.
-- Application architecture.
-- Backend and API architecture.
-- Database architecture.
-- Geospatial and agricultural data management.
-- Artificial Intelligence integration.
-- Security and access control.
-- Mobile application architecture.
-- Infrastructure, DevOps and deployment.
-- Technical documentation and developer guidelines.
+- Architecture globale de la plateforme.
+- Architecture fonctionnelle et gestion des rôles utilisateurs.
+- Architecture des applications.
+- Architecture du Backend et des API.
+- Architecture de la base de données.
+- Gestion des données agricoles et géospatiales.
+- Intégration de l'intelligence artificielle.
+- Sécurité et gestion des accès.
+- Architecture de l'application mobile.
+- Infrastructure, DevOps et déploiement.
+- Documentation technique et guides destinés aux développeurs.
 
-The document distinguishes between:
+Le document distingue deux niveaux de périmètre :
 
-- **MVP Scope:** Features required for the initial operational version.
-- **Future Scope:** Capabilities planned for subsequent platform versions.
+- **Périmètre MVP :** fonctionnalités indispensables à la première version opérationnelle de la plateforme.
+- **Évolutions futures :** fonctionnalités prévues pour les versions ultérieures.
 
-## Document Maintenance
+## Gestion et mise à jour du document
 
-This document must evolve alongside the platform.
+Ce document doit évoluer en même temps que la plateforme.
 
-Any significant architectural change must be documented, reviewed and approved before implementation.
+Toute modification architecturale importante doit être documentée, examinée et validée avant sa mise en œuvre.
 
-The GitHub repository is the official source of truth for this specification.
+Le dépôt GitHub de PEST AI constitue la source officielle de référence pour cette documentation.
