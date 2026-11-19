@@ -1797,3 +1797,198 @@ Les mécanismes prévus comprennent :
 - Adaptation du budget à la croissance de la plateforme.
 
 L'objectif est de maintenir une infrastructure fiable et évolutive tout en maîtrisant les dépenses.
+
+
+## 10. Architecture de l'application mobile
+
+### 10.1. Architecture générale
+
+PEST AI OS disposera d'une application mobile unique développée avec React Native et Expo.
+
+Cette application proposera plusieurs espaces de travail adaptés aux profils et aux autorisations des utilisateurs.
+
+Les principaux espaces prévus sont :
+- Espace Producteur.
+- Espace Agent terrain.
+- Espace Agronome, selon les fonctionnalités mobiles autorisées.
+- Espaces complémentaires selon les besoins opérationnels.
+
+L'interface et les fonctionnalités accessibles seront adaptées au rôle et au contexte de travail de chaque utilisateur.
+
+### 10.2. Gestion des utilisateurs et des rôles
+
+L'application prendra en charge plusieurs profils :
+
+- Producteur : consultation et gestion de ses parcelles, cultures, activités et observations.
+- Agent terrain : missions, visites, collecte de données et enregistrement des parcelles.
+- Agronome : consultation des observations, diagnostics et interventions autorisées.
+- Administrateur d'organisation : gestion des fonctionnalités autorisées de son organisation.
+- Superadministrateur PEST AI : administration globale selon ses permissions.
+
+Un utilisateur pourra posséder plusieurs rôles et appartenir à plusieurs organisations.
+
+Le changement d'organisation ou d'espace de travail devra être possible sans déconnexion. Les autorisations seront adaptées automatiquement au contexte actif.
+
+### 10.3. Fonctionnement hors ligne (Offline-first)
+
+L'application devra permettre aux utilisateurs de travailler même en l'absence de connexion Internet.
+
+Les principes retenus sont :
+- Conservation locale des données nécessaires aux activités.
+- Possibilité de créer et modifier des informations hors ligne.
+- Enregistrement temporaire des photos et documents.
+- Synchronisation automatique au retour de la connexion.
+- Attribution d'identifiants uniques aux opérations mobiles.
+- Détection et gestion des conflits de synchronisation.
+- Absence d'écrasement silencieux des données.
+
+L'application affichera les différents états de synchronisation : en ligne, hors ligne, synchronisation en cours, synchronisé et erreur de synchronisation.
+
+### 10.4. Navigation mobile
+
+La navigation sera simple et adaptée aux usages de terrain.
+
+**Espace Producteur :**
+- Accueil.
+- Mes parcelles.
+- Activités.
+- Conseils et observations.
+- Profil.
+
+**Espace Agent terrain :**
+- Accueil.
+- Mes missions.
+- Parcelles AgroID.
+- Collecte terrain.
+- Profil.
+
+Les fonctionnalités complémentaires seront accessibles depuis les écrans concernés afin de limiter la surcharge de navigation.
+
+### 10.5. Collecte des données agricoles
+
+L'application permettra de collecter les données agricoles directement sur le terrain.
+
+Les catégories principales sont :
+- Parcelles : coordonnées GPS, contours, superficie et identité AgroID.
+- Producteurs : informations et rattachements organisationnels.
+- Cultures : types, variétés et cycles agricoles.
+- Activités : irrigation, fertilisation, traitements et récoltes.
+- Observations : problèmes constatés, état des cultures, photos et commentaires.
+- Visites : informations recueillies pendant les interventions.
+
+L'agent terrain pourra dessiner les polygones des parcelles directement sur une carte mobile ou enregistrer leurs contours à l'aide du GPS.
+
+**Répartition des responsabilités :**
+
+- Le producteur déclare ses cultures, activités, récoltes et problèmes rencontrés.
+- L'agent terrain collecte les informations, réalise les relevés GPS, crée les parcelles et effectue les visites.
+- L'agronome examine les informations techniques, réalise ou valide les diagnostics selon ses autorisations.
+
+La parcelle AgroID constitue le point central de rattachement des informations agricoles.
+
+Les données collectées disposeront d'un statut de qualité :
+- Brouillon.
+- À vérifier.
+- Validée.
+
+### 10.6. Gestion des photos et documents
+
+L'application permettra de prendre des photos directement depuis le téléphone ou d'importer des images existantes.
+
+Les photos pourront être associées à une parcelle AgroID, une observation, un diagnostic, une visite ou une activité agricole.
+
+Lorsque les informations sont disponibles, les métadonnées suivantes seront enregistrées :
+- Date et heure de prise de vue.
+- Position GPS.
+- Utilisateur ayant effectué la collecte.
+- Parcelle AgroID associée.
+
+Les fichiers seront protégés localement et synchronisés de manière sécurisée vers le stockage distant.
+
+### 10.7. Notifications et assistant agricole
+
+L'application disposera d'un système de notifications personnalisé selon le rôle et le contexte de chaque utilisateur.
+
+**Producteur :**
+- Alertes météorologiques.
+- Conseils culturaux personnalisés.
+- Alertes phytosanitaires.
+- Alertes intelligentes issues des données satellitaires et des observations.
+- Rappels des activités agricoles.
+- Recommandations agronomiques.
+- Réponses aux observations et mises à jour des parcelles.
+
+Un espace intitulé « Mon assistant agricole » centralisera les alertes, conseils et recommandations destinés au producteur.
+
+Les informations seront personnalisées selon la localisation, les parcelles AgroID, les cultures, les cycles agricoles et les données environnementales disponibles.
+
+Les alertes seront classées par niveau :
+- Information.
+- Attention.
+- Critique.
+
+Les recommandations devront être contextualisées et leur niveau de fiabilité clairement encadré. Les conseils nécessitant une expertise agronomique pourront faire l'objet d'une validation humaine.
+
+**Agent terrain :**
+- Nouvelles missions.
+- Modifications de missions.
+- Rappels de visites.
+- Alertes de synchronisation.
+
+**Agronome :**
+- Diagnostics à examiner.
+- Observations à valider.
+- Demandes d'intervention.
+
+Les notifications pourront être disponibles dans l'application, par notification push ou par SMS selon les besoins.
+
+### 10.8. Langues et accessibilité
+
+L'application devra être accessible aux producteurs ayant différents niveaux de maîtrise du numérique et de la lecture.
+
+Les principes retenus sont :
+- Interface en français.
+- Assistance vocale en Wolof et en Pulaar avec Fary TTS.
+- Possibilité d'écouter les conseils et recommandations.
+- Messages simples et vocabulaire agricole compréhensible.
+- Utilisation d'icônes et d'illustrations facilitant la compréhension.
+- Interfaces adaptées aux utilisateurs peu familiarisés avec les applications numériques.
+
+### 10.9. Performance et compatibilité mobile
+
+L'application sera prioritairement optimisée pour Android, notamment les appareils d'entrée de gamme.
+
+Les exigences comprennent :
+- Compatibilité avec les appareils disposant de ressources limitées.
+- Chargement progressif des images et des cartes.
+- Compression des photos avant synchronisation.
+- Réduction de la consommation de données mobiles.
+- Interfaces rapides et légères.
+- Conservation locale des données nécessaires au mode hors ligne.
+- Synchronisation en arrière-plan lorsque les conditions le permettent.
+
+### 10.10. Sécurité et confidentialité mobile
+
+L'application mobile appliquera les principes de sécurité définis dans la section 8.
+
+Les exigences comprennent :
+- Authentification sécurisée.
+- Protection des données enregistrées localement.
+- Gestion des sessions et des appareils connectés.
+- Contrôle des accès selon les rôles et autorisations.
+- Protection des photos et documents.
+- Déconnexion et révocation des accès en cas de perte ou de vol du téléphone.
+- Synchronisation sécurisée avec le backend.
+
+### 10.11. Architecture technique interne
+
+L'application sera organisée en composants modulaires :
+
+1. **Interface utilisateur :** gestion des écrans et espaces de travail.
+2. **Gestion des données locales :** conservation des informations nécessaires au fonctionnement hors ligne.
+3. **Moteur de synchronisation :** gestion des échanges entre les données locales et le serveur.
+4. **Communication API :** échanges sécurisés avec le backend Django.
+5. **Services du téléphone :** GPS, appareil photo, cartes et notifications.
+6. **Sécurité locale :** gestion des sessions et protection des données enregistrées.
+
+Cette organisation doit faciliter la maintenance, les tests et l'ajout de nouvelles fonctionnalités.
