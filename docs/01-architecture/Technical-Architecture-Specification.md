@@ -2941,3 +2941,197 @@ L'architecture de gestion des fichiers reposera sur les principes suivants :
 - Traçabilité de la provenance et des transformations.
 
 Les choix précis des fournisseurs, des quotas, des limites de conservation et des outils de sécurité seront confirmés lors de la conception détaillée et de l'implémentation.
+
+
+
+## 16. Architecture de recherche et d'indexation
+
+### 16.1 Objectifs
+
+L'architecture de recherche et d'indexation de PEST AI OS vise à permettre aux utilisateurs de retrouver rapidement les informations auxquelles ils sont autorisés à accéder.
+
+Elle devra prendre en charge les recherches transversales dans les différents domaines métier de la plateforme, tout en respectant les permissions, les périmètres organisationnels et les règles de confidentialité.
+
+### 16.2 Moteur de recherche global
+
+PEST AI OS intégrera un moteur de recherche global permettant de retrouver notamment :
+- Les parcelles et identifiants AgroID.
+- Les producteurs.
+- Les agents et agronomes.
+- Les organisations et coopératives.
+- Les programmes et campagnes agricoles.
+- Les observations et visites terrain.
+- Les diagnostics et recommandations.
+- Les commandes et produits.
+- Les documents et rapports.
+- Les équipements et données IoT.
+
+Les résultats seront adaptés au rôle, aux autorisations et au contexte organisationnel de l'utilisateur.
+
+### 16.3 Recherche intelligente assistée par IA
+
+Le moteur pourra intégrer une recherche en langage naturel afin de comprendre des demandes formulées simplement.
+
+Exemples :
+- « Trouve les parcelles de riz de cette coopérative. »
+- « Affiche les producteurs ayant des parcelles dans la vallée du fleuve. »
+- « Retrouve les diagnostics réalisés ce mois-ci. »
+- « Montre les parcelles présentant un stress hydrique. »
+
+L'IA pourra interpréter la demande et la convertir en critères de recherche structurés.
+
+L'exécution de la recherche restera contrôlée par les règles d'autorisation du backend. L'IA ne pourra jamais contourner les permissions d'accès.
+
+### 16.4 Filtres avancés et contextuels
+
+Chaque domaine métier disposera de filtres adaptés.
+
+Pour les parcelles, les critères pourront notamment inclure :
+- Organisation et coopérative.
+- Région, département et commune.
+- Culture.
+- Superficie.
+- Statut AgroID.
+- Campagne agricole.
+- Programme agricole.
+- Niveau de risque.
+- État de surveillance.
+
+Les autres domaines disposeront de filtres spécifiques selon leurs caractéristiques.
+
+### 16.5 Recherche géographique
+
+Le moteur sera intégré à l'architecture géospatiale de PEST AI OS, notamment PostGIS et MapLibre.
+
+Il permettra :
+- La recherche de parcelles par région, commune ou zone géographique.
+- La recherche autour d'un point géographique.
+- La recherche dans une zone dessinée sur la carte.
+- L'identification de parcelles présentant des anomalies satellitaires dans une zone donnée.
+- Le filtrage géographique par culture et organisation.
+
+Les résultats pourront être affichés sous forme de liste et sur la carte.
+
+### 16.6 Historique et suggestions
+
+Le moteur pourra proposer :
+- Un historique personnel des recherches récentes.
+- Des suggestions pendant la saisie.
+- Des raccourcis vers les recherches fréquentes.
+- Des suggestions de producteurs, parcelles, organisations et cultures.
+
+L'historique sera propre à chaque utilisateur et les suggestions respecteront les permissions applicables.
+
+### 16.7 Recherche multilingue et tolérance aux erreurs
+
+Le moteur devra progressivement prendre en charge :
+- La recherche en français.
+- La recherche en Wolof.
+- La recherche en Pulaar.
+- La tolérance aux fautes de frappe.
+- La reconnaissance des termes proches.
+- La recherche sans distinction d'accents lorsque cela est pertinent.
+
+L'intégration de Fary ASR permettra également de proposer une recherche vocale.
+
+Les capacités linguistiques seront évaluées et améliorées progressivement selon la qualité réelle des modèles disponibles.
+
+### 16.8 Sécurité et confidentialité des résultats
+
+Toutes les recherches devront respecter les règles d'isolation des organisations.
+
+Les principes suivants s'appliqueront :
+- Le producteur accède uniquement à ses informations et aux données qui lui sont autorisées.
+- L'agent terrain accède aux données relevant de ses missions et affectations.
+- L'agronome accède aux organisations et programmes pour lesquels il dispose d'une autorisation.
+- Une coopérative ne peut pas consulter les données privées d'une autre coopérative.
+- Une ONG accède aux données de ses programmes et bénéficiaires autorisés.
+- PEST AI conserve les responsabilités globales de superadministration dans un cadre sécurisé et audité.
+
+Les contrôles d'accès seront exécutés côté backend, y compris lors des recherches avancées et des requêtes générées à partir du langage naturel.
+
+### 16.9 Export des résultats
+
+Les utilisateurs autorisés pourront exporter les résultats de recherche dans plusieurs formats :
+
+- XLSX : listes et données structurées.
+- CSV : exploitation dans des outils externes.
+- PDF : rapports et synthèses.
+- GeoJSON et KML : données géographiques.
+
+Les exports respecteront les filtres appliqués, les permissions et les règles de confidentialité.
+
+Les exports volumineux seront générés de manière asynchrone et leur téléchargement sera sécurisé.
+
+### 16.10 Recherche dans le contenu des documents
+
+Le moteur pourra rechercher des informations à l'intérieur des documents, et pas uniquement dans leurs noms ou métadonnées.
+
+Les fonctionnalités envisagées comprennent :
+- L'indexation du texte des PDF.
+- La recherche dans les rapports et documents bureautiques compatibles.
+- La recherche de références AgroID.
+- La recherche de noms de producteurs et d'organisations.
+- L'utilisation de l'OCR pour extraire le texte des PDF scannés et des images contenant du texte.
+
+L'indexation devra respecter les permissions des documents d'origine.
+
+### 16.11 Recherche prédictive et personnalisée
+
+Le moteur pourra proposer des recherches et raccourcis en fonction de l'activité de l'utilisateur.
+
+Exemples :
+- Les missions récentes pour un agent terrain.
+- Les diagnostics consultés pour un agronome.
+- Les parcelles suivies pendant une campagne pour un responsable.
+- Les producteurs et commandes fréquemment consultés pour une coopérative.
+
+Cette personnalisation devra respecter la confidentialité des historiques et ne pas exposer les activités privées d'un utilisateur à d'autres utilisateurs.
+
+### 16.12 Performance et évolutivité
+
+L'architecture devra permettre de gérer progressivement des volumes importants de données.
+
+Les principes retenus sont :
+- Indexation automatique des données pertinentes.
+- Mise à jour des index après création, modification ou suppression.
+- Recherche paginée.
+- Optimisation des requêtes.
+- Mise en cache lorsque cela est pertinent.
+- Surveillance des performances et des temps de réponse.
+
+La première version pourra s'appuyer sur les capacités d'indexation et de recherche de PostgreSQL.
+
+Un moteur spécialisé comme Elasticsearch ou OpenSearch pourra être intégré ultérieurement si les volumes, les fonctionnalités ou les performances le justifient.
+
+### 16.13 Traçabilité des recherches sensibles et des exports
+
+Les opérations sensibles devront être historisées.
+
+Les informations pourront inclure :
+- L'utilisateur ayant effectué l'opération.
+- La date et l'heure.
+- Le type de données consultées ou exportées.
+- Le périmètre organisationnel concerné.
+- Le type et le format de l'export.
+- Les consultations et téléchargements de rapports sensibles.
+
+Cette traçabilité renforcera la gouvernance des données, notamment pour les échanges avec les banques, assureurs et partenaires.
+
+### 16.14 Principes techniques
+
+L'architecture de recherche reposera sur les principes suivants :
+
+- Recherche globale centralisée.
+- Indexation des données métier.
+- Recherche contextuelle par domaine.
+- Recherche géographique avec PostGIS.
+- Recherche intelligente assistée par IA.
+- Recherche vocale avec Fary ASR.
+- Recherche documentaire avec OCR.
+- Filtrage systématique selon les permissions.
+- Export sécurisé des résultats.
+- Architecture progressive et évolutive.
+- Traçabilité des opérations sensibles.
+
+Les technologies et mécanismes spécialisés seront sélectionnés et dimensionnés lors de la conception détaillée et de l'implémentation.
