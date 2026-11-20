@@ -3135,3 +3135,230 @@ L'architecture de recherche reposera sur les principes suivants :
 - Traçabilité des opérations sensibles.
 
 Les technologies et mécanismes spécialisés seront sélectionnés et dimensionnés lors de la conception détaillée et de l'implémentation.
+
+
+## 17. Architecture de reporting, tableaux de bord et indicateurs
+
+### 17.1. Objectif
+
+PEST AI OS intègre un système centralisé de reporting permettant de transformer les données agricoles, opérationnelles, géospatiales, techniques et financières en informations utiles à la prise de décision.
+
+Les tableaux de bord sont adaptés aux rôles des utilisateurs et aux organisations auxquelles ils appartiennent.
+
+### 17.2. Tableaux de bord personnalisés
+
+Chaque catégorie d'utilisateur dispose d'un tableau de bord adapté à ses responsabilités.
+
+Exemples :
+
+- **Producteur :** évolution des parcelles, cultures, activités, rendements, alertes et recommandations.
+- **Agent terrain :** missions, visites, parcelles suivies, observations et synchronisations.
+- **Agronome :** diagnostics, validations, recommandations et suivis techniques.
+- **Coopérative :** producteurs, superficies, cultures, campagnes, rendements et commandes.
+- **ONG et programmes :** bénéficiaires, parcelles, objectifs, réalisations et résultats.
+- **Fournisseur :** produits, commandes, ventes et activité commerciale.
+- **PEST AI :** vision globale de la plateforme, organisations, couverture géographique, activité et performances.
+- **Partenaires financiers :** indicateurs agricoles et SFA autorisés, dans le cadre des accès accordés.
+
+### 17.3. Actualisation des indicateurs
+
+Les indicateurs sont actualisés automatiquement selon la disponibilité et la fréquence de traitement des données.
+
+Exemples :
+
+- Nombre de parcelles enregistrées.
+- Superficies agricoles digitalisées.
+- Nombre de producteurs suivis.
+- Missions terrain en cours.
+- Diagnostics en attente de validation.
+- Commandes en cours.
+- Alertes agricoles actives.
+
+Le système distingue les données disponibles immédiatement, celles nécessitant une synchronisation et celles nécessitant un traitement différé.
+
+### 17.4. Comparaison des performances
+
+Les tableaux de bord permettent de comparer les résultats dans le temps et entre plusieurs périmètres autorisés.
+
+Exemples :
+
+- Comparaison des rendements entre campagnes agricoles.
+- Évolution des superficies cultivées entre saisons.
+- Progression du nombre de producteurs accompagnés.
+- Comparaison des performances entre coopératives.
+- Évaluation des résultats d'un programme par rapport à ses objectifs.
+
+Les comparaisons doivent tenir compte de la qualité, de la période et de la comparabilité des données.
+
+### 17.5. Modes de visualisation
+
+Le système propose plusieurs formats de visualisation :
+
+- **Graphiques :** évolution des rendements, superficies, producteurs et performances.
+- **Cartes géographiques :** répartition des parcelles, cultures et zones agricoles.
+- **Tableaux détaillés :** consultation et comparaison des données.
+- **Indicateurs visuels :** progression des objectifs, performances et alertes.
+
+Les visualisations géographiques s'appuient sur les données spatiales disponibles dans PostGIS et leur affichage cartographique avec MapLibre.
+
+### 17.6. Navigation interactive
+
+Les indicateurs et visualisations permettent d'accéder directement aux informations détaillées.
+
+Exemples :
+
+- Sélectionner le nombre de producteurs pour consulter leur liste.
+- Sélectionner une parcelle pour ouvrir sa fiche AgroID.
+- Sélectionner les diagnostics en attente pour consulter les dossiers concernés.
+- Sélectionner une commande pour consulter son état.
+- Sélectionner une zone cartographique pour afficher les parcelles correspondantes.
+
+Chaque navigation respecte les règles de permissions et d'isolation des organisations.
+
+### 17.7. Personnalisation des tableaux de bord
+
+Deux niveaux de personnalisation sont prévus :
+
+**Tableau de bord par organisation :**
+- L'administrateur définit une configuration par défaut.
+- Il choisit les indicateurs utiles à son organisation.
+- Il peut adapter cette configuration aux responsabilités de ses membres.
+
+**Tableau de bord personnel :**
+- Chaque utilisateur peut choisir les indicateurs qu'il souhaite afficher.
+- Il peut modifier leur ordre et leur disposition.
+- Il peut masquer les éléments qui ne lui sont pas utiles.
+- Sa configuration personnelle est conservée.
+
+La personnalisation de l'interface ne modifie jamais les permissions d'accès aux données.
+
+### 17.8. Génération automatique des rapports
+
+PEST AI OS permet de générer des rapports périodiques :
+
+- **Quotidiens :** activités terrain, alertes et événements importants.
+- **Hebdomadaires :** évolution des parcelles, missions et observations.
+- **Mensuels :** rendements, producteurs suivis, performances et progression des programmes.
+- **Fin de campagne :** bilan agricole, superficies, productions, rendements et résultats.
+
+Les rapports sont consultables sur la plateforme et exportables en PDF ou Excel.
+
+La génération des rapports volumineux est exécutée de manière asynchrone avec Celery et Redis.
+
+### 17.9. Distribution des rapports
+
+Chaque organisation peut définir les destinataires de ses rapports.
+
+Exemples :
+
+- Les responsables de coopératives reçoivent les bilans de leurs producteurs et parcelles.
+- Les responsables de programmes reçoivent le suivi des bénéficiaires et des objectifs.
+- Les agronomes reçoivent les rapports techniques et les diagnostics.
+- L'équipe PEST AI dispose de rapports globaux selon ses autorisations.
+
+Les administrateurs peuvent configurer les destinataires et la fréquence d'envoi.
+
+La distribution respecte strictement les permissions et les périmètres organisationnels.
+
+### 17.10. Alertes sur les indicateurs
+
+Le système peut détecter des écarts significatifs par rapport aux objectifs ou aux seuils définis.
+
+Exemples :
+
+- Objectifs de superficie non atteints.
+- Baisse inhabituelle du rendement d'une culture.
+- Augmentation des parcelles en attente de validation.
+- Retard dans l'exécution d'un programme.
+- Accumulation de missions terrain en retard.
+
+Les alertes sont affichées dans les tableaux de bord et transmises aux responsables concernés selon les règles de notification.
+
+Les seuils et règles d'alerte doivent être configurables et adaptés au contexte de chaque organisation.
+
+### 17.11. Qualité et fraîcheur des données
+
+Les tableaux de bord doivent afficher les informations permettant d'évaluer la fiabilité des indicateurs.
+
+Le système distingue notamment :
+
+- Données déclarées.
+- Données collectées sur le terrain.
+- Données vérifiées.
+- Données validées.
+- Données estimées.
+- Données incomplètes ou anciennes.
+
+Il affiche également la date de dernière actualisation ou synchronisation lorsque cela est pertinent.
+
+Les indicateurs calculés à partir de données incomplètes doivent être clairement signalés afin d'éviter les interprétations erronées.
+
+### 17.12. Tableaux de bord mobiles et consultation hors connexion
+
+Les tableaux de bord sont accessibles depuis l'application mobile React Native, avec une interface adaptée aux petits écrans et aux appareils disposant de ressources limitées.
+
+Les informations présentées sont adaptées à chaque rôle.
+
+Une partie des indicateurs peut être consultée hors connexion à partir des dernières données synchronisées.
+
+Le système affiche la date de dernière actualisation afin de distinguer les informations récentes des données potentiellement anciennes.
+
+La consultation hors ligne respecte les règles de sécurité et de protection des données définies dans l'architecture mobile.
+
+### 17.13. Indicateurs financiers
+
+PEST AI OS intègre des indicateurs de pilotage financier adaptés aux organisations autorisées.
+
+Exemples :
+
+- **Coopératives :** coûts de production, dépenses agricoles et revenus déclarés.
+- **ONG et programmes :** budgets alloués, dépenses engagées et suivi des financements.
+- **Fournisseurs :** commandes, ventes et chiffre d'affaires.
+- **PEST AI :** revenus de la plateforme, abonnements et performances commerciales.
+- **Banques et assureurs :** indicateurs agricoles et SFA autorisés pour l'évaluation des dossiers.
+
+Ces fonctionnalités constituent un système de suivi et d'aide à la décision financière agricole. Elles ne remplacent pas un logiciel de comptabilité.
+
+### 17.14. Architecture technique
+
+Le système de reporting s'appuie sur les composants suivants :
+
+- **Backend Django :** collecte, calcul et exposition des indicateurs.
+- **Django REST Framework :** API de consultation des tableaux de bord et rapports.
+- **PostgreSQL :** stockage des données et des résultats nécessaires au reporting.
+- **PostGIS :** analyses et indicateurs géospatiaux.
+- **Celery + Redis :** calculs différés, génération de rapports et traitements périodiques.
+- **React + TypeScript :** tableaux de bord web et visualisations.
+- **React Native + Expo :** tableaux de bord mobiles et consultation hors connexion.
+- **Cloudflare R2 ou stockage compatible S3 :** conservation des rapports générés et fichiers exportés.
+
+Des mécanismes de cache, d'indexation et d'agrégation pourront être utilisés pour améliorer les performances lorsque les volumes de données augmenteront.
+
+### 17.15. Sécurité et contrôle des accès
+
+Tous les indicateurs et rapports sont soumis aux règles générales de sécurité de PEST AI OS.
+
+Les principes suivants sont obligatoires :
+
+- Respect strict de l'isolation des organisations.
+- Vérification des permissions côté backend.
+- Limitation des données visibles selon le rôle et le périmètre autorisé.
+- Protection des rapports exportés.
+- Contrôle des destinataires avant toute distribution.
+- Traçabilité des générations, consultations et téléchargements sensibles.
+
+Aucun tableau de bord, rapport ou export ne doit permettre de contourner les autorisations d'accès.
+
+### 17.16. Principes d'évolution
+
+Le système de reporting doit rester modulaire et extensible.
+
+Il pourra évoluer vers :
+
+- Des indicateurs prédictifs fondés sur les modèles d'intelligence artificielle.
+- Des analyses comparatives entre zones agroécologiques.
+- Des rapports personnalisés pour les institutions et partenaires.
+- Des analyses avancées de performance agricole.
+- Des tableaux de bord consolidés à l'échelle nationale ou régionale, selon les autorisations et la disponibilité des données.
+
+L'objectif est de faire du reporting un véritable outil de pilotage de l'intelligence agricole, opérationnelle et financière de PEST AI OS.
