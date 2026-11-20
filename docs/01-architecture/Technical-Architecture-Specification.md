@@ -3645,3 +3645,270 @@ L'architecture doit permettre d'intégrer progressivement :
 - Des interfaces d'audit adaptées aux partenaires institutionnels.
 
 L'objectif est de faire de la traçabilité un mécanisme transversal garantissant la confiance, la transparence et la responsabilité dans l'ensemble de PEST AI OS.
+
+
+
+## 19. Architecture de performance et de scalabilité
+
+### 19.1. Objectif
+
+PEST AI OS doit disposer d'une architecture capable de supporter une croissance progressive du nombre d'utilisateurs, d'organisations, de parcelles, de données agricoles et de traitements d'intelligence artificielle.
+
+L'objectif est de commencer avec des ressources maîtrisées, puis d'augmenter progressivement les capacités techniques sans devoir reconstruire l'ensemble de la plateforme.
+
+L'architecture doit également garantir de bonnes performances dans les zones agricoles où les connexions Internet sont parfois faibles et les équipements mobiles limités.
+
+### 19.2. Gestion des pics de charge
+
+La plateforme doit pouvoir gérer les périodes de forte activité.
+
+Exemples :
+
+- Synchronisation simultanée des données par plusieurs centaines d'agents terrain.
+- Envoi massif de photos destinées aux diagnostics IA.
+- Consultation simultanée des tableaux de bord par plusieurs coopératives.
+- Traitements satellitaires multiples.
+- Génération simultanée de rapports en fin de campagne.
+
+Les mécanismes prévus comprennent :
+
+- Files d'attente avec Celery et Redis.
+- Mise en cache des données fréquemment consultées.
+- Optimisation des connexions à PostgreSQL.
+- Traitements asynchrones.
+- Répartition des tâches entre plusieurs workers.
+
+### 19.3. Optimisation des performances
+
+Les opérations les plus coûteuses doivent être optimisées.
+
+Principes retenus :
+
+- Chargement progressif des parcelles et des données cartographiques.
+- Compression des images avant transmission, sans dégrader celles destinées aux diagnostics IA.
+- Réduction des calculs répétitifs.
+- Optimisation des requêtes PostgreSQL et PostGIS.
+- Mise en cache des informations fréquemment consultées.
+- Exécution des analyses IA et des rapports volumineux en arrière-plan.
+- Pagination des listes et résultats volumineux.
+- Optimisation des transferts de données mobiles.
+
+L'application doit rester utilisable sur les téléphones Android d'entrée de gamme.
+
+### 19.4. Montée en capacité de l'infrastructure
+
+L'infrastructure doit permettre deux formes de montée en capacité :
+
+**Scaling vertical :**
+- Augmentation de la mémoire.
+- Augmentation de la puissance CPU.
+- Augmentation des ressources de stockage.
+- Renforcement des capacités des services existants.
+
+**Scaling horizontal :**
+- Ajout de plusieurs instances backend.
+- Ajout de workers Celery.
+- Répartition de la charge entre plusieurs instances.
+- Séparation progressive des traitements nécessitant davantage de ressources.
+
+La montée en capacité doit être progressive, contrôlée et adaptée au budget de PEST AI.
+
+### 19.5. Objectifs de performance mesurables
+
+PEST AI OS doit disposer d'objectifs techniques mesurables.
+
+Les principaux indicateurs comprennent :
+
+- Temps de réponse des API.
+- Temps de chargement des pages principales.
+- Temps d'affichage des cartes.
+- Durée des synchronisations.
+- Temps de traitement des analyses IA.
+- Disponibilité des services.
+- Capacité de traitement simultané.
+- Taux d'erreurs.
+
+Les seuils précis seront définis lors des phases de dimensionnement, de tests et de validation technique.
+
+Les traitements longs doivent afficher leur état : en attente, en cours, terminé ou échoué.
+
+### 19.6. Gestion des volumes de données
+
+L'architecture doit séparer les catégories de données selon leur nature et leurs besoins de stockage.
+
+**Données opérationnelles :**
+- Stockage dans PostgreSQL.
+
+**Données géographiques :**
+- Stockage et traitement dans PostgreSQL avec PostGIS.
+
+**Photos et documents :**
+- Stockage objet avec Cloudflare R2 ou un service compatible S3.
+
+**Données satellitaires volumineuses :**
+- Stockage objet adapté aux données scientifiques et géospatiales.
+
+**Historiques et archives :**
+- Conservation organisée selon leur fréquence d'utilisation, leur importance et les règles de rétention.
+
+Cette séparation permet de maîtriser les coûts et d'éviter que la croissance des fichiers volumineux ralentisse la base de données opérationnelle.
+
+### 19.7. Disponibilité et résilience
+
+La plateforme doit être conçue pour limiter les conséquences des pannes partielles.
+
+Principes retenus :
+
+- Une panne d'un service IA ne doit pas arrêter les autres fonctionnalités.
+- Une panne du service de notifications ne doit pas rendre les données agricoles inaccessibles.
+- Une interruption Internet ne doit pas entraîner la perte des données collectées localement.
+- Une indisponibilité d'un service externe ne doit pas bloquer toute la plateforme.
+- Les opérations interrompues doivent pouvoir être reprises sans perte ni duplication de données.
+
+Les composants critiques devront disposer de mécanismes de surveillance et de reprise adaptés.
+
+### 19.8. Gestion des ressources et des quotas
+
+La plateforme doit permettre de contrôler la consommation des ressources par organisation et par service.
+
+Exemples :
+
+- Quotas de stockage par organisation.
+- Limites adaptées aux analyses IA.
+- Contrôle des envois de fichiers volumineux.
+- Planification des traitements satellitaires.
+- Limitation des opérations excessives.
+- Suivi de la consommation des services externes.
+
+Les quotas doivent être configurables selon les contrats, les besoins et les capacités de chaque organisation.
+
+Ils ne doivent pas empêcher les opérations critiques nécessaires à la sécurité ou à l'intégrité des données.
+
+### 19.9. Surveillance des performances
+
+Les performances doivent être surveillées automatiquement.
+
+Les indicateurs techniques suivis comprennent :
+
+- Temps de réponse des API.
+- Charge CPU et mémoire du backend.
+- Utilisation de PostgreSQL.
+- Nombre de traitements en attente.
+- Temps de synchronisation mobile.
+- Taux d'erreurs.
+- Consommation du stockage.
+- Ressources des workers Celery.
+- Disponibilité des services.
+
+Les ralentissements et consommations anormales doivent générer des alertes destinées à l'équipe technique.
+
+### 19.10. Tests de charge et de capacité
+
+Des tests de charge réguliers doivent être réalisés pour évaluer la capacité de la plateforme.
+
+Scénarios initiaux à étudier :
+
+- 100 utilisateurs connectés simultanément.
+- 500 agents synchronisant leurs données.
+- 1 000 requêtes API sur une période courte.
+- Plusieurs centaines de photos envoyées pour analyse.
+- Plusieurs rapports générés simultanément.
+
+Ces valeurs constituent des scénarios de test et non des capacités garanties.
+
+Les résultats permettront de déterminer les limites réelles de l'infrastructure et les optimisations nécessaires.
+
+### 19.11. Tests en conditions réelles
+
+Les tests doivent également être effectués dans les conditions d'utilisation réelles au Sénégal et dans les zones agricoles ciblées.
+
+Les scénarios comprennent :
+
+- Téléphones Android d'entrée de gamme.
+- Connexions 2G, 3G et 4G instables.
+- Interruptions fréquentes d'Internet.
+- Synchronisations après plusieurs heures ou jours hors connexion.
+- Consultation de cartes avec un débit limité.
+- Transferts de photos et documents sur des réseaux faibles.
+
+L'objectif est de garantir une expérience utilisable malgré les contraintes matérielles et réseau.
+
+### 19.12. Priorisation des traitements
+
+Les traitements sont répartis en quatre niveaux de priorité :
+
+**Priorité critique :**
+- Alertes agricoles critiques.
+- Opérations de sécurité.
+- Synchronisations urgentes nécessaires à l'intégrité des données.
+
+**Priorité élevée :**
+- Diagnostics IA.
+- Traitements nécessaires aux activités terrain.
+
+**Priorité normale :**
+- Actualisation des tableaux de bord.
+- Traitements opérationnels courants.
+
+**Priorité basse :**
+- Rapports périodiques.
+- Analyses historiques.
+- Exports volumineux.
+
+Les files d'attente Celery et Redis permettent d'organiser et de distribuer ces traitements selon leur priorité.
+
+### 19.13. Reprise automatique des traitements échoués
+
+Les traitements temporairement échoués doivent pouvoir être relancés automatiquement.
+
+Le mécanisme prévoit :
+
+- Plusieurs tentatives de traitement.
+- Des délais progressifs entre les tentatives.
+- La prévention des doublons grâce à des mécanismes d'idempotence.
+- L'enregistrement des erreurs.
+- La mise à l'écart des tâches ayant définitivement échoué.
+- La possibilité de reprise manuelle par les personnes habilitées.
+
+Les traitements qui échouent de manière répétée doivent générer des alertes techniques.
+
+### 19.14. Isolation des traitements
+
+Les différents types de traitements doivent pouvoir fonctionner dans des files d'attente et des ressources séparées lorsque cela est nécessaire.
+
+Exemples :
+
+- Les analyses IA ne doivent pas bloquer les synchronisations terrain.
+- Les traitements satellitaires ne doivent pas ralentir les API utilisées par les producteurs.
+- La génération de rapports ne doit pas perturber les opérations des coopératives.
+- Les tâches urgentes doivent conserver leur priorité.
+
+Cette organisation permettra de faire évoluer indépendamment les capacités des différents services.
+
+### 19.15. Architecture technique de référence
+
+Les composants retenus pour assurer la performance et la scalabilité sont :
+
+- **React + TypeScript :** interface web optimisée.
+- **React Native + Expo :** application mobile adaptée aux appareils modestes.
+- **Django + Django REST Framework :** backend et API.
+- **PostgreSQL + PostGIS :** données opérationnelles et géographiques.
+- **Celery + Redis :** traitements asynchrones et files d'attente.
+- **Cloudflare R2 ou stockage compatible S3 :** stockage évolutif des fichiers.
+- **Cache applicatif :** réduction des calculs et requêtes répétitives.
+- **Services de monitoring :** surveillance des performances et de la disponibilité.
+
+### 19.16. Principes d'évolution
+
+L'architecture doit permettre :
+
+- L'augmentation progressive du nombre d'organisations.
+- L'extension de la couverture géographique.
+- L'augmentation du nombre de parcelles AgroID.
+- L'intégration de nouveaux modèles d'intelligence artificielle.
+- L'augmentation des volumes de données satellitaires et IoT.
+- La séparation éventuelle de certains modules en services indépendants lorsque les besoins le justifient.
+
+Le principe retenu est de conserver une architecture modulaire et maîtrisée, en évitant une complexité technique prématurée.
+
+L'objectif est de faire évoluer PEST AI OS en fonction de son utilisation réelle, de ses besoins métier et de ses capacités financières.
