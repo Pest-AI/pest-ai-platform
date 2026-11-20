@@ -2144,3 +2144,179 @@ Les principes suivants s'appliquent :
 Les services IA externes ne doivent pas disposer d'un accès libre à la base de données de PEST AI.
 
 Les données agricoles constituent un actif stratégique de PEST AI et doivent être protégées conformément aux exigences de sécurité, de confidentialité et de gouvernance définies dans cette architecture.
+
+
+## 12. Architecture géospatiale et cartographique
+
+### 12.1. Principes généraux
+
+L'architecture géospatiale constitue un composant central de PEST AI OS. Elle permet d'identifier, de représenter, de localiser et d'analyser les parcelles agricoles ainsi que les autres objets géographiques de la plateforme.
+
+Chaque parcelle AgroID doit posséder une géométrie géographique précise représentant ses contours réels, et non uniquement un point GPS.
+
+Cette géométrie constitue une référence spatiale pour les activités agricoles, les observations terrain, les analyses satellitaires, les indicateurs de production et les services d'intelligence agricole.
+
+### 12.2. Technologies géospatiales
+
+Les technologies de référence sont :
+
+- PostgreSQL avec PostGIS pour le stockage, la validation et l'analyse des données géographiques.
+- MapLibre pour l'affichage cartographique et l'interaction avec les cartes.
+- GeoJSON comme format d'échange géographique courant.
+- Des composants cartographiques adaptés aux interfaces Web et Mobile.
+
+Les traitements géographiques doivent privilégier les calculs adaptés au système de coordonnées utilisé. Les superficies agricoles doivent être calculées dans un système de référence approprié afin d'obtenir des résultats cohérents.
+
+### 12.3. Création et acquisition des parcelles
+
+PEST AI OS doit proposer trois méthodes principales de création des géométries de parcelles :
+
+**A. Dessin manuel**
+
+Les utilisateurs autorisés peuvent dessiner les contours d'une parcelle directement sur la carte.
+
+**B. Relevé GPS**
+
+Les agents de terrain peuvent enregistrer les limites d'une parcelle en parcourant son périmètre avec un appareil mobile équipé d'un GPS.
+
+**C. Importation géographique**
+
+La plateforme doit permettre l'importation de données géographiques existantes, notamment GeoJSON et KML, sous réserve de validation et de compatibilité.
+
+Quelle que soit la méthode utilisée, la géométrie doit être contrôlée avant sa validation définitive et son association à l'identifiant AgroID.
+
+### 12.4. Visualisation cartographique multi-parcelles
+
+La plateforme doit permettre de visualiser plusieurs parcelles simultanément sur une même carte.
+
+Cette fonctionnalité est particulièrement importante pour les coopératives, les ONG, les programmes agricoles et les organisations disposant de plusieurs producteurs et parcelles.
+
+Chaque parcelle pourra être représentée avec :
+
+- Son contour géographique.
+- Son identifiant AgroID.
+- Sa superficie.
+- Sa culture principale.
+- Son producteur associé.
+- Son statut de validation.
+
+Les statuts cartographiques de référence sont :
+
+- Validée.
+- À vérifier.
+- Brouillon.
+
+La représentation visuelle doit permettre de distinguer facilement les différents statuts sans compromettre la lisibilité de la carte.
+
+### 12.5. Filtres et exploration cartographique
+
+Les utilisateurs autorisés doivent pouvoir filtrer et explorer les parcelles selon plusieurs critères :
+
+- Culture.
+- Producteur.
+- Statut de validation.
+- Campagne agricole.
+- Programme agricole.
+- Organisation.
+
+La disponibilité des filtres et des données affichées dépend des rôles, des autorisations et du périmètre organisationnel de chaque utilisateur.
+
+La sélection d'une parcelle doit permettre d'accéder à sa fiche AgroID et à ses principales informations géographiques et agricoles : producteur, superficie, culture, cycle cultural, activités et observations.
+
+### 12.6. Intégration des données satellitaires
+
+Chaque parcelle AgroID doit pouvoir être associée à un historique de données satellitaires.
+
+La plateforme doit permettre d'exploiter notamment :
+
+- Les images satellitaires disponibles.
+- Le NDVI pour le suivi de la végétation.
+- Le NDWI pour certaines analyses liées à l'eau et à l'humidité.
+- Les indicateurs de végétation et de stress des cultures.
+- Les anomalies observées au cours du temps.
+
+Chaque observation satellitaire doit conserver sa date, sa source, les indicateurs calculés, les informations de qualité et les limites éventuelles des données.
+
+Les analyses doivent tenir compte de la résolution spatiale, de la couverture nuageuse, de la fraîcheur des images et du contexte agronomique.
+
+### 12.7. Alertes géospatiales
+
+PEST AI OS doit pouvoir détecter des anomalies géospatiales à partir des données satellitaires et environnementales.
+
+Exemples :
+
+- Baisse inhabituelle d'un indice de végétation.
+- Évolution anormale d'une zone cultivée.
+- Stress hydrique potentiel.
+- Variation importante entre plusieurs observations successives.
+
+Ces anomalies peuvent générer des alertes destinées aux producteurs, agents ou agronomes selon leurs responsabilités et autorisations.
+
+Une alerte géospatiale constitue un signal nécessitant éventuellement une vérification sur le terrain. Elle ne doit pas être automatiquement considérée comme un diagnostic phytosanitaire ou une confirmation de problème agricole.
+
+### 12.8. Fonctionnement hors connexion
+
+La gestion géographique des parcelles doit respecter le principe Offline-first défini pour l'application mobile.
+
+Les agents autorisés doivent pouvoir :
+
+- Consulter les parcelles précédemment synchronisées.
+- Consulter les dernières données cartographiques disponibles localement.
+- Enregistrer des contours GPS hors connexion.
+- Créer ou modifier une fiche géographique localement.
+- Conserver les relevés et les informations nécessaires à la synchronisation.
+- Synchroniser les modifications lorsque la connexion Internet est rétablie.
+
+La plateforme doit permettre la mise en cache préalable des fonds cartographiques et des données géographiques nécessaires aux missions de terrain, dans les limites des capacités de stockage des appareils.
+
+Les mécanismes de synchronisation doivent respecter les règles de détection des conflits définies dans l'architecture mobile et API.
+
+### 12.9. Contrôle et validation des géométries
+
+Avant la validation définitive d'une parcelle AgroID, le système doit effectuer des contrôles automatiques.
+
+Ces contrôles comprennent :
+
+- Vérification de la fermeture des polygones.
+- Vérification de la validité géométrique.
+- Détection des auto-intersections et autres anomalies géométriques.
+- Calcul et vérification de la superficie.
+- Détection des chevauchements potentiels avec les parcelles existantes.
+- Contrôle de la cohérence et de la qualité des coordonnées GPS.
+
+Les anomalies doivent être signalées aux utilisateurs autorisés.
+
+Un chevauchement ne doit pas entraîner un rejet automatique : il peut correspondre à une erreur de relevé ou à une situation foncière nécessitant une vérification.
+
+La validation finale doit tenir compte des règles métier, des vérifications terrain et des autorisations applicables.
+
+### 12.10. Exportation des données géographiques
+
+PEST AI OS doit proposer des fonctions d'exportation pour les utilisateurs autorisés.
+
+Les formats de référence comprennent :
+
+- GeoJSON.
+- KML.
+- Shapefile.
+- PDF cartographique.
+- Excel pour les données descriptives associées aux parcelles.
+
+Les exports doivent respecter les permissions organisationnelles, les règles de confidentialité et les restrictions d'accès aux données.
+
+La génération des exports volumineux doit pouvoir être exécutée comme un traitement asynchrone.
+
+### 12.11. Performance et évolutivité
+
+L'architecture géospatiale doit pouvoir gérer progressivement un grand nombre de parcelles, de géométries et d'observations satellitaires.
+
+Les principes suivants doivent être appliqués :
+
+- Indexation spatiale avec PostGIS.
+- Optimisation des requêtes géographiques.
+- Chargement progressif des parcelles selon la zone affichée.
+- Regroupement visuel des parcelles lorsque leur nombre devient important.
+- Mise en cache des données cartographiques lorsque cela est pertinent.
+- Séparation des traitements géospatiaux lourds et des opérations courantes de l'API.
+
+L'architecture doit permettre d'étendre les capacités géospatiales sans remettre en cause l'identité numérique AgroID des parcelles.
