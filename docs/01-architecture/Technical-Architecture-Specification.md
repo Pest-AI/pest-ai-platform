@@ -4147,3 +4147,274 @@ Les principes suivants devront être respectés :
 - Les résultats des tests doivent être conservés et consultables par l'équipe technique.
 
 L'assurance qualité est un processus continu, appliqué pendant le développement, les évolutions et l'exploitation de PEST AI OS.
+
+
+
+## 21. Architecture de supervision, monitoring et observabilité
+
+### 21.1. Objectif
+
+PEST AI OS doit disposer d'un système centralisé de supervision permettant à l'équipe technique de surveiller le fonctionnement de la plateforme, de détecter les anomalies et d'identifier rapidement leur origine.
+
+L'objectif est de garantir :
+
+- La disponibilité des services.
+- La détection rapide des erreurs.
+- Le suivi des performances.
+- La surveillance des ressources techniques.
+- L'identification des dysfonctionnements rencontrés par les utilisateurs.
+- Le suivi des services d'intelligence artificielle.
+- La réduction des interruptions de service.
+
+La supervision doit couvrir l'ensemble de l'infrastructure technique, du backend aux applications web et mobiles.
+
+### 21.2. Supervision centralisée des composants
+
+Un système de supervision centralisé devra surveiller les principaux composants de PEST AI OS.
+
+**Backend et API :**
+- Disponibilité des services.
+- Temps de réponse.
+- Nombre de requêtes.
+- Erreurs HTTP.
+- Charge et consommation des ressources.
+
+**Base de données :**
+- Disponibilité PostgreSQL.
+- Nombre de connexions.
+- Requêtes lentes.
+- Utilisation des ressources.
+- État des connexions PostGIS.
+
+**Applications web et mobile :**
+- Erreurs techniques.
+- Dysfonctionnements.
+- Problèmes de communication avec les API.
+- Échecs de synchronisation.
+
+**Traitements asynchrones :**
+- État de Celery et Redis.
+- Nombre de tâches en attente.
+- Tâches échouées.
+- Temps de traitement.
+- Activité des workers.
+
+**Intelligence artificielle :**
+- Disponibilité des modèles.
+- Temps de traitement.
+- Taux d'échec.
+- Consommation des services externes.
+- Évolution de la qualité des résultats.
+
+**Stockage et services externes :**
+- Disponibilité du stockage objet.
+- Erreurs de transfert.
+- Espace utilisé.
+- Disponibilité des services météo, satellitaires, SMS et autres intégrations.
+
+### 21.3. Alertes automatiques
+
+Le système devra générer automatiquement des alertes lorsque des anomalies importantes sont détectées.
+
+Exemples :
+
+- Indisponibilité du backend.
+- Erreurs répétées de la base de données.
+- Échecs anormaux de synchronisation.
+- Accumulation excessive de tâches IA.
+- Stockage proche de sa limite.
+- Indisponibilité d'un service externe.
+- Dégradation importante du temps de réponse des API.
+
+Trois niveaux d'alerte seront utilisés :
+
+**Information :** événement technique à surveiller.
+
+**Avertissement :** anomalie nécessitant une intervention prochaine.
+
+**Critique :** problème urgent pouvant affecter les utilisateurs, les données ou la disponibilité de la plateforme.
+
+Les alertes pourront être transmises par email et via un espace technique dédié.
+
+Les alertes critiques devront suivre un mécanisme d'escalade afin de garantir leur prise en charge.
+
+### 21.4. Centralisation des journaux techniques (Logs)
+
+Les journaux techniques des différents composants devront être centralisés.
+
+Ils permettront de comprendre les événements survenus pendant l'exécution de la plateforme.
+
+Exemples :
+
+- Échec de création d'une parcelle AgroID.
+- Erreur de synchronisation mobile.
+- Échec d'un diagnostic IA.
+- Erreur de connexion à PostgreSQL.
+- Échec d'une commande fournisseur.
+- Indisponibilité d'un service externe.
+
+Les événements importants devront contenir, lorsque cela est pertinent :
+
+- Date et heure.
+- Service concerné.
+- Niveau de gravité.
+- Identifiant de l'opération.
+- Description technique.
+- Contexte nécessaire au diagnostic.
+
+Les mots de passe, jetons d'accès et données personnelles sensibles ne devront jamais être enregistrés directement dans les journaux.
+
+### 21.5. Tableau de bord technique PEST AI
+
+Un espace de supervision réservé à l'équipe technique de PEST AI devra être mis en place.
+
+Il permettra de consulter :
+
+- Disponibilité des services.
+- Nombre de requêtes API.
+- Erreurs rencontrées.
+- Charge CPU et mémoire.
+- État de PostgreSQL.
+- Nombre de tâches Celery en attente.
+- Performances des traitements IA.
+- Utilisation du stockage.
+- Alertes et incidents en cours.
+
+Cet espace devra être distinct des tableaux de bord métier et agricoles destinés aux producteurs, coopératives, ONG et partenaires.
+
+L'accès sera limité aux personnes techniquement autorisées.
+
+### 21.6. Monitoring des performances de l'intelligence artificielle
+
+Les modèles et services IA devront disposer d'un suivi spécifique.
+
+Les indicateurs comprendront :
+
+- Nombre d'analyses réalisées.
+- Temps moyen de traitement.
+- Taux d'échec.
+- Coût d'utilisation des services externes.
+- Disponibilité des modèles.
+- Nombre de résultats confirmés, corrigés ou rejetés par les agronomes.
+- Évolution de la qualité des résultats lorsque des données de référence fiables sont disponibles.
+
+Ces informations permettront de détecter les dégradations de performance, les dérives éventuelles et les problèmes de disponibilité.
+
+Les résultats devront également permettre d'identifier les modèles nécessitant une amélioration, une nouvelle évaluation ou un remplacement.
+
+### 21.7. Suivi des dysfonctionnements utilisateurs
+
+La supervision devra permettre d'identifier les problèmes rencontrés directement par les utilisateurs.
+
+Exemples :
+
+- Un producteur ne parvient pas à enregistrer une activité agricole.
+- Un agent ne peut pas synchroniser une mission.
+- Un agronome rencontre une erreur lors de la validation d'un diagnostic.
+- Une coopérative ne parvient pas à consulter ses parcelles.
+
+Les événements techniques devront conserver le contexte nécessaire à leur diagnostic, sans collecter inutilement des données personnelles.
+
+L'objectif est de détecter les problèmes récurrents et de prioriser les corrections selon leur impact réel.
+
+### 21.8. Suivi de la disponibilité des services
+
+La plateforme devra mesurer la disponibilité de ses composants importants.
+
+Les services surveillés comprendront :
+
+- Site web.
+- API.
+- Backend.
+- Base de données.
+- Stockage.
+- Services IA.
+- Synchronisation mobile.
+- Services externes.
+
+Un historique des interruptions devra être conservé.
+
+Des objectifs de disponibilité (SLO) seront définis pour chaque service selon son importance métier et ses contraintes techniques.
+
+Les mêmes exigences ne seront pas nécessairement appliquées à tous les composants.
+
+### 21.9. Traçage des opérations (Distributed Tracing)
+
+PEST AI OS devra intégrer un mécanisme de traçage permettant de suivre une opération depuis son origine jusqu'à son résultat final.
+
+Exemple : un agent transmet une photo depuis l'application mobile pour obtenir un diagnostic IA.
+
+Le traçage permettra de suivre :
+
+1. La réception de la photo par l'API.
+2. Son enregistrement dans le stockage.
+3. La création de la tâche d'analyse.
+4. Son traitement par le service IA.
+5. L'enregistrement du résultat.
+6. L'envoi de la notification à l'agent.
+
+Chaque étape pourra être associée à un identifiant de corrélation permettant de retrouver l'ensemble de l'opération.
+
+En cas d'erreur, l'équipe technique pourra identifier le composant responsable et l'étape concernée.
+
+### 21.10. Outils techniques de supervision
+
+La base technique de supervision reposera sur les outils suivants :
+
+**Sentry :**
+- Détection et suivi des erreurs.
+- Analyse des exceptions.
+- Suivi des dysfonctionnements frontend, backend et mobile.
+
+**Prometheus :**
+- Collecte des métriques techniques.
+- Suivi des ressources.
+- Mesure des performances des services.
+
+**Grafana :**
+- Création des tableaux de bord techniques.
+- Visualisation des métriques.
+- Suivi des alertes et tendances.
+
+**OpenTelemetry :**
+- Instrumentation des applications.
+- Collecte des traces.
+- Traçage des opérations entre composants.
+
+Ces outils seront intégrés progressivement selon les besoins, les contraintes techniques et le budget disponible.
+
+### 21.11. Conservation des données de supervision
+
+Les données de supervision devront disposer de politiques de conservation adaptées à leur nature.
+
+**Logs techniques :**
+- Conservation limitée selon leur utilité opérationnelle.
+- Possibilité d'archivage des événements importants.
+
+**Métriques :**
+- Conservation des données détaillées à court terme.
+- Conservation des tendances agrégées à plus long terme.
+
+**Traces techniques :**
+- Conservation limitée.
+- Utilisation de mécanismes d'échantillonnage lorsque le volume devient important.
+
+**Incidents critiques :**
+- Conservation de l'historique des incidents.
+- Conservation des actions de résolution et des résultats.
+
+Les durées exactes seront définies lors de la mise en œuvre technique, en tenant compte des coûts, des besoins opérationnels et des exigences applicables.
+
+L'accès aux données de supervision sera réservé aux personnes autorisées. Les informations sensibles devront être masquées.
+
+### 21.12. Principes généraux d'observabilité
+
+L'observabilité de PEST AI OS reposera sur trois piliers complémentaires :
+
+- **Logs :** comprendre les événements et erreurs.
+- **Metrics :** mesurer les performances et l'état des composants.
+- **Traces :** suivre les opérations entre les différents services.
+
+Ces trois mécanismes devront fonctionner ensemble afin de faciliter le diagnostic des problèmes.
+
+La supervision devra évoluer avec l'architecture de PEST AI OS et accompagner sa croissance, depuis les premières versions jusqu'à une plateforme agricole multi-organisations à grande échelle.
