@@ -4418,3 +4418,231 @@ L'observabilité de PEST AI OS reposera sur trois piliers complémentaires :
 Ces trois mécanismes devront fonctionner ensemble afin de faciliter le diagnostic des problèmes.
 
 La supervision devra évoluer avec l'architecture de PEST AI OS et accompagner sa croissance, depuis les premières versions jusqu'à une plateforme agricole multi-organisations à grande échelle.
+
+
+
+## 22. Architecture de sauvegarde, restauration et continuité de service
+
+### 22.1. Objectif
+
+PEST AI OS doit disposer d'une architecture garantissant la protection des données et la continuité des activités en cas de panne, d'erreur humaine, de cyberattaque ou d'indisponibilité d'un service.
+
+L'objectif est de :
+
+- Prévenir la perte de données.
+- Garantir la disponibilité des sauvegardes.
+- Permettre une restauration fiable.
+- Limiter les interruptions de service.
+- Protéger les données contre les suppressions et modifications non autorisées.
+- Assurer la reprise progressive des activités après un incident majeur.
+
+Cette architecture concerne les données métier, les fichiers, les configurations techniques et les composants essentiels de la plateforme.
+
+### 22.2. Sauvegardes automatiques
+
+PEST AI OS devra disposer de mécanismes automatiques de sauvegarde couvrant les éléments essentiels.
+
+**Base de données PostgreSQL et PostGIS :**
+- Producteurs et utilisateurs.
+- Organisations et programmes.
+- Parcelles AgroID et géométries.
+- Activités et cycles agricoles.
+- Observations et diagnostics.
+- Données satellitaires et IoT.
+- Dossiers SFA et informations financières.
+- Commandes et transactions enregistrées dans la plateforme.
+- Historiques et journaux métier nécessaires.
+
+**Stockage documentaire :**
+- Photos agricoles.
+- Documents PDF et rapports.
+- Fichiers géospatiaux.
+- Documents administratifs.
+- Fichiers audio et vidéo.
+
+**Configurations techniques :**
+- Paramètres nécessaires à la reconstruction des services.
+- Configurations d'infrastructure.
+- Paramètres de déploiement.
+- Configurations des composants essentiels.
+
+Les secrets, clés et identifiants techniques devront disposer d'un mécanisme de conservation sécurisé et distinct lorsque nécessaire.
+
+### 22.3. Stratégie et fréquence des sauvegardes
+
+La stratégie de sauvegarde sera adaptée à la nature et à la criticité des données.
+
+**Base de données :**
+- Sauvegardes complètes régulières.
+- Archivage des journaux de transactions PostgreSQL.
+- Possibilité de restauration à un instant précis (Point-in-Time Recovery – PITR).
+
+**Photos et documents :**
+- Copies de sécurité régulières.
+- Vérification de l'intégrité des fichiers.
+- Conservation des relations entre fichiers et données métier.
+
+**Configurations techniques :**
+- Sauvegarde à chaque modification importante.
+- Conservation des versions nécessaires à la reconstruction de l'infrastructure.
+
+**Données historiques :**
+- Conservation selon leur importance opérationnelle.
+- Application de règles de rétention adaptées.
+
+Les fréquences exactes seront définies pendant la mise en œuvre technique selon les volumes, les coûts et les objectifs de reprise.
+
+### 22.4. Stockage indépendant des sauvegardes
+
+Les sauvegardes ne devront jamais être conservées uniquement sur les mêmes serveurs que la plateforme de production.
+
+La stratégie prévoit :
+
+- Une copie principale sur l'infrastructure de sauvegarde.
+- Une copie indépendante dans un autre espace de stockage.
+- Une copie supplémentaire dans un emplacement géographique distinct lorsque cela est possible.
+
+Les sauvegardes devront être protégées contre les suppressions accidentelles et les modifications non autorisées.
+
+L'indépendance des sauvegardes devra être vérifiée, notamment en cas de compromission de l'infrastructure principale.
+
+### 22.5. Procédure de restauration
+
+Une procédure officielle de restauration devra être documentée.
+
+En cas d'incident, l'équipe technique devra pouvoir :
+
+1. Identifier la cause de l'incident.
+2. Évaluer les données et services affectés.
+3. Sélectionner une sauvegarde saine.
+4. Restaurer PostgreSQL et les fichiers nécessaires.
+5. Vérifier l'intégrité et la cohérence des données.
+6. Redémarrer progressivement les services.
+7. Vérifier les principales fonctionnalités.
+8. Autoriser la reprise des activités.
+
+Les restaurations devront être réalisées par des personnes habilitées et les opérations sensibles devront être journalisées.
+
+### 22.6. Objectifs de reprise : RPO et RTO
+
+PEST AI OS devra définir des objectifs de reprise différenciés selon la criticité des services.
+
+**RPO – Recovery Point Objective :**
+
+Le RPO représente la quantité maximale de données que la plateforme peut accepter de perdre après un incident.
+
+Exemple : un RPO d'une heure signifie que l'objectif est de limiter la perte de données à une période maximale d'une heure.
+
+**RTO – Recovery Time Objective :**
+
+Le RTO représente la durée maximale visée pour rétablir un service après une interruption.
+
+Exemple : un RTO de quatre heures signifie que l'objectif est de rétablir le service dans les quatre heures suivant l'incident.
+
+Les valeurs précises seront définies pour les composants suivants :
+
+- Base de données.
+- Backend et API.
+- Stockage documentaire.
+- Application mobile et synchronisation.
+- Services IA.
+- Notifications.
+- Services satellitaires et IoT.
+
+Les objectifs devront être réalistes, mesurables et compatibles avec les capacités financières et techniques de PEST AI.
+
+### 22.7. Sécurité des sauvegardes
+
+Les sauvegardes devront bénéficier de mesures de sécurité spécifiques.
+
+Principes retenus :
+
+- Chiffrement des sauvegardes.
+- Accès réservé aux personnes autorisées.
+- Authentification renforcée pour les opérations sensibles.
+- Protection contre les suppressions accidentelles.
+- Journalisation des opérations de sauvegarde et restauration.
+- Gestion sécurisée des clés de chiffrement.
+- Vérification de l'intégrité des sauvegardes.
+
+Les données des producteurs, les parcelles AgroID, les dossiers SFA et les informations financières devront bénéficier d'une protection adaptée à leur sensibilité.
+
+### 22.8. Continuité de service et fonctionnement dégradé
+
+La plateforme devra pouvoir maintenir certaines fonctionnalités même lorsqu'un composant devient indisponible.
+
+Exemples :
+
+- Une panne du service IA ne doit pas empêcher la collecte des données terrain.
+- Une absence de connexion Internet ne doit pas entraîner la perte des données mobiles.
+- Une panne du service de notifications ne doit pas supprimer les notifications en attente.
+- Une indisponibilité satellitaire ne doit pas bloquer les autres fonctionnalités agricoles.
+- Une erreur de génération de rapport ne doit pas perturber les opérations quotidiennes.
+
+Les services devront être suffisamment indépendants pour limiter l'impact des pannes partielles.
+
+Les mécanismes de reprise devront permettre de relancer les traitements interrompus sans perte ni duplication de données.
+
+### 22.9. Tests réguliers des sauvegardes et restaurations
+
+Les sauvegardes devront être vérifiées régulièrement.
+
+Les tests comprendront :
+
+- Vérification de la réalisation des sauvegardes.
+- Vérification de l'intégrité des fichiers.
+- Restauration de PostgreSQL et PostGIS.
+- Récupération des photos et documents.
+- Redémarrage des services après restauration.
+- Vérification de la cohérence des données restaurées.
+
+Ces tests devront être effectués dans un environnement isolé afin de ne pas perturber la production.
+
+La fréquence des tests sera définie en fonction de la criticité des données et des objectifs de reprise.
+
+### 22.10. Plan de reprise après sinistre (Disaster Recovery Plan)
+
+PEST AI OS devra disposer d'un plan de reprise après sinistre documenté.
+
+Ce document précisera :
+
+- Les conditions de déclenchement du plan.
+- Les responsables techniques et décisionnels.
+- Les procédures d'identification et d'évaluation de l'incident.
+- L'emplacement des sauvegardes.
+- L'ordre de restauration des composants.
+- Les procédures de vérification des données.
+- Les modalités de communication aux organisations et utilisateurs concernés.
+- Les conditions de reprise progressive des activités.
+
+Le plan devra être régulièrement révisé et testé.
+
+### 22.11. Protection contre les ransomwares et cyberattaques
+
+Une protection renforcée devra être mise en place contre les attaques pouvant compromettre les données et les sauvegardes.
+
+Les mesures comprendront :
+
+- Sauvegardes isolées de l'infrastructure de production.
+- Copies immuables, protégées contre la modification et la suppression pendant une durée définie.
+- Détection des comportements inhabituels.
+- Accès fortement restreint aux espaces de sauvegarde.
+- Vérification de l'intégrité avant restauration.
+- Procédure de restauration depuis une copie saine après une attaque.
+
+Les sauvegardes devront être conçues de manière à ce qu'une compromission de l'infrastructure principale ne permette pas de détruire automatiquement toutes les copies de sécurité.
+
+### 22.12. Principes généraux de continuité de service
+
+L'architecture de sauvegarde et de continuité de PEST AI OS reposera sur les principes suivants :
+
+- Automatisation des sauvegardes.
+- Séparation des sauvegardes et de la production.
+- Protection renforcée des données.
+- Possibilité de restauration vérifiée.
+- Définition d'objectifs RPO et RTO.
+- Fonctionnement dégradé en cas de panne partielle.
+- Tests réguliers de restauration.
+- Documentation des procédures de reprise.
+
+L'objectif est de garantir que PEST AI OS puisse protéger ses données, limiter les interruptions et reprendre ses activités de manière maîtrisée après un incident.
