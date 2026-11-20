@@ -3362,3 +3362,286 @@ Il pourra évoluer vers :
 - Des tableaux de bord consolidés à l'échelle nationale ou régionale, selon les autorisations et la disponibilité des données.
 
 L'objectif est de faire du reporting un véritable outil de pilotage de l'intelligence agricole, opérationnelle et financière de PEST AI OS.
+
+
+
+## 18. Architecture de traçabilité et d'audit
+
+### 18.1. Objectif
+
+PEST AI OS intègre un système centralisé de traçabilité et d'audit permettant d'enregistrer, de consulter et de contrôler les actions importantes réalisées sur la plateforme.
+
+Ce système garantit la transparence, la responsabilité des utilisateurs, l'intégrité des données et la possibilité de reconstituer l'historique des opérations.
+
+Il constitue un élément essentiel de confiance pour les producteurs, les coopératives, les ONG, les institutions, les banques, les assureurs et les partenaires de PEST AI.
+
+### 18.2. Journal centralisé des événements
+
+Un journal centralisé conserve les événements importants de la plateforme.
+
+Les événements concernés comprennent notamment :
+
+- Création et modification des parcelles AgroID.
+- Modification des informations des producteurs.
+- Création et validation des observations.
+- Création, correction et validation des diagnostics.
+- Création et modification des recommandations agronomiques.
+- Gestion des missions et visites terrain.
+- Modifications des comptes et des permissions.
+- Consultation, partage et exportation de dossiers sensibles.
+- Gestion des commandes et opérations commerciales.
+- Actions des administrateurs et superadministrateurs.
+- Synchronisation des données collectées hors connexion.
+
+Chaque événement est associé à son contexte et à son origine.
+
+### 18.3. Historique détaillé des modifications
+
+Les modifications importantes conservent un historique permettant de retrouver :
+
+- L'ancienne valeur.
+- La nouvelle valeur.
+- L'utilisateur responsable.
+- La date et l'heure de la modification.
+- L'organisation concernée.
+- L'entité ou le dossier concerné.
+- Le motif de la modification, lorsque nécessaire.
+
+Exemple : lorsqu'un agent terrain corrige la superficie d'une parcelle AgroID, le système conserve l'ancienne superficie, la nouvelle et l'identité de l'agent ayant effectué la correction.
+
+Les données historiques doivent rester consultables selon les permissions applicables.
+
+### 18.4. Protection du journal d'audit
+
+Les événements sensibles sont enregistrés dans un journal protégé contre les modifications et suppressions ordinaires.
+
+Cela concerne notamment :
+
+- Validation ou rejet d'un diagnostic.
+- Modification des droits d'accès.
+- Partage d'un dossier avec une banque ou un assureur.
+- Exportation de données sensibles.
+- Suppression ou archivage d'une parcelle.
+- Interventions du superadministrateur PEST AI.
+
+Le journal doit intégrer des mécanismes techniques renforçant son intégrité, notamment des accès restreints, une conservation protégée et des mécanismes de détection d'altération.
+
+Même un administrateur ne doit pas pouvoir effacer discrètement les traces d'une action sensible.
+
+Les éventuelles opérations de purge réglementaire ou de conservation exceptionnelle doivent suivre une procédure contrôlée et traçable.
+
+### 18.5. Gestion des accès aux journaux
+
+Trois niveaux principaux d'accès sont prévus :
+
+**Administrateur d'organisation :**
+- Consultation des événements de sa propre organisation.
+- Suivi des actions des membres autorisés.
+- Consultation des modifications concernant son périmètre.
+
+**Responsable habilité :**
+- Consultation des événements liés à ses responsabilités.
+- Accès limité aux informations nécessaires à ses missions.
+
+**Superadministrateur PEST AI :**
+- Vision globale des événements de la plateforme selon ses autorisations.
+- Suivi des événements interorganisations.
+- Traçabilité de ses propres consultations et interventions.
+
+Les utilisateurs ordinaires ne disposent pas d'un accès direct aux journaux internes d'audit.
+
+Toute consultation sensible des journaux est elle-même enregistrée.
+
+### 18.6. Détection des activités inhabituelles
+
+Le système peut détecter des comportements inhabituels et générer des alertes de sécurité.
+
+Exemples :
+
+- Tentatives répétées de connexion échouées.
+- Connexion depuis un nouvel appareil ou une localisation inhabituelle.
+- Modification inhabituelle des permissions.
+- Tentatives d'accès aux données d'une autre organisation.
+- Exportation massive de données.
+- Multiplication d'actions sensibles par un même compte sur une courte période.
+
+Chaque événement peut être associé à un niveau de risque.
+
+Les alertes sont transmises aux responsables habilités selon les règles de sécurité définies.
+
+Les détections automatiques constituent des signaux à examiner et ne doivent pas être considérées systématiquement comme des preuves de compromission.
+
+### 18.7. Conservation des journaux
+
+PEST AI OS applique une politique de conservation différenciée selon la nature et la sensibilité des événements.
+
+Exemples :
+
+- Connexions et sessions : conservation selon les besoins de sécurité.
+- Modifications des données agricoles : conservation de l'historique nécessaire à leur traçabilité.
+- Diagnostics et validations agronomiques : conservation de l'historique des décisions.
+- Accès aux données financières : conservation renforcée.
+- Actions des administrateurs : conservation renforcée.
+
+Les durées exactes seront définies selon les obligations légales, réglementaires et contractuelles applicables.
+
+Le système prévoit des mécanismes d'archivage et de suppression sécurisée lorsque la conservation n'est plus nécessaire.
+
+### 18.8. Traçabilité des décisions de l'intelligence artificielle
+
+Chaque résultat important produit par les modèles d'IA doit être traçable.
+
+Les informations conservées comprennent :
+
+- Le modèle d'IA utilisé.
+- La version du modèle.
+- Les données d'entrée ou leurs références.
+- La date et l'heure de l'analyse.
+- Le résultat généré.
+- Le niveau de confiance lorsqu'il est disponible et correctement calibré.
+- Les éventuelles corrections apportées par un agronome.
+- La décision finale et son responsable.
+
+Le système conserve séparément le résultat initial de l'IA et les éventuelles corrections humaines.
+
+Un agronome peut confirmer, corriger ou rejeter un résultat généré par l'IA. Il peut également créer un diagnostic directement sans utiliser l'IA.
+
+L'ensemble de ces décisions reste historisé.
+
+### 18.9. Recherche et filtrage des journaux
+
+Les utilisateurs habilités disposent d'une fonctionnalité de recherche et de filtrage des événements.
+
+Les critères comprennent :
+
+- Utilisateur responsable.
+- Organisation concernée.
+- Type d'action.
+- Parcelle AgroID ou dossier concerné.
+- Période de début et de fin.
+- Niveau de risque ou de sensibilité.
+
+Exemple : un administrateur de coopérative peut retrouver les modifications effectuées sur une parcelle pendant les trois derniers mois.
+
+La recherche respecte systématiquement les permissions et les périmètres organisationnels.
+
+### 18.10. Exportation des journaux d'audit
+
+Les utilisateurs autorisés peuvent exporter certains journaux pour :
+
+- Les audits internes.
+- Les contrôles de conformité.
+- Les vérifications institutionnelles.
+- Les investigations après un incident de sécurité.
+
+Les formats prévus sont PDF et Excel.
+
+Chaque exportation doit être contrôlée, protégée et enregistrée dans le journal d'audit.
+
+Les exports ne doivent jamais contenir d'événements situés hors du périmètre d'autorisation du demandeur.
+
+### 18.11. Traçabilité des échanges avec les partenaires externes
+
+Chaque échange de données avec un partenaire externe doit être enregistré.
+
+Cela concerne notamment :
+
+- Banques.
+- Assureurs.
+- Fournisseurs.
+- Services satellitaires.
+- Services météorologiques.
+- Services d'intelligence artificielle.
+- Autres partenaires institutionnels et techniques.
+
+Les informations conservées comprennent :
+
+- Le partenaire concerné.
+- La nature des données transmises ou reçues.
+- L'organisation ou le producteur concerné.
+- La date et l'heure de l'échange.
+- L'autorisation ou le consentement justifiant l'échange, lorsque requis.
+- Le statut de l'opération : réussie, échouée ou en attente.
+
+### 18.12. Gestion des consentements et autorisations
+
+PEST AI OS conserve l'historique des consentements accordés par les producteurs et les organisations.
+
+Exemples :
+
+- Autorisation de partage d'un dossier agricole avec une banque.
+- Autorisation de partage de données dans le cadre d'un programme.
+- Autorisation de partage avec un assureur.
+- Autorisation d'utilisation de certaines données pour des finalités définies.
+
+Le système conserve :
+
+- L'identité de la personne ou de l'organisation ayant donné son accord.
+- L'objet du consentement.
+- Les données concernées.
+- Le destinataire autorisé.
+- La date et l'heure.
+- La version des conditions acceptées.
+- Les modifications ou révocations éventuelles.
+
+Le retrait d'une autorisation est pris en compte selon les obligations légales et contractuelles applicables.
+
+### 18.13. Protection des informations contenues dans les journaux
+
+Les journaux doivent respecter un principe de minimisation des données.
+
+Les règles suivantes sont obligatoires :
+
+- Ne jamais enregistrer les mots de passe.
+- Ne jamais enregistrer les jetons d'authentification.
+- Éviter de recopier intégralement les dossiers agricoles ou financiers.
+- Utiliser les références des entités concernées plutôt que leurs contenus complets lorsque cela suffit.
+- Masquer les informations sensibles dans les détails techniques.
+- Restreindre les accès aux journaux selon les responsabilités.
+
+L'objectif est de garantir la traçabilité sans transformer les journaux en source supplémentaire de fuite de données.
+
+### 18.14. Traçabilité des opérations hors connexion
+
+Les opérations effectuées hors connexion doivent conserver leur historique.
+
+Les informations suivantes sont notamment enregistrées :
+
+- Date et heure de réalisation sur le téléphone.
+- Date et heure de réception sur le serveur.
+- Identité de l'utilisateur responsable.
+- Référence de l'appareil utilisé.
+- Références des données transmises.
+- Statut de synchronisation.
+- Éventuelles corrections ou résolutions de conflits.
+
+Le système distingue l'heure réelle de réalisation de l'opération et l'heure de réception par le serveur.
+
+Cette distinction permet de reconstituer correctement l'historique des activités terrain, même lorsque la synchronisation intervient plusieurs heures ou jours après la collecte.
+
+### 18.15. Architecture technique
+
+Le système de traçabilité s'appuie sur les composants suivants :
+
+- **Django :** gestion des événements, règles métier et contrôle des accès.
+- **Django REST Framework :** API sécurisées de consultation des journaux.
+- **PostgreSQL :** stockage des événements, historiques et métadonnées d'audit.
+- **Celery + Redis :** traitement asynchrone des événements, alertes et tâches de conservation.
+- **Stockage objet sécurisé :** archivage des exports et archives d'audit lorsque nécessaire.
+
+Les événements critiques doivent être enregistrés de manière fiable. Leur conservation ne doit pas dépendre uniquement d'une tâche asynchrone susceptible d'échouer silencieusement.
+
+Des mécanismes d'intégrité, de sauvegarde, de contrôle d'accès et de surveillance doivent protéger les journaux.
+
+### 18.16. Principes d'évolution
+
+L'architecture doit permettre d'intégrer progressivement :
+
+- Des mécanismes avancés de détection des anomalies.
+- Des outils de surveillance de sécurité.
+- Des audits automatisés.
+- Des rapports de conformité.
+- Des mécanismes renforcés de preuve d'intégrité.
+- Des interfaces d'audit adaptées aux partenaires institutionnels.
+
+L'objectif est de faire de la traçabilité un mécanisme transversal garantissant la confiance, la transparence et la responsabilité dans l'ensemble de PEST AI OS.
