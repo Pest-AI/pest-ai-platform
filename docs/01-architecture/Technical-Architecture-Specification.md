@@ -2654,3 +2654,290 @@ L'architecture devra permettre :
 - Une architecture évolutive permettant l'ajout des appels audio et vidéo.
 
 Les traitements asynchrones pourront s'appuyer sur Celery et Redis, conformément à la stack technique retenue.
+
+
+## 15. Architecture de gestion des fichiers et documents
+
+### 15.1 Objectifs
+
+L'architecture de gestion des fichiers de PEST AI OS vise à centraliser, organiser, sécuriser, stocker et exploiter les fichiers et données associés aux activités agricoles.
+
+Elle doit prendre en charge les documents classiques, les médias collectés sur le terrain ainsi que les données scientifiques et techniques utilisées par les différents modules de la plateforme.
+
+### 15.2 Architecture de stockage
+
+Les fichiers seront stockés dans un système de stockage objet indépendant de la base de données PostgreSQL.
+
+Les solutions envisagées sont :
+- Cloudflare R2.
+- Un stockage compatible avec l'API Amazon S3.
+
+PostgreSQL conservera les métadonnées, les références de stockage, les relations métier et les règles d'accès aux fichiers.
+
+Cette séparation permettra de gérer des volumes importants sans alourdir la base de données relationnelle.
+
+### 15.3 Organisation des fichiers par contexte métier
+
+Chaque fichier devra être associé à son contexte métier lorsque cela est pertinent.
+
+Exemples :
+- Une photographie pourra être liée à une parcelle AgroID, une observation ou une visite terrain.
+- Un document pourra être lié au dossier d'un producteur.
+- Un rapport pourra être associé à une organisation ou à un programme agricole.
+- Une image de diagnostic pourra être liée à une analyse IA et à ses éléments de preuve.
+
+Cette organisation facilitera la recherche, la traçabilité et la gestion des autorisations.
+
+### 15.4 Gestion des permissions
+
+Les droits d'accès aux fichiers seront déterminés en fonction :
+- Du rôle de l'utilisateur.
+- De son organisation active.
+- De ses autorisations spécifiques.
+- Du contexte métier auquel le fichier est rattaché.
+- Des éventuels consentements nécessaires.
+
+Les producteurs, agents, agronomes, responsables d'organisations et administrateurs accéderont uniquement aux fichiers relevant de leurs permissions.
+
+Le rôle de superadministrateur PEST AI sera également soumis aux règles de sécurité et de traçabilité.
+
+### 15.5 Formats de fichiers pris en charge
+
+Les formats initiaux envisagés sont :
+
+| Catégorie | Formats |
+|---|---|
+| Images | JPG, JPEG, PNG, WEBP |
+| Documents | PDF, DOCX, XLSX |
+| Données géographiques | GeoJSON, KML, SHP (Shapefile) |
+| Audio | MP3, WAV, M4A |
+| Vidéo | MP4 |
+
+Les formats acceptés seront contrôlés côté serveur. Les fichiers non autorisés ou non pris en charge seront rejetés.
+
+### 15.6 Limites initiales de taille
+
+Les limites initiales proposées sont :
+
+| Catégorie | Taille maximale |
+|---|---:|
+| Images | 10 Mo |
+| Documents PDF et bureautiques | 25 Mo |
+| Audio | 20 Mo |
+| Vidéos | 100 Mo |
+| Données géographiques | 50 Mo |
+
+Ces limites pourront être ajustées selon les besoins opérationnels, les performances et les coûts de stockage.
+
+### 15.7 Compression et optimisation
+
+Les fichiers pourront être optimisés avant stockage lorsque cela est pertinent.
+
+- Les photographies seront compressées tout en préservant les détails nécessaires à leur exploitation.
+- Les documents seront conservés dans leur format original.
+- Les fichiers audio pourront être compressés avec une qualité adaptée à la compréhension vocale.
+- Les vidéos pourront être optimisées pour réduire leur taille.
+- Les données satellitaires et scientifiques conserveront la qualité et les caractéristiques nécessaires aux analyses.
+
+Une attention particulière sera accordée aux images utilisées pour les diagnostics IA afin d'éviter toute perte excessive d'information.
+
+### 15.8 Sécurité des fichiers
+
+Le système intégrera les mécanismes suivants :
+
+- Analyse antivirus automatique des fichiers reçus.
+- Contrôle du type réel de fichier et de sa taille.
+- Stockage privé par défaut.
+- Accès contrôlé par les permissions métier.
+- Utilisation de liens temporaires sécurisés pour les téléchargements.
+- Protection contre les accès directs non autorisés.
+
+Les fichiers privés ne devront pas être exposés par des liens publics permanents.
+
+### 15.9 Gestion des versions
+
+Certains documents importants bénéficieront d'un système de gestion des versions.
+
+Chaque nouvelle version pourra conserver :
+- La référence de la version précédente.
+- La date de modification.
+- L'utilisateur ayant effectué la modification.
+- Les informations nécessaires à la traçabilité.
+
+Cette fonctionnalité sera réservée aux catégories de documents pour lesquelles la conservation de l'historique est utile.
+
+### 15.10 Archivage et suppression
+
+Le système distinguera deux opérations :
+
+**Archivage :**
+- Retrait d'un fichier de l'utilisation courante.
+- Conservation dans le système.
+- Consultation possible par les utilisateurs autorisés.
+
+**Suppression :**
+- Retrait définitif selon les règles de conservation applicables.
+- Prise en compte des obligations légales, contractuelles et des exigences de traçabilité.
+- Protection particulière des documents liés aux diagnostics, aux opérations agricoles, aux dossiers financiers et aux assurances.
+
+Les modalités exactes de conservation et de suppression seront définies dans les règles de gouvernance des données.
+
+### 15.11 Sauvegarde et récupération
+
+Le système devra prévoir :
+- Des sauvegardes automatiques des fichiers.
+- Une copie de sécurité indépendante du stockage principal.
+- Des mécanismes de récupération après incident.
+- Des tests réguliers de restauration.
+- Une surveillance de l'intégrité des sauvegardes.
+
+Les fichiers critiques devront pouvoir être récupérés en cas de panne ou de suppression accidentelle.
+
+### 15.12 Téléversement en environnement à connectivité limitée
+
+La plateforme devra prendre en charge les conditions de connectivité des zones agricoles.
+
+Les mécanismes prévus comprennent :
+- La reprise automatique des transferts interrompus.
+- Le téléversement en arrière-plan lorsque cela est possible.
+- L'affichage de la progression du transfert.
+- La mise en attente locale des fichiers hors connexion.
+- La synchronisation au retour du réseau.
+- La prévention des doublons lors des nouvelles tentatives.
+
+Ces fonctionnalités seront particulièrement importantes pour les agents terrain utilisant l'application mobile.
+
+### 15.13 Prévisualisation des fichiers
+
+PEST AI OS proposera une prévisualisation intégrée des formats compatibles.
+
+Les utilisateurs pourront notamment :
+- Consulter les photographies.
+- Prévisualiser les documents PDF.
+- Écouter les fichiers audio.
+- Consulter les rapports compatibles.
+- Lire les vidéos prises en charge.
+
+La prévisualisation sera soumise aux mêmes règles de permission que le téléchargement.
+
+### 15.14 Métadonnées des fichiers
+
+Chaque fichier disposera de métadonnées permettant son identification et sa traçabilité.
+
+Les informations pourront comprendre :
+- Nom et format du fichier.
+- Taille.
+- Date et heure d'ajout.
+- Utilisateur ayant envoyé le fichier.
+- Organisation concernée.
+- Parcelle AgroID ou dossier associé.
+- Position GPS lorsqu'elle est disponible et pertinente.
+- Statut de validation lorsque le contexte métier l'exige.
+
+Les métadonnées seront enregistrées dans PostgreSQL.
+
+### 15.15 Recherche et filtrage
+
+Un moteur de recherche permettra de retrouver les fichiers selon plusieurs critères :
+- Nom ou type de fichier.
+- Parcelle AgroID.
+- Producteur associé.
+- Organisation ou programme.
+- Date d'ajout.
+- Catégorie du document.
+
+Les résultats seront systématiquement filtrés selon les permissions de l'utilisateur.
+
+### 15.16 Partage avec des partenaires externes
+
+La plateforme pourra permettre le partage sécurisé de certains documents avec des acteurs externes autorisés, notamment :
+- Les banques.
+- Les assureurs.
+- Les ONG partenaires.
+- Les institutions agricoles.
+- Les autres partenaires contractuels.
+
+Le partage devra respecter :
+- Les autorisations et consentements nécessaires.
+- La sélection explicite des documents concernés.
+- La limitation de la durée et du périmètre d'accès.
+- La traçabilité des consultations et des téléchargements.
+
+### 15.17 Suivi de la consommation du stockage
+
+PEST AI OS intégrera un mécanisme de suivi de la consommation des ressources de stockage.
+
+Il devra permettre :
+- Le suivi de l'espace utilisé par organisation.
+- L'identification des catégories de fichiers les plus volumineuses.
+- La définition de quotas selon les besoins et les contrats.
+- Les alertes lorsque les limites approchent.
+- Le suivi des coûts globaux de stockage.
+
+### 15.18 Séparation des fichiers classiques et des données scientifiques
+
+L'architecture distinguera deux grandes catégories :
+
+**Fichiers classiques :**
+- Photographies.
+- Documents PDF et bureautiques.
+- Rapports.
+- Fichiers audio et vidéo.
+- Documents administratifs et agricoles.
+
+**Données scientifiques et agricoles :**
+- Images satellitaires.
+- Séries temporelles NDVI et NDWI.
+- Données géospatiales.
+- Mesures IoT.
+- Résultats d'analyses IA.
+- Fichiers de mesures et d'observations agricoles.
+
+Ces deux catégories pourront utiliser des mécanismes de stockage et de traitement adaptés à leurs caractéristiques.
+
+### 15.19 Traitement des données volumineuses
+
+Les données scientifiques volumineuses seront gérées par une architecture adaptée.
+
+- Les fichiers volumineux, notamment les images satellitaires et les rasters, seront stockés dans le système de stockage objet.
+- Les métadonnées et références seront conservées dans PostgreSQL.
+- Les géométries et opérations spatiales seront gérées avec PostGIS.
+- Les traitements lourds seront exécutés de manière asynchrone, notamment avec Celery et Redis.
+
+Cette architecture permettra de traiter progressivement des volumes croissants de données agricoles.
+
+### 15.20 Provenance et traçabilité des données
+
+Chaque fichier ou donnée devra disposer d'informations permettant de retrouver son origine et son historique.
+
+Les informations pourront inclure :
+- L'auteur ou le système ayant créé la donnée.
+- La date et l'heure de collecte ou de création.
+- La localisation, lorsqu'elle est disponible.
+- La parcelle AgroID concernée.
+- L'organisation associée.
+- La source : agent, producteur, satellite, capteur IoT ou modèle IA.
+- Les traitements et modifications effectués.
+- Les validations éventuelles.
+- La version utilisée dans une analyse.
+
+Cette traçabilité contribuera à la fiabilité des données exploitées par les agronomes, les modèles IA, les banques et les assureurs.
+
+### 15.21 Principes techniques
+
+L'architecture de gestion des fichiers reposera sur les principes suivants :
+
+- Stockage objet centralisé et sécurisé.
+- Séparation entre fichiers et données relationnelles.
+- Gestion des métadonnées dans PostgreSQL.
+- Permissions basées sur les rôles et les organisations.
+- Liens d'accès temporaires et sécurisés.
+- Optimisation des fichiers lorsque cela est pertinent.
+- Gestion des versions et de l'archivage.
+- Sauvegarde et récupération.
+- Téléversement résilient en mode hors connexion.
+- Recherche et prévisualisation intégrées.
+- Gestion adaptée des données scientifiques volumineuses.
+- Traçabilité de la provenance et des transformations.
+
+Les choix précis des fournisseurs, des quotas, des limites de conservation et des outils de sécurité seront confirmés lors de la conception détaillée et de l'implémentation.
