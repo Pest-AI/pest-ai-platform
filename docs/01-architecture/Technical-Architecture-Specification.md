@@ -2320,3 +2320,177 @@ Les principes suivants doivent être appliqués :
 - Séparation des traitements géospatiaux lourds et des opérations courantes de l'API.
 
 L'architecture doit permettre d'étendre les capacités géospatiales sans remettre en cause l'identité numérique AgroID des parcelles.
+
+
+## 13. Architecture IoT et capteurs agricoles
+
+### 13.1. Principes généraux
+
+PEST AI OS doit disposer d'une architecture IoT permettant d'intégrer des équipements connectés installés dans les parcelles agricoles, les zones de production et les infrastructures météorologiques.
+
+Ces équipements permettent de collecter automatiquement des données environnementales et agricoles afin d'enrichir les informations associées aux parcelles AgroID et d'améliorer les capacités d'analyse et d'aide à la décision de la plateforme.
+
+L'architecture doit être modulaire, interopérable, sécurisée et indépendante d'un fabricant unique.
+
+### 13.2. Types de capteurs et équipements
+
+La plateforme doit pouvoir intégrer différentes catégories d'équipements :
+
+- Capteurs d'humidité du sol.
+- Capteurs de température.
+- Capteurs d'humidité de l'air.
+- Capteurs de pluviométrie.
+- Stations météorologiques.
+- Capteurs de vent et de rayonnement solaire.
+- Autres équipements environnementaux et agricoles compatibles.
+
+Les mesures collectées doivent être associées à leur source, leur date, leur localisation, leur unité et leurs informations de qualité.
+
+### 13.3. Systèmes d'irrigation intelligents
+
+PEST AI OS doit prévoir la possibilité d'intégrer des systèmes d'irrigation connectés.
+
+Selon les équipements et les autorisations disponibles, la plateforme pourra :
+
+- Consulter l'état de fonctionnement des systèmes.
+- Surveiller les conditions d'humidité du sol.
+- Déclencher ou arrêter l'irrigation à distance.
+- Programmer des cycles d'irrigation.
+- Recevoir des alertes de panne ou d'anomalie.
+- Conserver l'historique des commandes et des opérations d'irrigation.
+
+Les commandes d'irrigation doivent respecter des règles de sécurité strictes, notamment les autorisations, les seuils configurés, les conditions de fonctionnement et les mécanismes de confirmation nécessaires.
+
+Une recommandation ou une commande générée par l'IA ne doit jamais déclencher automatiquement une action physique sans les contrôles et autorisations prévus.
+
+### 13.4. Protocoles de communication
+
+L'architecture IoT doit être compatible avec plusieurs technologies de communication, selon les équipements et les conditions de déploiement :
+
+- Wi-Fi.
+- Bluetooth.
+- LoRaWAN.
+- Réseaux cellulaires 2G, 3G et 4G.
+- Autres protocoles et passerelles compatibles.
+
+LoRaWAN constitue notamment une option à étudier pour les zones agricoles étendues et les équipements nécessitant une faible consommation énergétique.
+
+La plateforme doit privilégier une architecture multi-protocoles afin de faciliter l'intégration de différents fabricants et modèles de capteurs.
+
+### 13.5. Gestion des équipements IoT
+
+Chaque équipement connecté doit posséder une fiche individuelle dans PEST AI OS.
+
+Cette fiche doit notamment contenir :
+
+- Identifiant unique de l'équipement.
+- Type d'équipement.
+- Fabricant et modèle.
+- Protocole de communication.
+- Localisation géographique.
+- Parcelle AgroID, zone agricole ou station associée.
+- Date d'installation.
+- État de fonctionnement.
+- Historique des mesures.
+- Historique de maintenance et des interventions.
+
+Un équipement peut être associé à une parcelle, à plusieurs parcelles par l'intermédiaire d'une zone de couverture, à une zone agricole ou à une station météorologique.
+
+La plateforme doit gérer les installations, déplacements, désinstallations et changements d'affectation des équipements.
+
+### 13.6. Espace de gestion IoT des organisations
+
+Les coopératives et les organisations autorisées doivent disposer d'un espace de gestion de leurs équipements IoT.
+
+Cet espace doit permettre :
+
+- La consultation des équipements installés.
+- L'enregistrement de nouveaux équipements.
+- Le suivi de leur état.
+- La consultation des dernières mesures reçues.
+- L'accès à l'historique des données.
+- Le signalement des pannes.
+- Le suivi des opérations de maintenance.
+
+Les administrateurs de PEST AI disposent d'une visibilité globale sur les équipements de la plateforme, dans le respect des règles de sécurité et des périmètres organisationnels.
+
+### 13.7. Alertes et notifications IoT
+
+PEST AI OS doit pouvoir générer des alertes en fonction des mesures reçues et de règles configurées.
+
+Exemples :
+
+- Humidité du sol inférieure à un seuil défini.
+- Température anormalement élevée.
+- Capteur hors ligne depuis une durée définie.
+- Niveau de batterie faible.
+- Dysfonctionnement d'un système d'irrigation.
+- Mesures incohérentes ou inhabituelles.
+
+Les alertes doivent être contextualisées et transmises aux utilisateurs autorisés selon leurs responsabilités.
+
+La plateforme doit également distinguer les alertes techniques concernant les équipements des alertes agricoles concernant les conditions de production.
+
+### 13.8. Fusion des données agricoles
+
+L'architecture doit permettre de croiser plusieurs sources de données :
+
+- Données issues des capteurs IoT.
+- Données satellitaires et géospatiales.
+- Données météorologiques.
+- Observations et relevés de terrain.
+- Informations relatives aux cultures, cycles et activités agricoles.
+
+Cette fusion permet de contextualiser les analyses et les recommandations.
+
+Par exemple, une mesure de faible humidité du sol peut être analysée en tenant compte des prévisions météorologiques, du type de sol, de la culture, du stade de développement et des observations satellitaires disponibles.
+
+Les résultats doivent tenir compte de la qualité, de la fraîcheur et de la fiabilité des différentes sources.
+
+### 13.9. Historisation des mesures
+
+PEST AI OS doit conserver un historique structuré des mesures collectées par chaque équipement.
+
+Chaque mesure doit pouvoir être associée à :
+
+- L'équipement source.
+- La date et l'heure de collecte.
+- Le type de mesure.
+- La valeur et son unité.
+- La localisation ou la zone associée.
+- Les informations de qualité et de validité.
+- Le statut de réception et de traitement.
+
+L'historique doit permettre de comparer les mesures entre plusieurs périodes, d'étudier l'évolution des conditions agricoles, d'alimenter les modèles prédictifs et de contribuer aux analyses de performance agricole.
+
+Les opérations de maintenance et les changements de configuration doivent également être historisés.
+
+### 13.10. Architecture technique et traitement des données IoT
+
+Les équipements transmettent leurs données à travers des passerelles ou connecteurs compatibles.
+
+Le backend PEST AI assure la réception, l'authentification, la validation, le traitement et le stockage des données.
+
+Les traitements asynchrones peuvent être utilisés pour les volumes importants de mesures, la génération d'alertes et les analyses complémentaires.
+
+L'architecture doit prévoir la gestion des équipements temporairement hors ligne, les interruptions de communication, les mesures répétées et les retards de transmission.
+
+Les mesures doivent conserver leur horodatage d'origine afin de distinguer le moment réel de collecte du moment de réception par la plateforme.
+
+### 13.11. Sécurité et contrôle des équipements
+
+Chaque équipement et passerelle doit être identifié et authentifié selon un mécanisme adapté.
+
+Les communications doivent être sécurisées, les accès contrôlés et les commandes à distance protégées.
+
+Les actions sensibles, notamment les commandes d'irrigation, doivent être autorisées, journalisées et vérifiables.
+
+Les données et équipements doivent respecter les règles d'isolation organisationnelle et les principes de sécurité définis dans la présente architecture.
+
+### 13.12. Évolutivité
+
+L'architecture IoT doit permettre d'intégrer progressivement de nouveaux équipements, protocoles, fabricants et catégories de mesures.
+
+Les premiers déploiements pourront se concentrer sur un nombre limité de capteurs et de zones pilotes avant une extension à plusieurs coopératives, programmes et territoires.
+
+Les choix définitifs de matériels, de passerelles et de protocoles devront tenir compte des coûts, de la disponibilité locale, de la connectivité, de la consommation énergétique, de la maintenance et des conditions réelles d'exploitation.
