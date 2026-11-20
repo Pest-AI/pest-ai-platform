@@ -1992,3 +1992,155 @@ L'application sera organisée en composants modulaires :
 6. **Sécurité locale :** gestion des sessions et protection des données enregistrées.
 
 Cette organisation doit faciliter la maintenance, les tests et l'ajout de nouvelles fonctionnalités.
+
+## 11. Architecture de l'intelligence artificielle (IA)
+
+### 11.1. Principes généraux
+
+L'intelligence artificielle constitue une composante centrale de PEST AI OS. Elle exploite les données agricoles, géospatiales, environnementales, satellitaires et opérationnelles afin de produire des analyses, des recommandations et des indicateurs utiles aux producteurs, agents de terrain, agronomes, organisations et partenaires autorisés.
+
+L'architecture IA repose sur une approche modulaire, hybride, évolutive et traçable. Elle doit permettre d'intégrer différents modèles et services d'intelligence artificielle sans créer de dépendance technique à un fournisseur unique.
+
+Les principaux domaines d'intelligence sont :
+
+- Intelligence phytosanitaire : analyse des maladies et ravageurs à partir des observations et des images.
+- Intelligence agronomique : assistance et recommandations adaptées aux cultures, cycles et conditions agricoles.
+- Intelligence satellitaire : exploitation des données de télédétection pour surveiller les parcelles, la végétation, le stress hydrique et les anomalies.
+- Intelligence prédictive : estimation de risques et anticipation de certaines situations agricoles.
+- Intelligence vocale : assistance et accessibilité linguistique, notamment à travers Fary TTS pour le Wolof et le Pulaar.
+- Intelligence agricole et financière : exploitation des données agricoles fiables et traçables pour alimenter le SFA et les outils d'aide à l'évaluation des risques.
+
+Fary TTS constitue une composante d'interaction vocale et d'accessibilité. Il ne remplace pas les moteurs d'analyse et de décision agricole.
+
+### 11.2. Architecture générale des modèles IA
+
+PEST AI OS adopte une architecture composée de plusieurs modèles et services spécialisés, coordonnés par une couche centrale d'orchestration IA.
+
+Les principales composantes sont :
+
+- Modèles phytosanitaires.
+- Modèles d'assistance agronomique.
+- Modèles d'analyse satellitaire et géospatiale.
+- Modèles prédictifs.
+- Services de traitement et d'interaction vocale.
+- Services d'analyse et d'aide à l'évaluation agricole et financière.
+
+PEST AI Cloud assure la collecte, la préparation, le nettoyage, l'enrichissement et la mise à disposition des données nécessaires aux traitements IA.
+
+La couche d'orchestration IA assure notamment la sélection des modèles, la gestion des traitements, le suivi des analyses, la traçabilité des résultats et leur transmission aux modules concernés de PEST AI OS.
+
+Les modèles doivent pouvoir évoluer indépendamment afin de faciliter leur remplacement, leur amélioration ou l'intégration de nouvelles capacités.
+
+### 11.3. Stratégie hybride et déploiement progressif
+
+PEST AI adopte une stratégie hybride combinant :
+
+- Des services IA externes, notamment des modèles proposés par OpenAI, lorsque leur utilisation apporte une valeur pertinente.
+- Des modèles préentraînés pouvant être adaptés aux cultures, aux langues et aux réalités agricoles locales.
+- Des modèles développés ou entraînés par PEST AI lorsque la disponibilité et la qualité des données le permettent.
+
+Les services externes sont utilisés à travers le backend et les connecteurs sécurisés de PEST AI. Les clés d'accès et les données sensibles ne doivent jamais être exposées directement aux applications clientes.
+
+Le développement de l'intelligence propriétaire de PEST AI se fera progressivement à partir des données agricoles collectées, vérifiées et enrichies sur le terrain.
+
+### 11.4. Cultures prioritaires du MVP
+
+Le MVP démarre avec un périmètre agricole volontairement limité à cinq cultures prioritaires dans la Vallée du fleuve Sénégal :
+
+1. Riz.
+2. Oignon.
+3. Tomate.
+4. Maïs.
+5. Piment.
+
+Ce choix initial permet de concentrer les efforts de développement, de collecte de données et de validation agronomique sur un nombre maîtrisable de cultures.
+
+Les capacités et connaissances des modèles doivent tenir compte des zones agroécologiques, des variétés, des cycles culturaux, des conditions climatiques et des pratiques agricoles.
+
+La liste des cultures et les priorités pourront évoluer en fonction des résultats du MVP, des besoins des organisations partenaires et de la disponibilité des données.
+
+### 11.5. Capacités IA initiales du MVP
+
+Le socle IA initial repose sur trois capacités principales.
+
+**A. Diagnostic phytosanitaire**
+
+- Analyse des photographies et observations de terrain.
+- Identification de symptômes et proposition d'hypothèses de maladies ou de ravageurs.
+- Prise en compte de la culture et du contexte de la parcelle.
+- Présentation des résultats, des éléments justificatifs et des limites de l'analyse.
+- Transmission à un agronome pour validation lorsque nécessaire.
+
+**B. Assistance agronomique**
+
+- Recommandations contextualisées selon la culture et le cycle cultural.
+- Accompagnement des principales étapes de production.
+- Exploitation des données de terrain, des conditions environnementales et des informations disponibles.
+- Production de conseils compréhensibles et adaptés aux utilisateurs.
+
+**C. Surveillance agricole**
+
+- Exploitation des données satellitaires et météorologiques.
+- Suivi de l'évolution de la végétation et des conditions des parcelles.
+- Détection d'anomalies et de situations nécessitant une attention particulière.
+- Production d'alertes et d'informations utiles aux producteurs et aux équipes techniques.
+
+Les analyses satellitaires et les prédictions devront tenir compte des limites des données disponibles, de leur résolution, de leur fraîcheur et de leur validation locale.
+
+### 11.6. Fiabilité, traçabilité et validation humaine
+
+Chaque analyse IA doit être traçable et conserver, selon le type de traitement :
+
+- Le modèle utilisé et sa version.
+- Les données d'entrée et leur provenance.
+- La date et le statut du traitement.
+- Le résultat généré.
+- Le niveau de confiance lorsqu'il est disponible et correctement calibré.
+- Les éléments justificatifs et les limites connues.
+- Le statut de validation humaine.
+- L'identité de l'intervenant ayant confirmé, corrigé ou rejeté le résultat.
+
+Les résultats IA constituent des propositions d'analyse et ne doivent pas être automatiquement considérés comme des vérités agronomiques.
+
+Les agronomes autorisés peuvent confirmer, corriger ou rejeter les résultats. Ils peuvent également produire directement un diagnostic ou une recommandation sans intervention préalable de l'IA.
+
+Le système doit conserver l'historique des résultats initiaux, des corrections et des validations.
+
+### 11.7. Amélioration continue des modèles
+
+PEST AI OS doit disposer d'un mécanisme d'amélioration continue de ses capacités IA.
+
+Les principales sources d'amélioration comprennent :
+
+- Les observations collectées par les agents de terrain.
+- Les diagnostics confirmés et corrigés par les agronomes.
+- Les recommandations et leurs résultats de suivi.
+- Les données de production et de récolte.
+- Les données météorologiques et satellitaires.
+- Les historiques des activités agricoles et des cycles culturaux.
+
+Ces données peuvent servir à constituer des jeux de données de référence, évaluer les modèles, adapter leurs performances et développer progressivement des modèles propriétaires.
+
+Aucune modification automatique d'un modèle en production ne doit être réalisée sur la seule base de nouvelles observations.
+
+Toute nouvelle version doit faire l'objet de tests, d'une évaluation de performance, d'une validation et d'un déploiement contrôlé.
+
+L'architecture doit également permettre de surveiller les performances des modèles, de détecter leur dégradation et de revenir à une version précédente si nécessaire.
+
+### 11.8. Protection et maîtrise des données
+
+PEST AI conserve la maîtrise de son infrastructure de données agricoles et encadre l'utilisation des services IA externes.
+
+Les principes suivants s'appliquent :
+
+- Protection des données des producteurs, organisations et parcelles.
+- Minimisation des données transmises aux fournisseurs externes.
+- Anonymisation ou pseudonymisation lorsque cela est pertinent.
+- Transmission sécurisée des données nécessaires aux traitements.
+- Contrôle des accès et des autorisations.
+- Traçabilité des échanges avec les services externes.
+- Encadrement contractuel de l'utilisation, de la conservation et de la réutilisation des données par les fournisseurs.
+
+Les services IA externes ne doivent pas disposer d'un accès libre à la base de données de PEST AI.
+
+Les données agricoles constituent un actif stratégique de PEST AI et doivent être protégées conformément aux exigences de sécurité, de confidentialité et de gouvernance définies dans cette architecture.
