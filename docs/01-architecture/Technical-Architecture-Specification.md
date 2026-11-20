@@ -2494,3 +2494,163 @@ L'architecture IoT doit permettre d'intégrer progressivement de nouveaux équip
 Les premiers déploiements pourront se concentrer sur un nombre limité de capteurs et de zones pilotes avant une extension à plusieurs coopératives, programmes et territoires.
 
 Les choix définitifs de matériels, de passerelles et de protocoles devront tenir compte des coûts, de la disponibilité locale, de la connectivité, de la consommation énergétique, de la maintenance et des conditions réelles d'exploitation.
+
+
+## 14. Architecture des notifications et communications
+
+### 14.1 Objectifs
+
+L'architecture des notifications et communications de PEST AI OS vise à faciliter les échanges entre les producteurs, agents terrain, agronomes, responsables d'organisations, partenaires et administrateurs de la plateforme.
+
+Elle doit garantir des communications adaptées aux rôles, aux autorisations, aux préférences et aux conditions de connectivité des utilisateurs.
+
+### 14.2 Canaux de notification
+
+PEST AI OS prendra en charge trois canaux complémentaires :
+
+- Notifications dans l'application.
+- Notifications push sur les appareils mobiles.
+- Notifications par SMS et e-mail.
+
+Le choix du canal dépendra de la nature du message, des préférences de l'utilisateur et des capacités techniques disponibles.
+
+### 14.3 Personnalisation et niveaux de priorité
+
+Chaque utilisateur pourra configurer ses préférences de notification selon son rôle et ses besoins.
+
+Trois niveaux de priorité seront distingués :
+
+- Information : informations générales et actualités.
+- Attention : situation nécessitant une vigilance ou une action.
+- Critique : situation présentant un risque important et nécessitant une notification prioritaire.
+
+Les alertes critiques pourront bénéficier d'un traitement prioritaire, même lorsque certaines notifications habituelles sont désactivées. Leur déclenchement devra respecter des règles de pertinence et de contrôle afin d'éviter les alertes abusives.
+
+### 14.4 Communications ciblées
+
+Les organisations et les professionnels autorisés pourront communiquer avec leurs publics respectifs.
+
+Exemples :
+- Une coopérative communique avec ses producteurs membres.
+- Une ONG transmet une annonce aux bénéficiaires de ses programmes.
+- Un agronome échange des informations avec les producteurs qu'il accompagne.
+- PEST AI transmet des communications générales aux utilisateurs concernés.
+
+Chaque communication devra respecter le périmètre organisationnel et les permissions de l'émetteur.
+
+### 14.5 Messagerie interne
+
+Une messagerie interne sera intégrée à PEST AI OS afin de permettre les échanges entre les différents acteurs autorisés.
+
+Elle pourra notamment permettre :
+- Les échanges entre producteurs et agronomes.
+- Les échanges entre agents terrain et responsables.
+- Les échanges entre agronomes et coopératives.
+- Les communications entre organisations et leurs membres.
+
+La messagerie respectera les règles d'accès et d'isolation des organisations.
+
+### 14.6 Pièces jointes
+
+Les utilisateurs pourront partager dans leurs conversations :
+- Des photographies.
+- Des documents PDF.
+- Des rapports et fiches agricoles.
+- Des messages vocaux.
+
+Les fichiers seront stockés dans le système de stockage sécurisé de la plateforme. Leur accès sera contrôlé selon les autorisations.
+
+### 14.7 Intégration de Fary TTS et Fary ASR
+
+PEST AI OS intégrera les technologies vocales Fary afin de faciliter les interactions multilingues.
+
+**Fary TTS — Text-to-Speech**
+
+Conversion du texte en voix pour permettre notamment :
+- La lecture des messages.
+- La lecture des recommandations agricoles.
+- L'accès vocal aux informations de la plateforme.
+
+**Fary ASR — Automatic Speech Recognition**
+
+Reconnaissance vocale et conversion de la parole en texte pour permettre notamment :
+- La dictée de messages.
+- La transcription des messages vocaux.
+- La collecte d'informations agricoles par la voix.
+
+Les fonctionnalités vocales viseront notamment le français, le Wolof et le Pulaar, selon les capacités disponibles et leur niveau de qualité.
+
+### 14.8 Traduction multilingue
+
+La plateforme prévoira des fonctionnalités de traduction entre :
+- Français et Wolof.
+- Français et Pulaar.
+- Wolof et Pulaar, lorsque la qualité de traduction sera suffisante.
+
+Le message original devra être conservé. L'utilisateur pourra consulter sa traduction et être informé lorsque la traduction présente un niveau d'incertitude important.
+
+### 14.9 Appels audio et vidéo
+
+L'architecture prévoira la possibilité d'effectuer des appels audio et vidéo entre utilisateurs autorisés.
+
+Ces fonctionnalités seront développées dans une version ultérieure, après la mise en place des fonctionnalités essentielles de messagerie.
+
+### 14.10 Historique et traçabilité
+
+Le système conservera un historique des communications comprenant notamment :
+- L'expéditeur et les destinataires.
+- La date et l'heure.
+- L'organisation concernée.
+- Le statut du message : envoyé, distribué ou lu, lorsque cette information est disponible.
+- Les pièces jointes associées.
+
+Les règles de conservation, de modification et de suppression des données seront définies en cohérence avec les exigences de sécurité et de confidentialité.
+
+### 14.11 Fonctionnement hors connexion
+
+Les communications devront tenir compte des conditions de connectivité des zones agricoles.
+
+Le système devra notamment permettre :
+- L'enregistrement local des messages rédigés hors connexion.
+- La mise en attente des messages à envoyer.
+- La synchronisation automatique au retour de la connexion.
+- L'affichage des statuts : en attente, envoyé ou échec.
+- La gestion des erreurs et des nouvelles tentatives d'envoi.
+
+Les notifications non délivrées pourront être traitées à nouveau lorsque les conditions techniques le permettront.
+
+### 14.12 Protection et modération
+
+La messagerie intégrera des mécanismes de protection :
+- Signalement de messages ou d'utilisateurs.
+- Blocage d'utilisateurs lorsque cela est nécessaire.
+- Limitation du spam et des messages indésirables.
+- Traitement des signalements par les administrateurs habilités.
+
+Les interventions administratives devront respecter le périmètre organisationnel et les permissions attribuées.
+
+### 14.13 Confidentialité des communications
+
+Les conversations privées seront accessibles uniquement à leurs participants autorisés.
+
+Les administrateurs ne disposeront pas d'un accès libre et systématique à toutes les conversations privées.
+
+L'examen d'un contenu signalé devra suivre une procédure contrôlée et être réservé aux personnes habilitées.
+
+Les accès et interventions sensibles devront être encadrés et tracés lorsque nécessaire.
+
+### 14.14 Principes techniques
+
+L'architecture devra permettre :
+- Une gestion centralisée des notifications.
+- Un système de distribution multicanal.
+- Une gestion des préférences et des priorités.
+- Une messagerie sécurisée.
+- L'intégration des services Fary TTS et Fary ASR.
+- La prise en charge des traductions.
+- La gestion des pièces jointes.
+- La synchronisation hors connexion.
+- La traçabilité des communications.
+- Une architecture évolutive permettant l'ajout des appels audio et vidéo.
+
+Les traitements asynchrones pourront s'appuyer sur Celery et Redis, conformément à la stack technique retenue.
