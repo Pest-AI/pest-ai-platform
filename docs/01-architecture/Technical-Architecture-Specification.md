@@ -3912,3 +3912,238 @@ L'architecture doit permettre :
 Le principe retenu est de conserver une architecture modulaire et maîtrisée, en évitant une complexité technique prématurée.
 
 L'objectif est de faire évoluer PEST AI OS en fonction de son utilisation réelle, de ses besoins métier et de ses capacités financières.
+
+
+## 20. Architecture des tests et assurance qualité
+
+### 20.1. Objectif
+
+L'objectif de cette architecture est de garantir la fiabilité, la sécurité, la stabilité et la qualité de PEST AI OS tout au long de son développement et de son exploitation.
+
+Chaque nouvelle fonctionnalité doit être vérifiée avant sa mise à disposition des utilisateurs.
+
+Les tests doivent couvrir les composants techniques, les règles métier, les interactions entre modules et les parcours réels des utilisateurs.
+
+### 20.2. Niveaux de tests
+
+PEST AI OS adoptera trois niveaux complémentaires de tests.
+
+**1. Tests unitaires**
+
+Ils vérifient chaque composant indépendamment :
+
+- Fonctions et méthodes.
+- Calculs et règles métier.
+- Validations des données.
+- Permissions et autorisations.
+- Traitements individuels.
+
+**2. Tests d'intégration**
+
+Ils vérifient le bon fonctionnement des composants lorsqu'ils communiquent entre eux :
+
+- Backend et base de données.
+- API et application mobile.
+- API et services externes.
+- Celery et Redis.
+- Services IA et stockage des fichiers.
+- Mécanismes de synchronisation.
+
+**3. Tests de bout en bout (E2E)**
+
+Ils reproduisent les parcours réels des utilisateurs.
+
+Exemple : un agent crée une parcelle AgroID, renseigne les informations agricoles, ajoute une observation et synchronise les données avec le backend.
+
+### 20.3. Tests spécifiques aux fonctionnalités critiques
+
+Des scénarios de tests dédiés seront prévus pour les modules sensibles.
+
+**Sécurité et multi-organisations :**
+- Vérification de l'isolation des organisations.
+- Contrôle des rôles et permissions.
+- Prévention des accès non autorisés.
+
+**AgroID et géospatial :**
+- Création et modification des parcelles.
+- Validation des géométries.
+- Calcul des surfaces.
+- Vérification des coordonnées et des chevauchements.
+
+**Synchronisation mobile :**
+- Synchronisation hors ligne et en ligne.
+- Gestion des conflits.
+- Prévention des doublons.
+- Reprise après interruption réseau.
+
+**Intelligence artificielle :**
+- Vérification des entrées et sorties.
+- Gestion des erreurs de traitement.
+- Traçabilité des modèles et versions.
+- Vérification des résultats et de leur validation humaine.
+
+**Finance et SFA :**
+- Vérification des calculs.
+- Cohérence des historiques.
+- Gestion des autorisations de partage.
+- Contrôle des accès aux dossiers.
+
+**Commandes et fournisseurs :**
+- Création des commandes individuelles.
+- Commandes groupées des coopératives.
+- Suivi des statuts.
+- Répartition des commandes par bénéficiaire.
+
+### 20.4. Automatisation des tests avec GitHub Actions
+
+PEST AI OS utilisera GitHub Actions pour automatiser les contrôles de qualité du code.
+
+À chaque modification du code ou proposition d'intégration, les contrôles configurés pourront notamment :
+
+- Exécuter les tests unitaires.
+- Exécuter les tests d'intégration.
+- Vérifier la qualité et la cohérence du code.
+- Détecter certaines erreurs.
+- Vérifier les fonctionnalités existantes.
+- Produire un rapport de résultats.
+
+Les contrôles obligatoires devront réussir avant l'intégration des modifications concernées dans les branches protégées.
+
+### 20.5. Validation manuelle avant mise en production
+
+Les tests automatiques ne remplacent pas les vérifications humaines.
+
+Avant chaque mise en production, une validation sur Staging devra être réalisée.
+
+Elle pourra impliquer :
+
+- Un agent terrain pour vérifier les parcours de collecte.
+- Un agronome pour vérifier les diagnostics et recommandations.
+- Un administrateur pour vérifier les accès et les données de son organisation.
+- L'équipe technique pour vérifier les performances, les erreurs et le fonctionnement général.
+
+Les contrôles obligatoires devront être validés avant la publication en production.
+
+### 20.6. Tests de non-régression
+
+Une suite de tests de non-régression sera maintenue afin de vérifier que les nouvelles modifications ne détériorent pas les fonctionnalités existantes.
+
+Exemple : une évolution du module AgroID ne doit pas casser la création des parcelles, leur géolocalisation, les cycles de culture, les observations ou la synchronisation mobile.
+
+Ces tests seront exécutés automatiquement après les modifications concernées.
+
+### 20.7. Tests de compatibilité mobile et réseau
+
+L'application mobile devra être testée dans différentes conditions d'utilisation.
+
+Les scénarios comprendront :
+
+- Plusieurs tailles d'écran Android.
+- Téléphones d'entrée de gamme avec des ressources limitées.
+- Connexions 2G, 3G et 4G.
+- Utilisation sans connexion Internet.
+- Interruptions pendant les transferts de fichiers.
+- Synchronisation après plusieurs heures ou jours hors ligne.
+
+L'objectif est de garantir une expérience fiable dans les conditions réelles d'utilisation sur le terrain.
+
+### 20.8. Tests de sécurité
+
+Des tests de sécurité réguliers seront réalisés pour identifier les vulnérabilités potentielles.
+
+Ils couvriront notamment :
+
+- L'isolation des organisations.
+- Les contrôles d'accès par rôle.
+- La protection des API.
+- La sécurisation des fichiers privés.
+- La gestion des sessions et des authentifications.
+- La validation des données reçues.
+- La détection des accès et comportements anormaux.
+
+Des vérifications renforcées seront réalisées avant les mises en production importantes et lors des évolutions sensibles.
+
+### 20.9. Tests de qualité des données
+
+Des mécanismes automatiques devront vérifier la cohérence et la qualité des données enregistrées.
+
+Les contrôles porteront notamment sur :
+
+- Les champs obligatoires manquants.
+- Les coordonnées GPS incohérentes.
+- Les doublons potentiels de producteurs ou de parcelles.
+- Les incohérences de dates et de cycles agricoles.
+- Les observations incomplètes.
+- Les données non vérifiées ou non validées.
+- La cohérence des données utilisées par les analyses IA et le SFA.
+
+Les données suspectes pourront être signalées pour vérification humaine. Elles ne devront pas être supprimées automatiquement sans règle métier appropriée.
+
+### 20.10. Séparation des environnements de test
+
+Les trois environnements définis dans l'architecture seront utilisés :
+
+**Development :**
+- Développement des fonctionnalités.
+- Tests techniques initiaux.
+- Vérifications individuelles.
+
+**Staging :**
+- Validation des versions candidates.
+- Tests d'intégration et E2E.
+- Vérifications fonctionnelles et manuelles.
+- Validation avant production.
+
+**Production :**
+- Exploitation réelle de la plateforme.
+- Surveillance du fonctionnement.
+- Contrôles après déploiement.
+
+Les environnements devront rester isolés.
+
+Les tests utiliseront des données fictives ou anonymisées lorsque cela est nécessaire. Les données réelles de production ne devront pas être copiées librement vers les environnements de développement ou de test.
+
+### 20.11. Suivi de la qualité des tests
+
+PEST AI OS devra conserver un suivi régulier de la qualité des tests.
+
+Les indicateurs comprendront :
+
+- Le taux de couverture du code par les tests.
+- Le nombre de tests réussis et échoués.
+- Les fonctionnalités insuffisamment testées.
+- Les erreurs détectées.
+- Les erreurs corrigées et encore ouvertes.
+- L'historique des exécutions.
+- Les résultats des tests avant déploiement.
+
+La couverture du code constitue un indicateur de suivi, mais ne garantit pas à elle seule la qualité des tests. La pertinence des scénarios devra également être évaluée.
+
+### 20.12. Gestion des anomalies
+
+Toute anomalie détectée devra pouvoir être enregistrée et suivie.
+
+Chaque anomalie importante devra comporter :
+
+- Une description du problème.
+- Le module concerné.
+- Les étapes permettant de reproduire le problème.
+- Le niveau de gravité.
+- Le statut de correction.
+- La personne responsable.
+- Le résultat du nouveau test après correction.
+
+Les anomalies critiques devront être traitées en priorité et faire l'objet d'une validation avant la mise en production.
+
+### 20.13. Principes généraux d'assurance qualité
+
+Les principes suivants devront être respectés :
+
+- Toute fonctionnalité importante doit disposer de scénarios de test.
+- Les contrôles automatiques doivent être intégrés au cycle de développement.
+- Les modifications sensibles doivent être vérifiées avant leur publication.
+- Les erreurs critiques doivent être corrigées avant la mise en production.
+- Les tests doivent évoluer avec les fonctionnalités.
+- Les résultats des tests doivent être conservés et consultables par l'équipe technique.
+
+L'assurance qualité est un processus continu, appliqué pendant le développement, les évolutions et l'exploitation de PEST AI OS.
