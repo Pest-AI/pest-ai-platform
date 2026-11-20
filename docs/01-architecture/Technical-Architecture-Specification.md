@@ -4938,3 +4938,304 @@ Les fournisseurs et versions techniques définitifs seront sélectionnés lors d
 ### 23.19. Principe directeur
 
 PEST AI OS doit être une plateforme ouverte et interopérable, capable de collaborer avec différents fournisseurs technologiques et partenaires institutionnels ou commerciaux, tout en conservant la maîtrise de son architecture, de ses données, de son intelligence agricole et de ses règles métier.
+
+
+## 24. Gouvernance technique, maintenance et évolution de la plateforme
+
+### 24.1. Objectifs
+
+Cette section définit les règles de gouvernance, de développement, de maintenance et d'évolution de PEST AI OS.
+
+Elle vise à garantir :
+- La cohérence de l'architecture technique.
+- La qualité et la maintenabilité du code.
+- La sécurité du développement.
+- La maîtrise des évolutions.
+- La continuité des services.
+- La transmission des connaissances techniques.
+- La maîtrise des coûts et des ressources.
+
+### 24.2. Gouvernance des décisions techniques
+
+Les décisions techniques structurantes sont supervisées par l'équipe technique de PEST AI.
+
+Cette responsabilité comprend :
+- La validation des choix d'architecture.
+- L'approbation de nouvelles technologies.
+- La validation des modifications importantes de la base de données.
+- La supervision des mises en production.
+- Le maintien de la cohérence entre le code, la documentation et l'architecture.
+
+Les développeurs peuvent proposer des améliorations. Les changements structurants doivent être examinés et validés avant leur adoption.
+
+### 24.3. Organisation du développement avec GitHub
+
+Le développement repose sur un workflow Git structuré.
+
+Les branches principales sont :
+- `main` : branche principale contenant le code validé.
+- `develop` : branche d'intégration des nouvelles fonctionnalités.
+- `feature/*` : branches dédiées au développement de fonctionnalités.
+
+Toute modification importante doit passer par une Pull Request.
+
+Le processus comprend :
+1. Création d'une branche de travail.
+2. Développement de la fonctionnalité.
+3. Soumission d'une Pull Request.
+4. Revue du code.
+5. Exécution des tests et contrôles.
+6. Validation et intégration dans la branche cible.
+
+La branche principale doit être protégée contre les modifications directes non autorisées.
+
+### 24.4. Normes et conventions de développement
+
+Tous les développeurs doivent respecter des conventions communes.
+
+Ces règles concernent :
+- Les conventions de nommage.
+- L'organisation du code par modules et domaines métier.
+- La réutilisation des composants.
+- La gestion uniforme des erreurs.
+- La validation des données côté backend.
+- Les tests automatisés.
+- La qualité et la lisibilité du code.
+- La protection des secrets et des informations sensibles.
+
+Les commentaires doivent apporter une explication utile et ne pas remplacer une bonne organisation du code.
+
+L'objectif est de permettre à plusieurs développeurs de travailler sur la plateforme sans créer de dépendance excessive envers une seule personne.
+
+### 24.5. Gestion des versions
+
+PEST AI OS adopte le principe du Semantic Versioning :
+
+`MAJOR.MINOR.PATCH`
+
+Exemples :
+- `1.0.0` : première version stable.
+- `1.1.0` : ajout de fonctionnalités compatibles.
+- `1.1.1` : correction de bugs.
+- `2.0.0` : évolution majeure pouvant introduire des changements incompatibles.
+
+Chaque version doit disposer :
+- D'un numéro de version.
+- D'une date de publication.
+- D'une liste des nouveautés.
+- Des corrections apportées.
+- Des changements techniques importants.
+- Des éventuelles incompatibilités.
+
+Un fichier `CHANGELOG` permet de conserver l'historique des modifications.
+
+### 24.6. Maintenance technique et gestion des dépendances
+
+Une maintenance régulière doit être organisée pour l'ensemble des composants de la plateforme.
+
+Elle concerne notamment :
+- Django et ses bibliothèques.
+- React et React Native.
+- PostgreSQL et PostGIS.
+- Redis et Celery.
+- Les dépendances Python et JavaScript.
+- Les services d'infrastructure.
+- Les outils de sécurité et de supervision.
+
+L'équipe technique doit :
+- Surveiller les vulnérabilités.
+- Installer les mises à jour de sécurité.
+- Vérifier la compatibilité des versions.
+- Tester les mises à jour en environnement Staging.
+- Identifier et réduire progressivement la dette technique.
+
+Les mises à jour critiques de sécurité doivent être traitées selon leur niveau de risque et sans attendre nécessairement la prochaine maintenance planifiée.
+
+### 24.7. Documentation technique
+
+Toute évolution technique importante doit être accompagnée d'une mise à jour de la documentation.
+
+Cela concerne :
+- Les nouvelles API.
+- Les modifications de la base de données.
+- Les nouveaux modules.
+- Les intégrations externes.
+- Les changements d'architecture.
+- Les procédures de déploiement et de maintenance.
+
+MkDocs est retenu pour centraliser la documentation technique dans le dépôt GitHub.
+
+À terme, cette documentation pourra évoluer vers un portail interne destiné aux développeurs et aux responsables techniques.
+
+La documentation doit rester cohérente avec l'implémentation réelle de PEST AI OS.
+
+### 24.8. Gestion des migrations de base de données
+
+Toutes les modifications du schéma PostgreSQL/PostGIS doivent être versionnées.
+
+Les migrations doivent :
+- Être enregistrées dans le dépôt GitHub.
+- Être exécutées de manière contrôlée.
+- Être testées en développement et en Staging.
+- Préserver la cohérence des données.
+- Être documentées lorsqu'elles modifient des structures importantes.
+
+Les migrations sensibles en production doivent faire l'objet d'une procédure de sauvegarde, de vérification et de récupération adaptée.
+
+### 24.9. Gestion des accès des développeurs
+
+Chaque collaborateur doit disposer de son propre compte et d'autorisations adaptées à ses responsabilités.
+
+Les règles comprennent :
+- Comptes individuels GitHub.
+- Accès aux dépôts selon les responsabilités.
+- Accès à la production limité aux personnes autorisées.
+- Gestion sécurisée des clés API et secrets.
+- Interdiction de stocker les secrets dans le code source.
+- Révocation des accès lorsqu'un collaborateur quitte le projet.
+- Journalisation des actions sensibles.
+
+Le principe du moindre privilège doit être appliqué à tous les environnements.
+
+### 24.10. Gestion des incidents et des bugs
+
+Les incidents et anomalies doivent être suivis dans GitHub Issues ou un outil équivalent.
+
+Chaque problème doit comporter :
+- Une description.
+- Sa gravité et son impact.
+- Les fonctionnalités concernées.
+- Les étapes de reproduction.
+- Le responsable du traitement.
+- Le statut de résolution.
+- Les résultats des tests après correction.
+
+Trois niveaux de priorité sont définis :
+
+**Critique :**
+- Indisponibilité majeure de la plateforme.
+- Perte ou corruption de données.
+- Faille de sécurité importante.
+
+**Élevée :**
+- Fonctionnalité essentielle bloquée.
+- Dégradation importante d'un service.
+
+**Normale :**
+- Bug limité.
+- Amélioration non urgente.
+- Problème sans impact majeur sur les opérations.
+
+Les incidents critiques doivent bénéficier d'un traitement prioritaire, d'une procédure de rétablissement et d'une communication adaptée.
+
+### 24.11. Gestion des évolutions fonctionnelles
+
+Toute nouvelle fonctionnalité doit suivre un processus structuré :
+
+1. Expression du besoin.
+2. Analyse de la valeur métier et des utilisateurs concernés.
+3. Étude technique et architecturale.
+4. Évaluation des impacts sur les données et la sécurité.
+5. Priorisation.
+6. Développement.
+7. Tests et validation.
+8. Déploiement.
+
+Cette démarche permet de préserver la cohérence de la plateforme et d'éviter l'accumulation de fonctionnalités sans justification métier.
+
+### 24.12. Compatibilité et évolution des API
+
+Les API doivent évoluer de manière contrôlée et versionnée.
+
+La compatibilité avec les anciennes versions doit être maintenue lorsque cela est nécessaire.
+
+Les règles comprennent :
+- Versionnement des API.
+- Documentation des changements.
+- Période de transition entre les versions.
+- Information des utilisateurs et développeurs concernés.
+- Tests de compatibilité.
+- Procédure de retrait progressif des anciennes versions.
+
+Cette exigence est particulièrement importante pour les applications mobiles utilisées dans des zones où la connexion Internet est limitée et où les mises à jour peuvent être retardées.
+
+### 24.13. Contrôle des mises en production
+
+Toute nouvelle version doit suivre un processus de déploiement contrôlé :
+
+1. Validation en développement.
+2. Exécution des tests automatisés.
+3. Déploiement en Staging.
+4. Validation fonctionnelle et technique.
+5. Autorisation de mise en production.
+6. Déploiement en production.
+7. Surveillance après déploiement.
+8. Retour à la version précédente (rollback) en cas de problème.
+
+Pour les évolutions sensibles, le déploiement progressif auprès d'un groupe limité d'utilisateurs peut être utilisé avant la généralisation.
+
+### 24.14. Gestion des coûts et des ressources techniques
+
+L'équipe technique doit suivre régulièrement les coûts et la consommation des ressources de PEST AI OS.
+
+Les coûts concernent notamment :
+- Hébergement frontend et backend.
+- Base de données PostgreSQL/PostGIS.
+- Stockage des fichiers et images.
+- Traitements IA et API externes.
+- Données satellitaires et météorologiques.
+- SMS, emails et notifications.
+- Infrastructure et monitoring.
+
+Les ressources à surveiller comprennent :
+- Stockage.
+- Mémoire.
+- Processeur.
+- Trafic réseau.
+- Capacité de traitement.
+- Consommation des services externes.
+
+Des alertes de consommation et des limites budgétaires doivent être définies lorsque les services le permettent.
+
+### 24.15. Registre des décisions architecturales (ADR)
+
+Les décisions techniques importantes doivent être conservées dans un registre appelé Architecture Decision Records (ADR).
+
+Chaque décision doit préciser :
+- Le problème ou le besoin initial.
+- Les différentes solutions envisagées.
+- La solution retenue.
+- Les raisons du choix.
+- Les avantages et limites.
+- La date de décision.
+- Les responsables concernés.
+
+Ce registre doit notamment documenter les décisions concernant les technologies, les structures de données, les intégrations et les évolutions architecturales.
+
+Les ADR sont conservés dans GitHub et versionnés avec le reste de la documentation.
+
+### 24.16. Revues périodiques de l'architecture
+
+Une revue globale de l'architecture doit être organisée chaque trimestre.
+
+Cette revue permet de vérifier :
+- L'adéquation des technologies aux besoins.
+- Les performances.
+- La sécurité.
+- La stabilité des services.
+- Les coûts d'exploitation.
+- La qualité du code.
+- La cohérence des nouvelles fonctionnalités.
+- Les besoins de modernisation ou de refonte.
+
+Une revue exceptionnelle peut être organisée lorsqu'une évolution majeure, une augmentation importante de charge ou un changement technologique structurant est envisagé.
+
+Les conclusions et décisions issues des revues doivent être documentées.
+
+### 24.17. Principe directeur
+
+La gouvernance technique de PEST AI OS doit favoriser un développement rigoureux, collaboratif, documenté et évolutif.
+
+La plateforme doit pouvoir grandir progressivement, accueillir de nouveaux développeurs et partenaires, intégrer de nouvelles technologies et accompagner l'évolution des besoins agricoles sans perdre sa cohérence architecturale.
+
+La qualité, la sécurité, la maintenabilité et la maîtrise des coûts doivent rester des exigences permanentes tout au long du cycle de vie du produit.
