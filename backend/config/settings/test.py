@@ -1,8 +1,13 @@
 """Paramètres pour les tests automatisés (pytest, CI)."""
 
 from .base import *  # noqa: F403
+from .base import INSTALLED_APPS
 
 DEBUG = False
+
+# App de test : modèles concrets pour tester les mixins abstraits.
+INSTALLED_APPS = [*INSTALLED_APPS, "tests.testapp"]
+
 # Hachage rapide : uniquement pour accélérer les tests, jamais ailleurs.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 

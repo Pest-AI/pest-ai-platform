@@ -1,0 +1,78 @@
+# Intégration continue du backend : à chaque push sur main et à chaque pull request
+# qui touche le backend, GitHub vérifie le code et lance les tests sur PostgreSQL + PostGIS.
+name: Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  qualite:
+    name: Qualité du code (Ruff, Black)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer Ruff et Black (versions du projet)
+        run: pip install "$(grep '^ruff==' requirements/dev.txt)" "$(grep '^black==' requirements/dev.txt)"
+      - name: Ruff
+        run: ruff check .
+      - name: Black
+        run: black --check .
+
+  tests:
+    name: Tests (PostgreSQL 16 + PostGIS)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pestai_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Valeurs factices propres à la CI : aucun secret réel.
+      DJANGO_SECRET_KEY: ci-cle-factice-non-secrete
+      DATABASE_URL: postgis://postgres:postgres@localhost:5432/pestai_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/*.txt
+      - name: Installer GDAL et GEOS
+        run: sudo apt-get update -q && sudo apt-get install -y -q gdal-bin libgeos-dev
+      - name: Installer les dépendances
+        run: pip install -r requirements/dev.txt
+      - name: Vérifier la configuration Django
+        run: python manage.py check
+      - name: Vérifier qu'aucune migration ne manque
+        run: python manage.py makemigrations --check --dry-run
+      - name: Lancer les tests
+        run: pytest

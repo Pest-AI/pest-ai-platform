@@ -20,8 +20,9 @@ select = ["E", "F", "W", "I", "B", "UP", "DJ", "S", "SIM"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101"]
-"tests/**" = ["S101"]
+# Dans les tests : assert autorisé (S101), mots de passe factices autorisés (S105, S106).
+"**/tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["config", "apps"]

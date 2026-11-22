@@ -16,7 +16,7 @@ Références obligatoires avant de coder :
 - Ne jamais lire, afficher ni modifier un fichier `.env`. Ne jamais afficher de clé, mot de passe ou token.
 - Ne lancer aucune migration (`migrate`) sans autorisation explicite. `makemigrations` uniquement quand les modèles concernés sont validés.
 - Ne supprimer aucune donnée, ne jamais réinitialiser PostgreSQL, ne pas modifier les rôles ou permissions de la base.
-- Aucun commit ni push sans autorisation. Jamais de push sur `main`.
+- Aucun commit ni push sans autorisation. Phase actuelle : développement solo du fondateur sur `main` (voir CONTRIBUTING) ; ne jamais pousser à sa place.
 - Ne pas remplacer une décision d'architecture validée sans ADR approuvé.
 - Ne jamais présenter un test non exécuté comme réussi. Signaler tout échec.
 
@@ -28,11 +28,15 @@ Références obligatoires avant de coder :
 - Multi-tenant : en-tête `X-Workspace` (`org:<uuid>` ou `personal`) ; 400 si absent ou invalide, 403 si non autorisé, 404 pour un objet d'une autre organisation.
 - Tests : `pytest` dans `backend/tests/` ou `backend/apps/<nom>/tests/`.
 
-## Commandes utiles (depuis `backend/`, venv activé)
+## Commandes utiles (depuis la racine du dépôt)
 
 ```bash
-python manage.py check
-pytest
-ruff check . && black --check .
-pre-commit run --all-files   # depuis la racine
+make verifier    # qualité + migrations + tests : à lancer avant tout commit
+make tests       # tests uniquement
+make serveur     # serveur local
+make aide        # liste des commandes
 ```
+
+## Mixins communs (`apps/core/models.py`)
+
+`BaseModel` (BASE), `ArchivableModel` (ARCH), `SyncModel` (SYNC), `ImmutableFieldsMixin`. TENANT (J3) et SPACE (J10) arrivent avec Organization et Producer. Archiver / restaurer : `apps.core.services.archive()` / `restore()`, auteur passé explicitement.

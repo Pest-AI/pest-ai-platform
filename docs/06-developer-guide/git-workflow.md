@@ -1,38 +1,44 @@
 # Workflow Git
 
-Résumé du cycle de travail. Les règles de nommage sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Les règles complètes sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md) : le projet est en **phase 1 (développement solo)**, on travaille directement sur `main`.
 
-## Cycle d'une tâche
+## Routine quotidienne (phase 1)
 
 ```bash
-# 1. Partir de main à jour
-git switch main
-git pull
+cd ~/Documents/pest-ai-platform
+git pull                       # récupérer la dernière version
 
-# 2. Créer la branche de la tâche
-git switch -c feat/nom-de-la-tache
+# … travailler (ou intégrer le lot du jour) …
 
-# 3. Travailler, puis vérifier
-cd backend && pytest && cd ..
-pre-commit run --all-files
-
-# 4. Commiter (pre-commit s'exécute automatiquement)
-git add <fichiers>
-git commit -m "feat(portee): resume du changement"
-
-# 5. Pousser et ouvrir la pull request
-git push -u origin feat/nom-de-la-tache
-gh pr create --fill
-
-# 6. Après validation : squash merge sur GitHub, puis nettoyage local
-git switch main
-git pull
-git branch -d feat/nom-de-la-tache
+make verifier                  # qualité + migrations + tests
+git add -A
+git status --short             # relire : aucun .env, aucun .venv
+git commit -m "type(portee): resume du changement"
+git push
 ```
+
+Après le push, l'onglet **Actions** du dépôt GitHub montre le résultat de la CI (coche verte ou croix rouge).
 
 ## Si pre-commit modifie des fichiers
 
-Ruff, Black ou les contrôles de fin de ligne peuvent corriger des fichiers pendant le commit. Le commit est alors interrompu : il suffit de refaire `git add` sur les fichiers corrigés puis `git commit`.
+Ruff, Black ou les contrôles de fin de ligne peuvent corriger des fichiers pendant le commit. Le commit est alors interrompu : refaire `git add -A` puis `git commit`.
+
+## Si la CI échoue après un push
+
+1. Ouvrir l'onglet **Actions** sur GitHub, cliquer sur l'exécution en rouge et lire l'étape en échec.
+2. Corriger en local, relancer `make verifier`, commiter et pousser.
+
+## Phase 2 (équipe) : branches et pull requests
+
+```bash
+git switch main && git pull
+git switch -c feat/nom-de-la-tache
+# … travailler, make verifier, commits …
+git push -u origin feat/nom-de-la-tache
+gh pr create --fill
+# après CI verte et relecture : squash merge sur GitHub
+git switch main && git pull && git branch -d feat/nom-de-la-tache
+```
 
 ## Versions
 

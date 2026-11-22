@@ -28,19 +28,20 @@ backend/
 │   ├── urls.py              Routes (/api/v1/…)
 │   └── views.py             Vues techniques (santé)
 ├── apps/                    Apps métier (core, accounts, organizations…)
-├── tests/                   Tests transverses
+├── tests/                   Tests transverses (+ testapp : modèles de test des mixins)
 ├── requirements/            base.txt, dev.txt, production.txt
 ├── pyproject.toml           Configuration pytest, Ruff, Black
 └── .env.example             Modèle de configuration locale
 ```
 
-## Commandes utiles
+## Commandes utiles (depuis la racine du dépôt)
 
 | Commande | Usage |
 |---|---|
-| `python manage.py check` | Vérifier la configuration |
-| `pytest` | Lancer les tests |
-| `ruff check .` / `black .` | Lint / formatage |
-| `python manage.py runserver` | Serveur local |
+| `make verifier` | Tous les contrôles avant un commit (qualité, migrations, tests) |
+| `make tests` | Lancer les tests |
+| `make serveur` | Serveur local |
+| `make formater` | Corriger le format du code |
+| `make aide` | Liste des commandes |
 
 > Ne pas lancer `migrate` avant le J2 (modèle utilisateur personnalisé).

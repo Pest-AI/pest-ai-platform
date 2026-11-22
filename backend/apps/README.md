@@ -4,7 +4,7 @@ Chaque domaine métier est une app dans ce dossier (`apps/<nom>/`), ajoutée au 
 
 | App | Contenu | Jour prévu |
 |---|---|---|
-| `core` | Mixins communs (BASE, ARCH, TENANT, SPACE, SYNC), audit, X-Workspace | J1 |
+| [`core`](core/) | Mixins communs (BASE, ARCH, SYNC ; TENANT au J3, SPACE au J10), services d'archivage | J1 |
 | `accounts` | Utilisateur personnalisé, authentification JWT | J2 |
 | `organizations` | Organisations, adhésions, rôles | J3 |
 

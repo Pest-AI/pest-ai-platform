@@ -8,21 +8,30 @@ Merci de contribuer. Ce guide décrit la façon de travailler sur le dépôt. Il
 2. Lire l'architecture : [docs/01-architecture/](docs/01-architecture/) et les ADR.
 3. Lire le modèle de données de référence : [docs/02-database/](docs/02-database/) (Database Design v2.2).
 
-## 2. Branches
+## 2. Mode de travail : deux phases
 
-- `main` est toujours stable et déployable. **On ne pousse jamais directement sur `main`.**
+**Phase 1 — développement solo (actuelle).** Le fondateur est le seul développeur : il commite et pousse **directement sur `main`**. Le filet de sécurité est automatique :
+- `make verifier` avant chaque commit (qualité, migrations, tests) ;
+- pre-commit à chaque commit (format, secrets, fichiers `.env` bloqués) ;
+- la CI GitHub relance les contrôles et les tests à chaque push.
+
+**Phase 2 — équipe (dès l'arrivée d'un deuxième développeur).** On active la protection de `main` sur GitHub (pull request obligatoire, CI verte obligatoire) et chacun travaille sur sa branche, comme décrit ci-dessous.
+
+## 3. Branches (phase 2)
+
+- `main` est toujours stable et déployable. On n'y pousse plus directement.
 - Une branche par tâche, nommée `type/description-courte` :
 
 | Préfixe | Usage | Exemple |
 |---|---|---|
 | `feat/` | Nouvelle fonctionnalité | `feat/parcelles-agroid` |
 | `fix/` | Correction de bug | `fix/sync-row-version` |
-| `chore/` | Outillage, configuration, dépendances | `chore/j0-socle-monorepo` |
+| `chore/` | Outillage, configuration, dépendances | `chore/mise-a-jour-django` |
 | `docs/` | Documentation uniquement | `docs/guide-installation` |
 | `refactor/` | Restructuration sans changement fonctionnel | `refactor/services-organisations` |
 | `test/` | Ajout ou correction de tests | `test/permissions-workspace` |
 
-## 3. Messages de commit
+## 4. Messages de commit (toutes phases)
 
 Format [Conventional Commits](https://www.conventionalcommits.org/fr/) :
 
@@ -37,18 +46,20 @@ Exemples :
 - `fix(parcels): corriger le calcul de surface en hectares`
 - `docs(adr): documenter le choix d'Expo`
 
-## 4. Pull requests
+### Pull requests (phase 2)
 
 1. Pousser la branche : `git push -u origin <branche>`.
 2. Ouvrir la PR : `gh pr create` (ou depuis GitHub), en remplissant le modèle.
-3. Vérifier que les tests et les contrôles qualité passent.
+3. Attendre la CI verte.
 4. Fusion en **squash merge** sur `main`, puis suppression de la branche.
 
 Une PR = un sujet. Préférer plusieurs petites PR à une grosse.
 
 ## 5. Qualité
 
-- `pre-commit` est obligatoire (installé avec `pre-commit install`). Il lance Ruff, Black et des contrôles de sécurité à chaque commit.
+- `make verifier` avant chaque push : il lance pre-commit (Ruff, Black, sécurité), le contrôle des migrations et les tests.
+- `pre-commit` est obligatoire (installé avec `pre-commit install`) : il s'exécute à chaque commit.
+- La CI GitHub (`.github/workflows/backend.yml`) relance tout sur PostgreSQL + PostGIS à chaque push.
 - Toute nouvelle fonctionnalité backend arrive avec ses tests (`pytest`).
 - Standards de code : [coding-standards.md](docs/06-developer-guide/coding-standards.md).
 

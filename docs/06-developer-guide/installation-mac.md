@@ -119,17 +119,19 @@ python manage.py runserver
 
 puis ouvrir <http://127.0.0.1:8000/api/v1/health/> → `{"status": "ok", ...}`.
 
-## 8. Contrôles qualité (pre-commit)
+## 8. Contrôles qualité
 
-Depuis la racine du dépôt, venv activé :
+Depuis la racine du dépôt :
 
 ```bash
 cd ..
-pre-commit install
-pre-commit run --all-files
+backend/.venv/bin/pre-commit install   # une seule fois
+make verifier                          # qualité + migrations + tests
 ```
 
-Les contrôles s'exécutent ensuite automatiquement à chaque `git commit`.
+pre-commit s'exécute ensuite automatiquement à chaque `git commit`. `make aide` liste toutes les commandes disponibles.
+
+> Les tests créent une base temporaire `test_<nom_de_votre_base>` et y activent PostGIS : l'utilisateur PostgreSQL de `DATABASE_URL` doit avoir le droit superuser **sur votre poste uniquement** (`ALTER ROLE <utilisateur> SUPERUSER;` exécuté par le compte administrateur de Postgres.app).
 
 ## 9. Problèmes fréquents
 
@@ -140,4 +142,5 @@ Les contrôles s'exécutent ensuite automatiquement à chaque `git commit`.
 | `connection refused` sur le port 5432 | Postgres.app arrêté | Ouvrir Postgres.app et cliquer sur « Start » |
 | `extension "postgis" is not available` | Mauvaise version de PostgreSQL | Utiliser le serveur PostgreSQL 16 de Postgres.app |
 | `python3.12: command not found` | Python 3.12 non installé | `brew install python@3.12` |
+| `permission denied to create extension "postgis"` | L'utilisateur PostgreSQL n'est pas superuser | Voir la note de l'étape 8 |
 | Commit refusé par pre-commit | Format ou fichier interdit | Lire le message, corriger, refaire `git add` puis `git commit` |

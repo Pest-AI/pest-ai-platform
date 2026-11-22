@@ -47,7 +47,9 @@ THIRD_PARTY_APPS = [
     "corsheaders",
 ]
 # Les apps métier (apps/<nom>) sont ajoutées ici au fil du planning.
-LOCAL_APPS: list[str] = []
+LOCAL_APPS = [
+    "apps.core",
+]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
