@@ -1,9 +1,12 @@
 # PEST AI OS — Infrastructure
 
-Contiendra la configuration de déploiement :
+| Fichier | Rôle |
+|---|---|
+| [`backend/Dockerfile`](backend/Dockerfile) | Image de production de l'API (Python 3.12, GDAL 3.10, gunicorn, WhiteNoise) |
+| [`../render.yaml`](../render.yaml) | Blueprint Render : base PostgreSQL 16 + service API (racine du dépôt, emplacement attendu par Render) |
+| [`../backend/entrypoint.sh`](../backend/entrypoint.sh) | Démarrage du conteneur : migrations, compte initial, gunicorn |
+| [`../docs-site/vercel.json`](../docs-site/vercel.json) | Déploiement du portail sur Vercel |
 
-- `Dockerfile` du backend (image avec GDAL ≥ 3.9 pour GeoDjango)
-- `render.yaml` : service web, worker Celery, PostgreSQL + PostGIS, Redis (Render Key Value)
-- scripts d'exploitation (sauvegardes, vérifications)
+Guide pas à pas : [docs/04-devops/deploiement-staging.md](../docs/04-devops/deploiement-staging.md).
 
-Choix d'hébergement : [ADR-0003](../docs/01-architecture/adr/0003-hebergement-render-vercel.md). Le contenu arrive au **J5** du planning.
+La CI construit l'image et la démarre réellement à chaque modification (job « Image Docker » de `.github/workflows/backend.yml`).

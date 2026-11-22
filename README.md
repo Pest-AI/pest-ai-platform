@@ -43,6 +43,15 @@ python manage.py check
 pytest
 ```
 
+## Environnements
+
+| Environnement | API | Documentation |
+|---|---|---|
+| Local | `http://127.0.0.1:8000` | `http://127.0.0.1:8000/api/docs/` |
+| Staging | `https://api-staging.pestai.africa` | `https://docs.pestai.africa` |
+
+Déploiement : [docs/04-devops/deploiement-staging.md](docs/04-devops/deploiement-staging.md).
+
 ## Contribuer
 
 Lire [CONTRIBUTING.md](CONTRIBUTING.md) avant la première contribution : branches, messages de commit, pull requests, règles de sécurité.

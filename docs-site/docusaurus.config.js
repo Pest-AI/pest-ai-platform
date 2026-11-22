@@ -2,11 +2,19 @@
 // Portail de documentation développeurs de PEST AI OS.
 // Guides (Markdown, dossier docs/) + référence API interactive (Scalar, schéma static/openapi.yaml).
 
+const scalarThemeCss = require("./src/css/scalar-theme.js");
+
+// Serveurs proposés dans la référence API (bouton « Send »).
+const apiServers = [
+  { url: "https://api-staging.pestai.africa", description: "Staging" },
+  { url: "http://127.0.0.1:8000", description: "Serveur local" },
+];
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "PEST AI OS — Documentation développeurs",
   tagline: "Guides et référence de l'API PEST AI OS",
-  url: process.env.DOCS_SITE_URL || "http://localhost:3000",
+  url: process.env.DOCS_SITE_URL || "https://docs.pestai.africa",
   baseUrl: "/",
   onBrokenLinks: "throw",
   markdown: { hooks: { onBrokenMarkdownLinks: "throw" } },
@@ -37,8 +45,9 @@ const config = {
         showNavLink: true,
         configuration: {
           url: "/openapi.yaml",
-          servers: [{ url: "http://127.0.0.1:8000", description: "Serveur local" }],
+          servers: apiServers,
           defaultHttpClient: { targetKey: "shell", clientKey: "curl" },
+          customCss: scalarThemeCss,
         },
       },
     ],

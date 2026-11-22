@@ -19,7 +19,9 @@ if _env_file.exists():
     # Les variables déjà définies dans l'environnement ne sont pas écrasées.
     environ.Env.read_env(_env_file)
 
-PEST_AI_VERSION = "0.0.1-dev"
+PEST_AI_VERSION = "0.0.1"
+# Environnement affiché par /api/v1/health/ : local, staging, production.
+PEST_AI_ENVIRONMENT = env("PEST_AI_ENVIRONMENT", default="local")
 
 # ── Sécurité ──────────────────────────────────────────────
 SECRET_KEY = env("DJANGO_SECRET_KEY")
@@ -91,6 +93,8 @@ TEMPLATES = [
 # ── Base de données : PostgreSQL 16 + PostGIS ─────────────
 # Format : postgis://UTILISATEUR:MOT_DE_PASSE@HÔTE:PORT/NOM_BASE
 DATABASES = {"default": env.db("DATABASE_URL")}
+# Render fournit une URL « postgres:// » : on impose toujours le moteur PostGIS.
+DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -183,6 +187,7 @@ SPECTACULAR_SETTINGS = {
 
 # ── CORS (frontend Next.js, site de documentation) ────────
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 # ── Journalisation ────────────────────────────────────────
 LOGGING = {

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: PEST AI OS — API
-  version: 0.0.1-dev
+  version: 0.0.1
   description: |-
     API centrale de PEST AI OS : comptes, organisations, producteurs, parcelles, observations, diagnostics.
 

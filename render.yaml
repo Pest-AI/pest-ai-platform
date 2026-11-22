@@ -1,0 +1,59 @@
+# Infrastructure Render de PEST AI OS (Blueprint).
+# Render lit ce fichier depuis le dépôt : New → Blueprint → choisir pest-ai-platform.
+# Référence : https://render.com/docs/blueprint-spec
+#
+# Staging (J5) : API en offre gratuite (s'endort après 15 min sans requête),
+# base PostgreSQL 16 payante Basic (~6 $/mois, données conservées, PostGIS activé
+# automatiquement par la première migration). Région Francfort : la plus proche du Sénégal.
+
+databases:
+  - name: pestai-staging-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+    databaseName: pestai_staging
+    user: pestai
+
+services:
+  - type: web
+    name: pestai-api-staging
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerContext: ./backend
+    dockerfilePath: ./infrastructure/backend/Dockerfile
+    healthCheckPath: /api/v1/health/
+    # Déploie seulement quand la CI GitHub est verte.
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - backend/**
+        - infrastructure/backend/**
+      ignoredPaths:
+        - backend/**/tests/**
+        - backend/**/*.md
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pestai-staging-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: PEST_AI_ENVIRONMENT
+        value: staging
+      - key: DJANGO_ALLOWED_HOSTS
+        value: api-staging.pestai.africa
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://api-staging.pestai.africa
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://docs.pestai.africa
+      # Compte d'administration initial : valeurs saisies dans le tableau de bord Render
+      # au moment de l'application du Blueprint (jamais dans le dépôt).
+      - key: INITIAL_ADMIN_PHONE
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_FIRST_NAME
+        sync: false
+      - key: INITIAL_ADMIN_LAST_NAME
+        sync: false

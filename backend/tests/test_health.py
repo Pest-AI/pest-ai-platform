@@ -10,6 +10,7 @@ def test_health_repond_ok(client):
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "pest-ai-os-api"
+    assert body["environment"] == "local"
 
 
 def test_health_refuse_post(client):

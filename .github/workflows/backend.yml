@@ -8,11 +8,13 @@ on:
     paths:
       - "backend/**"
       - "docs-site/static/openapi.yaml"
+      - "infrastructure/backend/**"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
       - "docs-site/static/openapi.yaml"
+      - "infrastructure/backend/**"
       - ".github/workflows/backend.yml"
   workflow_dispatch:
 
@@ -83,3 +85,49 @@ jobs:
             || (echo "::error::Référence API obsolète : lancez « make schema » et commitez." && exit 1)
       - name: Lancer les tests
         run: pytest
+
+  image:
+    name: Image Docker (démarrage réel)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pestai_image
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Construire l'image de production
+        run: docker build -f ../infrastructure/backend/Dockerfile -t pestai-api:ci .
+      - name: Démarrer le conteneur comme sur Render
+        run: |
+          docker run -d --name api --network host \
+            -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/pestai_image \
+            -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+            -e DJANGO_ALLOWED_HOSTS=localhost \
+            -e PEST_AI_ENVIRONMENT=ci \
+            -e PORT=8000 \
+            pestai-api:ci
+      - name: Attendre la réponse du point de santé
+        run: |
+          for i in $(seq 1 45); do
+            if curl -sf http://localhost:8000/api/v1/health/; then exit 0; fi
+            sleep 2
+          done
+          docker logs api
+          exit 1
+      - name: Vérifier GDAL >= 3.9 (aucun avertissement gis.W001)
+        run: |
+          docker exec api python manage.py check --deploy 2>&1 | tee /tmp/check.txt
+          if grep -q "gis.W001" /tmp/check.txt; then echo "::error::GDAL < 3.9 dans l'image"; exit 1; fi
+      - name: Journaux du conteneur
+        if: always()
+        run: docker logs api || true

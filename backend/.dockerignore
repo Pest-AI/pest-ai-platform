@@ -1,0 +1,11 @@
+# Exclus de l'image Docker de production.
+.venv
+.env
+.env.*
+!.env.example
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+staticfiles
+media
