@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-from django.contrib.auth import get_user_model
 
 from tests.testapp.models import SimpleRecord
 
@@ -27,8 +26,8 @@ def test_dates_de_creation_et_de_modification_renseignees():
     assert record.updated_at >= created_at
 
 
-def test_auteurs_vides_par_defaut_et_renseignes_explicitement():
-    user = get_user_model().objects.create_user(username="agent", password="x")
+def test_auteurs_vides_par_defaut_et_renseignes_explicitement(make_user):
+    user = make_user()
 
     record = SimpleRecord.objects.create(label="A")
     assert record.created_by is None
@@ -38,8 +37,8 @@ def test_auteurs_vides_par_defaut_et_renseignes_explicitement():
     assert record.created_by == user
 
 
-def test_suppression_de_l_auteur_ne_supprime_pas_l_enregistrement():
-    user = get_user_model().objects.create_user(username="agent", password="x")
+def test_suppression_de_l_auteur_ne_supprime_pas_l_enregistrement(make_user):
+    user = make_user()
     record = SimpleRecord.objects.create(label="A", created_by=user)
 
     user.delete()

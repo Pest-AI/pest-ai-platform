@@ -5,6 +5,7 @@ chemins GDAL) sont lues depuis les variables d'environnement, ou depuis le fichi
 `backend/.env` en local. Voir `backend/.env.example`.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -43,12 +44,14 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "corsheaders",
 ]
 # Les apps métier (apps/<nom>) sont ajoutées ici au fil du planning.
 LOCAL_APPS = [
     "apps.core",
+    "apps.accounts",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -91,8 +94,8 @@ DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ── Authentification ──────────────────────────────────────
-# Le modèle utilisateur personnalisé (accounts.User) arrive au J2.
-# Aucune migration ne doit être appliquée avant.
+# Utilisateur personnalisé : connexion par numéro de téléphone (Design v2.2).
+AUTH_USER_MODEL = "accounts.User"
 # Hachage : PBKDF2 (décision du 20/11/2026).
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
@@ -100,7 +103,10 @@ PASSWORD_HASHERS = [
 ]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
@@ -116,9 +122,29 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # ── API (Django REST Framework) ───────────────────────────
+# Tout est privé par défaut : chaque route exige un jeton JWT valide,
+# sauf celles qui déclarent explicitement AllowAny (connexion, santé).
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+}
+
+# ── Jetons JWT (SimpleJWT) ────────────────────────────────
+# Jeton d'accès court ; jeton de rafraîchissement renouvelé à chaque usage,
+# l'ancien étant mis sur liste noire (déconnexion effective).
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_ACCESS_TOKEN_MINUTES", default=15)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("JWT_REFRESH_TOKEN_DAYS", default=7)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
 }
 
 # ── CORS (frontend Next.js, site de documentation) ────────

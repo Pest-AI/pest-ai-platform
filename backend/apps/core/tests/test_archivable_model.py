@@ -1,17 +1,11 @@
 """Tests du mixin ARCH et des services d'archivage."""
 
 import pytest
-from django.contrib.auth import get_user_model
 
 from apps.core import services
 from tests.testapp.models import SampleRecord
 
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def user():
-    return get_user_model().objects.create_user(username="manager", password="x")
 
 
 def test_objects_renvoie_tout_et_active_objects_les_lignes_actives(user):

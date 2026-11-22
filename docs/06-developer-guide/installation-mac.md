@@ -101,7 +101,12 @@ createdb pestai_dev
 psql -d pestai_dev -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 ```
 
-> **Ne pas lancer `python manage.py migrate` avant le J2** : le modèle utilisateur personnalisé (`accounts.User`) doit exister avant la toute première migration.
+Puis créer les tables et un compte technique :
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser   # numéro au format +221…, prénom, nom, mot de passe
+```
 
 ## 7. Vérifications
 
@@ -117,7 +122,7 @@ Lancer le serveur :
 python manage.py runserver
 ```
 
-puis ouvrir <http://127.0.0.1:8000/api/v1/health/> → `{"status": "ok", ...}`.
+puis ouvrir <http://127.0.0.1:8000/api/v1/health/> → `{"status": "ok", ...}`. La console d'administration est sur <http://127.0.0.1:8000/admin/> (connexion avec le compte technique). Pour tester l'API : [docs/03-api/authentification.md](../03-api/authentification.md).
 
 ## 8. Contrôles qualité
 

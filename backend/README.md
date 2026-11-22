@@ -12,7 +12,9 @@ pip install -r requirements/dev.txt
 cp .env.example .env    # compléter les valeurs
 python manage.py check
 pytest
-python manage.py runserver   # http://127.0.0.1:8000/api/v1/health/
+python manage.py migrate
+python manage.py createsuperuser   # compte technique (numéro de téléphone)
+python manage.py runserver         # http://127.0.0.1:8000/api/v1/health/
 ```
 
 ## Structure
@@ -43,5 +45,3 @@ backend/
 | `make serveur` | Serveur local |
 | `make formater` | Corriger le format du code |
 | `make aide` | Liste des commandes |
-
-> Ne pas lancer `migrate` avant le J2 (modèle utilisateur personnalisé).

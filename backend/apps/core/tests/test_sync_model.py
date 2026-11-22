@@ -1,7 +1,6 @@
 """Tests du mixin SYNC : row_version +1 à chaque modification."""
 
 import pytest
-from django.contrib.auth import get_user_model
 
 from apps.core import services
 from tests.testapp.models import SampleRecord
@@ -47,8 +46,8 @@ def test_row_version_augmente_avec_une_mise_a_jour_en_masse():
     assert set(SampleRecord.objects.values_list("row_version", flat=True)) == {2}
 
 
-def test_row_version_augmente_quand_on_archive():
-    user = get_user_model().objects.create_user(username="agent", password="x")
+def test_row_version_augmente_quand_on_archive(make_user):
+    user = make_user()
     record = SampleRecord.objects.create(reference="R1")
 
     services.archive(record, by=user)

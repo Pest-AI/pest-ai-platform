@@ -24,7 +24,8 @@ Références obligatoires avant de coder :
 
 - Apps Django dans `backend/apps/<nom>/`. Logique métier dans `services.py`, lectures dans `selectors.py`, pas dans les vues ni les serializers.
 - Les auteurs (`created_by`, `updated_by`) sont renseignés explicitement par la couche service.
-- Hachage des mots de passe : PBKDF2 (défaut Django).
+- Utilisateur : `accounts.User`, connexion par téléphone E.164, e-mail facultatif unique. Mots de passe en PBKDF2.
+- API privée par défaut (JWT + IsAuthenticated). Tests : fixtures `make_user`, `user`, `api_client`, `auth_client` dans `backend/conftest.py`.
 - Multi-tenant : en-tête `X-Workspace` (`org:<uuid>` ou `personal`) ; 400 si absent ou invalide, 403 si non autorisé, 404 pour un objet d'une autre organisation.
 - Tests : `pytest` dans `backend/tests/` ou `backend/apps/<nom>/tests/`.
 
