@@ -5,12 +5,16 @@ Toutes les routes métier sont versionnées sous /api/v1/.
 
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView
 
-from config.views import health
+from config.views import api_docs, health
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/health/", health, name="health"),
+    # Documentation : schéma OpenAPI (YAML, ou JSON avec ?format=json) et référence interactive.
+    path("api/schema/", SpectacularAPIView.as_view(), name="api-schema"),
+    path("api/docs/", api_docs, name="api-docs"),
     path("api/v1/", include("apps.accounts.urls")),
     path("api/v1/", include("apps.organizations.urls")),
 ]

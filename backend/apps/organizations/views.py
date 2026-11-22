@@ -8,6 +8,7 @@ Deux familles :
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Prefetch
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -41,6 +42,10 @@ def _run(service, **kwargs):
 # ---------------------------------------------------------------------------
 # Routes d'organisation (X-Workspace)
 # ---------------------------------------------------------------------------
+@extend_schema_view(
+    get=extend_schema(tags=["organization"], summary="Organisation active"),
+    patch=extend_schema(tags=["organization"], summary="Modifier l'organisation active"),
+)
 class CurrentOrganizationView(generics.RetrieveUpdateAPIView):
     """GET / PATCH /api/v1/organization/ : l'organisation du contexte."""
 
@@ -61,6 +66,28 @@ class CurrentOrganizationView(generics.RetrieveUpdateAPIView):
         serializer.save(updated_by=self.request.user)
 
 
+@extend_schema_view(
+    list=extend_schema(tags=["memberships"], summary="Membres de l'organisation active"),
+    retrieve=extend_schema(tags=["memberships"], summary="Détail d'une adhésion"),
+    create=extend_schema(
+        tags=["memberships"],
+        summary="Inviter un membre",
+        request=InviteMemberSerializer,
+        responses={201: MembershipSerializer},
+    ),
+    suspend=extend_schema(tags=["memberships"], summary="Suspendre", request=None),
+    reactivate=extend_schema(tags=["memberships"], summary="Réactiver", request=None),
+    revoke=extend_schema(tags=["memberships"], summary="Révoquer", request=None),
+    assign_role=extend_schema(
+        tags=["memberships"], summary="Attribuer un rôle", request=RoleCodeSerializer
+    ),
+    revoke_role=extend_schema(
+        tags=["memberships"],
+        summary="Retirer un rôle",
+        request=None,
+        parameters=[OpenApiParameter("role_code", str, OpenApiParameter.PATH)],
+    ),
+)
 class MembershipViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -87,6 +114,8 @@ class MembershipViewSet(
     }
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # génération du schéma OpenAPI
+            return OrganizationMembership.objects.none()
         return (
             OrganizationMembership.objects.for_organization(self.request.workspace.organization)
             .select_related("user", "organization")
@@ -160,6 +189,19 @@ class MembershipViewSet(
 # ---------------------------------------------------------------------------
 # Routes plateforme (super_admin)
 # ---------------------------------------------------------------------------
+@extend_schema_view(
+    list=extend_schema(tags=["platform"], summary="Toutes les organisations"),
+    retrieve=extend_schema(tags=["platform"], summary="Détail d'une organisation"),
+    create=extend_schema(tags=["platform"], summary="Créer une organisation"),
+    partial_update=extend_schema(tags=["platform"], summary="Modifier une organisation"),
+    archive=extend_schema(tags=["platform"], summary="Archiver", request=ArchiveSerializer),
+    designate_admin=extend_schema(
+        tags=["platform"],
+        summary="Désigner un administrateur",
+        request=OrganizationAdminSerializer,
+        responses={201: MembershipSerializer},
+    ),
+)
 class PlatformOrganizationViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -224,6 +266,7 @@ class PlatformOrganizationViewSet(
         return Response(MembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema_view(get=extend_schema(tags=["me"], summary="Mes organisations (choix de l'espace)"))
 class MyOrganizationsView(generics.ListAPIView):
     """GET /api/v1/organizations/ : organisations où l'utilisateur a une adhésion active
     (sert à choisir l'espace de travail ; aucun en-tête X-Workspace requis)."""
@@ -231,6 +274,8 @@ class MyOrganizationsView(generics.ListAPIView):
     serializer_class = OrganizationSerializer
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # génération du schéma OpenAPI
+            return Organization.objects.none()
         return (
             Organization.objects.filter(
                 memberships__user=self.request.user,

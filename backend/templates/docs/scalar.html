@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <title>PEST AI OS — Référence API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+  </head>
+  <body>
+    <!-- Référence interactive générée depuis le schéma OpenAPI du serveur. -->
+    <script id="api-reference" data-url="{{ schema_url }}"></script>
+    <script>
+      document.getElementById("api-reference").dataset.configuration = JSON.stringify({
+        theme: "default",
+        hideDownloadButton: false,
+        defaultHttpClient: { targetKey: "shell", clientKey: "curl" },
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1"></script>
+  </body>
+</html>

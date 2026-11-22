@@ -6,13 +6,13 @@ VENV ?= backend/.venv
 BIN := $(abspath $(VENV))/bin
 
 .DEFAULT_GOAL := aide
-.PHONY: aide verifier qualite migrations-ok tests serveur formater installer
+.PHONY: aide verifier qualite migrations-ok schema-ok tests serveur formater installer schema docs
 
 aide: ## Affiche cette aide
 	@echo "Commandes disponibles :"
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
 
-verifier: qualite migrations-ok tests ## Lance TOUS les contrôles avant un commit
+verifier: qualite migrations-ok schema-ok tests ## Lance TOUS les contrôles avant un commit
 	@echo ""
 	@echo "Tout est vert : vous pouvez commiter et pousser."
 
@@ -23,6 +23,18 @@ qualite: ## Ruff, Black et contrôles de sécurité (pre-commit)
 migrations-ok: ## Vérifie la configuration Django et qu'aucune migration ne manque
 	cd backend && $(BIN)/python manage.py check
 	cd backend && $(BIN)/python manage.py makemigrations --check --dry-run
+
+schema-ok: ## Vérifie que la référence API (docs-site) correspond au code
+	@cd backend && $(BIN)/python manage.py spectacular --validate --fail-on-warn --file /tmp/pestai-openapi.yaml
+	@diff -q /tmp/pestai-openapi.yaml docs-site/static/openapi.yaml >/dev/null \
+		|| (echo "La référence API n'est plus à jour : lancez « make schema »." && exit 1)
+	@echo "Référence API à jour."
+
+schema: ## Régénère la référence API (docs-site/static/openapi.yaml)
+	cd backend && $(BIN)/python manage.py spectacular --validate --fail-on-warn --file ../docs-site/static/openapi.yaml
+
+docs: ## Lance le site de documentation sur http://localhost:3000
+	cd docs-site && pnpm install && pnpm start
 
 tests: ## Lance les tests backend (pytest)
 	cd backend && $(BIN)/pytest

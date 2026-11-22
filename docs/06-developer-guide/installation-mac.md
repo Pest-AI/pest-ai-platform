@@ -122,7 +122,7 @@ Lancer le serveur :
 python manage.py runserver
 ```
 
-puis ouvrir <http://127.0.0.1:8000/api/v1/health/> → `{"status": "ok", ...}`. La console d'administration est sur <http://127.0.0.1:8000/admin/> (connexion avec le compte technique). Pour tester l'API : [docs/03-api/authentification.md](../03-api/authentification.md).
+puis ouvrir <http://127.0.0.1:8000/api/v1/health/> → `{"status": "ok", ...}`. La console d'administration est sur <http://127.0.0.1:8000/admin/> (connexion avec le compte technique). La référence interactive de l'API est sur <http://127.0.0.1:8000/api/docs/> ; les guides sont dans [docs-site](../../docs-site/docs/premiers-pas.md).
 
 ## 8. Contrôles qualité
 

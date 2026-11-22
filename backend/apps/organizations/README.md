@@ -63,7 +63,7 @@ Une méthode absente de `required_permissions` est refusée (refus par défaut).
 | GET / POST / PATCH | `/api/v1/platform/organizations/` | `super_admin` |
 | POST | `/api/v1/platform/organizations/<id>/archive/` · `admins/` | `super_admin` |
 
-Guide pas à pas : [docs/03-api/organisations-et-espaces.md](../../../docs/03-api/organisations-et-espaces.md).
+Guide pas à pas : [docs-site/docs/espaces-de-travail.md](../../../docs-site/docs/espaces-de-travail.md).
 
 ## Commandes
 

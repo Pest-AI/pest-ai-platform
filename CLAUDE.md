@@ -39,6 +39,10 @@ make serveur     # serveur local
 make aide        # liste des commandes
 ```
 
+## Documentation de l'API
+
+Toute route est annotée pour drf-spectacular (`@extend_schema`). Après modification d'une route : `make schema` (régénère `docs-site/static/openapi.yaml`) ; `make verifier` et la CI refusent un schéma obsolète. Guides : `docs-site/docs/`.
+
 ## Mixins communs (`apps/core/models.py`)
 
 `BaseModel` (BASE), `ArchivableModel` (ARCH), `SyncModel` (SYNC), `TenantModel` (TENANT), `ImmutableFieldsMixin`. SPACE arrive au J10 avec Producer. Archiver / restaurer : `apps.core.services.archive()` / `restore()`, auteur passé explicitement.

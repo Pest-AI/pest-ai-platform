@@ -21,7 +21,7 @@
 | PATCH | `/api/v1/me/` | Modifier prénom, nom, e-mail, langue | Jeton d'accès |
 | POST | `/api/v1/me/password/` | Changer son mot de passe | Jeton d'accès |
 
-Exemples : [docs/03-api/authentification.md](../../../docs/03-api/authentification.md).
+Exemples : [docs-site/docs/authentification.md](../../../docs-site/docs/authentification.md).
 
 ## Durée de vie des jetons
 

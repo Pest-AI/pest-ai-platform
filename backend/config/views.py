@@ -2,6 +2,8 @@
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 
@@ -11,3 +13,9 @@ def health(request):
     return JsonResponse(
         {"status": "ok", "service": "pest-ai-os-api", "version": settings.PEST_AI_VERSION}
     )
+
+
+@require_GET
+def api_docs(request):
+    """Référence interactive de l'API (Scalar), générée depuis /api/schema/."""
+    return render(request, "docs/scalar.html", {"schema_url": reverse("api-schema")})

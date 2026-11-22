@@ -1,0 +1,1491 @@
+openapi: 3.0.3
+info:
+  title: PEST AI OS — API
+  version: 0.0.1-dev
+  description: |-
+    API centrale de PEST AI OS : comptes, organisations, producteurs, parcelles, observations, diagnostics.
+
+    **Authentification** : `Authorization: Bearer <jeton>` (voir `POST /api/v1/auth/token/`).
+
+    **Espace de travail** : les routes d'organisation exigent l'en-tête `X-Workspace: org:<uuid>`.
+paths:
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Invalide le jeton `refresh` fourni.
+      summary: Se déconnecter
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: Numéro de téléphone (E.164) et mot de passe. Renvoie `access` et
+        `refresh`.
+      summary: Se connecter
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: Renvoie un nouveau `access` et un nouveau `refresh` ; l'ancien
+        est invalidé.
+      summary: Renouveler le jeton d'accès
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/me/:
+    get:
+      operationId: me_retrieve
+      description: |-
+        GET /api/v1/me/ : profil de l'utilisateur connecté.
+        PATCH /api/v1/me/ : modifier prénom, nom, e-mail, langue.
+      summary: Mon profil et mes adhésions
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+    patch:
+      operationId: me_partial_update
+      description: |-
+        GET /api/v1/me/ : profil de l'utilisateur connecté.
+        PATCH /api/v1/me/ : modifier prénom, nom, e-mail, langue.
+      summary: Modifier mon profil
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMeRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/v1/me/memberships/{membership_id}/accept/:
+    post:
+      operationId: me_memberships_accept_create
+      description: 'POST /api/v1/me/memberships/<id>/accept/ : l''invité accepte son
+        invitation.'
+      summary: Accepter une invitation
+      parameters:
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyMembership'
+          description: ''
+  /api/v1/me/password/:
+    post:
+      operationId: me_password_create
+      description: 'POST /api/v1/me/password/ : changer son mot de passe.'
+      summary: Changer mon mot de passe
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: Mot de passe changé.
+  /api/v1/memberships/:
+    get:
+      operationId: memberships_list
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Membres de l'organisation active
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMembershipList'
+          description: ''
+    post:
+      operationId: memberships_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Inviter un membre
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - memberships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteMemberRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InviteMemberRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InviteMemberRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/:
+    get:
+      operationId: memberships_retrieve
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Détail d'une adhésion
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/reactivate/:
+    post:
+      operationId: memberships_reactivate_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Réactiver
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/revoke/:
+    post:
+      operationId: memberships_revoke_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Révoquer
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/roles/:
+    post:
+      operationId: memberships_roles_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Attribuer un rôle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCodeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleCodeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleCodeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/roles/{role_code}/revoke/:
+    post:
+      operationId: memberships_roles_revoke_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Retirer un rôle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      - in: path
+        name: role_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/suspend/:
+    post:
+      operationId: memberships_suspend_create
+      description: |-
+        Membres de l'organisation du contexte.
+
+        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
+        est toujours filtré sur l'organisation vérifiée.
+      summary: Suspendre
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/organization/:
+    get:
+      operationId: organization_retrieve
+      description: 'GET / PATCH /api/v1/organization/ : l''organisation du contexte.'
+      summary: Organisation active
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - organization
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    patch:
+      operationId: organization_partial_update
+      description: 'GET / PATCH /api/v1/organization/ : l''organisation du contexte.'
+      summary: Modifier l'organisation active
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - organization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganizationRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/:
+    get:
+      operationId: organizations_list
+      description: |-
+        GET /api/v1/organizations/ : organisations où l'utilisateur a une adhésion active
+        (sert à choisir l'espace de travail ; aucun en-tête X-Workspace requis).
+      summary: Mes organisations (choix de l'espace)
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+  /api/v1/platform/organizations/:
+    get:
+      operationId: platform_organizations_list
+      description: Gestion des organisations par le Super Admin. Chaque appel est
+        journalisé.
+      summary: Toutes les organisations
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlatformOrganizationList'
+          description: ''
+    post:
+      operationId: platform_organizations_create
+      description: Gestion des organisations par le Super Admin. Chaque appel est
+        journalisé.
+      summary: Créer une organisation
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformOrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlatformOrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlatformOrganizationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOrganization'
+          description: ''
+  /api/v1/platform/organizations/{id}/:
+    get:
+      operationId: platform_organizations_retrieve
+      description: Gestion des organisations par le Super Admin. Chaque appel est
+        journalisé.
+      summary: Détail d'une organisation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) organisation.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOrganization'
+          description: ''
+    patch:
+      operationId: platform_organizations_partial_update
+      description: Gestion des organisations par le Super Admin. Chaque appel est
+        journalisé.
+      summary: Modifier une organisation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) organisation.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPlatformOrganizationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPlatformOrganizationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPlatformOrganizationRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOrganization'
+          description: ''
+  /api/v1/platform/organizations/{id}/admins/:
+    post:
+      operationId: platform_organizations_admins_create
+      description: Invite un utilisateur comme organization_admin (amorçage d'une
+        organisation).
+      summary: Désigner un administrateur
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) organisation.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationAdminRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrganizationAdminRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrganizationAdminRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/platform/organizations/{id}/archive/:
+    post:
+      operationId: platform_organizations_archive_create
+      description: Gestion des organisations par le Super Admin. Chaque appel est
+        journalisé.
+      summary: Archiver
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) organisation.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOrganization'
+          description: ''
+components:
+  schemas:
+    ArchiveRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 3
+      required:
+      - reason
+    InviteMemberRequest:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolesEnum'
+      required:
+      - phone_number
+    Me:
+      type: object
+      description: Profil de l'utilisateur connecté. Le numéro de téléphone n'est
+        pas modifiable ici.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone_number:
+          type: string
+          readOnly: true
+          title: Numéro de téléphone
+          description: Identifiant de connexion, format international E.164 (+221…).
+        first_name:
+          type: string
+          title: Prénom
+          maxLength: 100
+        last_name:
+          type: string
+          title: Nom
+          maxLength: 100
+        email:
+          nullable: true
+          title: E-mail
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        preferred_language:
+          allOf:
+          - $ref: '#/components/schemas/PreferredLanguageEnum'
+          title: Langue préférée
+        phone_verified_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          title: Numéro vérifié le
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Inscrit le
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - date_joined
+      - first_name
+      - id
+      - last_name
+      - memberships
+      - phone_number
+      - phone_verified_at
+    MemberUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+          title: Prénom
+        last_name:
+          type: string
+          readOnly: true
+          title: Nom
+        phone_number:
+          type: string
+          readOnly: true
+          title: Numéro de téléphone
+          description: Identifiant de connexion, format international E.164 (+221…).
+      required:
+      - first_name
+      - id
+      - last_name
+      - phone_number
+    Membership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/MemberUser'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MembershipStatusEnum'
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        invited_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - ended_at
+      - id
+      - invited_by
+      - joined_at
+      - roles
+      - status
+      - user
+    MembershipStatusEnum:
+      enum:
+      - invited
+      - active
+      - suspended
+      - revoked
+      type: string
+      description: |-
+        * `invited` - Invitée
+        * `active` - Active
+        * `suspended` - Suspendue
+        * `revoked` - Révoquée
+    MyMembership:
+      type: object
+      description: Une adhésion de l'utilisateur connecté, avec la valeur X-Workspace
+        à utiliser.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        organization_type:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+        workspace:
+          type: string
+          description: Valeur à envoyer dans l'en-tête X-Workspace pour agir dans
+            cette organisation.
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - id
+      - joined_at
+      - organization_id
+      - organization_name
+      - organization_type
+      - roles
+      - status
+      - workspace
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        organization_type:
+          allOf:
+          - $ref: '#/components/schemas/OrganizationTypeEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OrganizationStatusEnum'
+          readOnly: true
+        legal_identifier:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Identifiant légal (ex. NINEA) si disponible.
+        country_code:
+          type: string
+          readOnly: true
+          default: SN
+          description: ISO 3166-1 alpha-2.
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 16
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        parent_organization:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+          description: Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
+        is_archived:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - country_code
+      - created_at
+      - id
+      - is_archived
+      - legal_identifier
+      - name
+      - organization_type
+      - parent_organization
+      - status
+    OrganizationAdminRequest:
+      type: object
+      description: Désignation du premier administrateur d'une organisation par le
+        Super Admin.
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required:
+      - phone_number
+    OrganizationStatusEnum:
+      enum:
+      - pending
+      - active
+      - suspended
+      - closed
+      type: string
+      description: |-
+        * `pending` - En attente
+        * `active` - Active
+        * `suspended` - Suspendue
+        * `closed` - Fermée
+    OrganizationTypeEnum:
+      enum:
+      - cooperative
+      - union
+      - ngo
+      - company
+      - institution
+      - public_agency
+      - pest_ai
+      type: string
+      description: |-
+        * `cooperative` - Coopérative
+        * `union` - Union
+        * `ngo` - ONG
+        * `company` - Entreprise
+        * `institution` - Institution
+        * `public_agency` - Agence publique
+        * `pest_ai` - PEST AI
+    PaginatedMembershipList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+    PaginatedOrganizationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+    PaginatedPlatformOrganizationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformOrganization'
+    PasswordChangeRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - current_password
+      - new_password
+    PatchedMeRequest:
+      type: object
+      description: Profil de l'utilisateur connecté. Le numéro de téléphone n'est
+        pas modifiable ici.
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          title: Prénom
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          title: Nom
+          maxLength: 100
+        email:
+          nullable: true
+          title: E-mail
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        preferred_language:
+          allOf:
+          - $ref: '#/components/schemas/PreferredLanguageEnum'
+          title: Langue préférée
+    PatchedOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 16
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+    PatchedPlatformOrganizationRequest:
+      type: object
+      description: Création et gestion par le Super Admin (portée plateforme).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        organization_type:
+          $ref: '#/components/schemas/OrganizationTypeEnum'
+        status:
+          $ref: '#/components/schemas/OrganizationStatusEnum'
+        legal_identifier:
+          type: string
+          nullable: true
+          description: Identifiant légal (ex. NINEA) si disponible.
+          maxLength: 64
+        country_code:
+          type: string
+          minLength: 1
+          default: SN
+          description: ISO 3166-1 alpha-2.
+          maxLength: 2
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 16
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        parent_organization:
+          type: string
+          format: uuid
+          nullable: true
+          description: Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
+    PlatformOrganization:
+      type: object
+      description: Création et gestion par le Super Admin (portée plateforme).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        organization_type:
+          $ref: '#/components/schemas/OrganizationTypeEnum'
+        status:
+          $ref: '#/components/schemas/OrganizationStatusEnum'
+        legal_identifier:
+          type: string
+          nullable: true
+          description: Identifiant légal (ex. NINEA) si disponible.
+          maxLength: 64
+        country_code:
+          type: string
+          default: SN
+          description: ISO 3166-1 alpha-2.
+          maxLength: 2
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 16
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        parent_organization:
+          type: string
+          format: uuid
+          nullable: true
+          description: Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
+        is_archived:
+          type: boolean
+          readOnly: true
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        archive_reason:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - archive_reason
+      - archived_at
+      - created_at
+      - id
+      - is_archived
+      - name
+      - organization_type
+    PlatformOrganizationRequest:
+      type: object
+      description: Création et gestion par le Super Admin (portée plateforme).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        short_name:
+          type: string
+          maxLength: 50
+        organization_type:
+          $ref: '#/components/schemas/OrganizationTypeEnum'
+        status:
+          $ref: '#/components/schemas/OrganizationStatusEnum'
+        legal_identifier:
+          type: string
+          nullable: true
+          description: Identifiant légal (ex. NINEA) si disponible.
+          maxLength: 64
+        country_code:
+          type: string
+          minLength: 1
+          default: SN
+          description: ISO 3166-1 alpha-2.
+          maxLength: 2
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 16
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        parent_organization:
+          type: string
+          format: uuid
+          nullable: true
+          description: Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
+      required:
+      - name
+      - organization_type
+    PreferredLanguageEnum:
+      enum:
+      - fr
+      - wo
+      - ff
+      type: string
+      description: |-
+        * `fr` - Français
+        * `wo` - Wolof
+        * `ff` - Pulaar
+    RoleCodeRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - role
+    RoleEnum:
+      enum:
+      - super_admin
+      - organization_admin
+      - cooperative_manager
+      - field_agent
+      - agronomist
+      - producer
+      - program_manager
+      type: string
+      description: |-
+        * `super_admin` - super_admin
+        * `organization_admin` - organization_admin
+        * `cooperative_manager` - cooperative_manager
+        * `field_agent` - field_agent
+        * `agronomist` - agronomist
+        * `producer` - producer
+        * `program_manager` - program_manager
+    RolesEnum:
+      enum:
+      - organization_admin
+      - cooperative_manager
+      - field_agent
+      - agronomist
+      - producer
+      - program_manager
+      type: string
+      description: |-
+        * `organization_admin` - organization_admin
+        * `cooperative_manager` - cooperative_manager
+        * `field_agent` - field_agent
+        * `agronomist` - agronomist
+        * `producer` - producer
+        * `program_manager` - program_manager
+    TokenBlacklistRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    TokenObtainPair:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - phone_number
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: auth
+  description: Connexion, jetons JWT, déconnexion.
+- name: me
+  description: Compte de l'utilisateur connecté.
+- name: organization
+  description: Organisation de l'espace de travail actif.
+- name: memberships
+  description: Membres et rôles de l'organisation active.
+- name: platform
+  description: Administration de la plateforme (super_admin).

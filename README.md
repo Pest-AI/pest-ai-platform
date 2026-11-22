@@ -11,7 +11,7 @@ Plateforme d'intelligence agricole de **PEST AI** (Ecliptix SAS) pour les petits
 | API centrale | Toutes les applications | [`backend/`](backend/) | Django 5.2 LTS, DRF, PostgreSQL 16 + PostGIS | Render (Docker) |
 | Web OS | Console Admin, Espace Coopérative, Espace Agronome, Espace ONG | [`frontend/`](frontend/) | Next.js, TypeScript, Tailwind | Vercel |
 | App mobile | Agents de terrain, producteurs | [`mobile/`](mobile/) | React Native (Expo) | APK (EAS) |
-| Site de documentation | Développeurs | [`docs-site/`](docs-site/) | Docusaurus + Scalar (OpenAPI) | Vercel |
+| Site de documentation | Développeurs | [`docs-site/`](docs-site/) | Docusaurus + Scalar (OpenAPI) | Vercel (J5) |
 
 ## Structure du dépôt
 
@@ -20,7 +20,7 @@ pest-ai-platform/
 ├── backend/          API Django (code, tests, dépendances)
 ├── frontend/         Web OS Next.js (à partir du J6)
 ├── mobile/           Application Expo (à partir du J9)
-├── docs-site/        Portail de documentation développeurs (à partir du J4)
+├── docs-site/        Portail de documentation développeurs (guides + référence API)
 ├── infrastructure/   Dockerfile, render.yaml, scripts (à partir du J5)
 ├── docs/             Documentation de référence
 │   ├── 01-architecture/   Architecture + décisions (ADR)

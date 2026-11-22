@@ -5,6 +5,7 @@ Ces routes concernent l'utilisateur lui-même : elles n'utilisent pas l'en-tête
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -22,9 +23,16 @@ class MeView(APIView):
     """GET /api/v1/me/ : profil de l'utilisateur connecté.
     PATCH /api/v1/me/ : modifier prénom, nom, e-mail, langue."""
 
+    @extend_schema(tags=["me"], summary="Mon profil et mes adhésions", responses=MeSerializer)
     def get(self, request):
         return Response(MeSerializer(request.user).data)
 
+    @extend_schema(
+        tags=["me"],
+        summary="Modifier mon profil",
+        request=MeSerializer,
+        responses=MeSerializer,
+    )
     def patch(self, request):
         serializer = MeSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -37,6 +45,12 @@ class MeView(APIView):
 class PasswordChangeView(APIView):
     """POST /api/v1/me/password/ : changer son mot de passe."""
 
+    @extend_schema(
+        tags=["me"],
+        summary="Changer mon mot de passe",
+        request=PasswordChangeSerializer,
+        responses={204: OpenApiResponse(description="Mot de passe changé.")},
+    )
     def post(self, request):
         serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -49,6 +63,12 @@ class PasswordChangeView(APIView):
 class AcceptInvitationView(APIView):
     """POST /api/v1/me/memberships/<id>/accept/ : l'invité accepte son invitation."""
 
+    @extend_schema(
+        tags=["me"],
+        summary="Accepter une invitation",
+        request=None,
+        responses=MyMembershipSerializer,
+    )
     def post(self, request, membership_id):
         from apps.organizations import services as org_services
         from apps.organizations.models import OrganizationMembership

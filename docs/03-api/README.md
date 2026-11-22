@@ -1,17 +1,8 @@
-# 03 — API Documentation
+# 03 — API
 
-Ce dossier contient la documentation des API de PEST AI OS.
+La documentation de l'API vit dans le **portail développeurs** [`docs-site/`](../../docs-site/) :
 
-## Documents prévus
+- guides : [`docs-site/docs/`](../../docs-site/docs/) — premiers pas, authentification, espaces de travail (`X-Workspace`), rôles et permissions, conventions ;
+- référence interactive : générée depuis le code (`docs-site/static/openapi.yaml`), consultable sur le site (`/reference`) ou directement sur le serveur local : `http://127.0.0.1:8000/api/docs/`.
 
-- API Architecture
-- API Endpoints
-- Authentication
-- Authorization
-- OpenAPI Specification
-- API Usage Examples
-
-## Guides
-
-- [Authentification](authentification.md) : connexion, jetons JWT, profil.
-- [Organisations et espaces de travail](organisations-et-espaces.md) : X-Workspace, adhésions, rôles.
+Ce dossier ne contient volontairement pas de copie des guides, pour éviter deux versions divergentes.

@@ -7,10 +7,12 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "docs-site/static/openapi.yaml"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "docs-site/static/openapi.yaml"
       - ".github/workflows/backend.yml"
   workflow_dispatch:
 
@@ -74,5 +76,10 @@ jobs:
         run: python manage.py check
       - name: Vérifier qu'aucune migration ne manque
         run: python manage.py makemigrations --check --dry-run
+      - name: Vérifier que la référence API est à jour
+        run: |
+          python manage.py spectacular --validate --fail-on-warn --file /tmp/openapi.yaml
+          diff -u ../docs-site/static/openapi.yaml /tmp/openapi.yaml \
+            || (echo "::error::Référence API obsolète : lancez « make schema » et commitez." && exit 1)
       - name: Lancer les tests
         run: pytest

@@ -47,6 +47,7 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "corsheaders",
+    "drf_spectacular",
 ]
 # Les apps métier (apps/<nom>) sont ajoutées ici au fil du planning.
 LOCAL_APPS = [
@@ -75,7 +76,7 @@ ASGI_APPLICATION = "config.asgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -131,6 +132,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_SCHEMA_CLASS": "apps.core.schema.PestAutoSchema",
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     # Listes paginées : {"count", "next", "previous", "results"}, 50 éléments par page.
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
@@ -149,6 +151,34 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+}
+
+# ── Documentation de l'API (OpenAPI 3) ────────────────────
+SPECTACULAR_SETTINGS = {
+    "TITLE": "PEST AI OS — API",
+    "DESCRIPTION": (
+        "API centrale de PEST AI OS : comptes, organisations, producteurs, parcelles, "
+        "observations, diagnostics.\n\n"
+        "**Authentification** : `Authorization: Bearer <jeton>` "
+        "(voir `POST /api/v1/auth/token/`).\n\n"
+        "**Espace de travail** : les routes d'organisation exigent l'en-tête "
+        "`X-Workspace: org:<uuid>`."
+    ),
+    "VERSION": PEST_AI_VERSION,
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "MembershipStatusEnum": "apps.organizations.models.MembershipStatus",
+        "OrganizationStatusEnum": "apps.organizations.models.OrganizationStatus",
+    },
+    "TAGS": [
+        {"name": "auth", "description": "Connexion, jetons JWT, déconnexion."},
+        {"name": "me", "description": "Compte de l'utilisateur connecté."},
+        {"name": "organization", "description": "Organisation de l'espace de travail actif."},
+        {"name": "memberships", "description": "Membres et rôles de l'organisation active."},
+        {"name": "platform", "description": "Administration de la plateforme (super_admin)."},
+    ],
 }
 
 # ── CORS (frontend Next.js, site de documentation) ────────

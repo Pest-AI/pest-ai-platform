@@ -1,0 +1,29 @@
+/* Charte PEST AI : vert foncé, vert, jaune, bleu nuit. */
+:root {
+  --ifm-color-primary: #3a9442;
+  --ifm-color-primary-dark: #34853b;
+  --ifm-color-primary-darker: #317e38;
+  --ifm-color-primary-darkest: #28682e;
+  --ifm-color-primary-light: #40a349;
+  --ifm-color-primary-lighter: #43aa4c;
+  --ifm-color-primary-lightest: #4fba58;
+  --ifm-navbar-background-color: #184429;
+  --ifm-navbar-link-color: #ffffff;
+  --ifm-navbar-link-hover-color: #e8aa17;
+  --ifm-footer-background-color: #0b1929;
+  --ifm-code-font-size: 95%;
+}
+
+.navbar__title,
+.navbar .navbar__toggle {
+  color: #ffffff;
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #4fba58;
+}
+
+.markdown table {
+  display: table;
+  width: 100%;
+}
