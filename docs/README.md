@@ -1,12 +1,12 @@
-# PEST AI — Technical Documentation
+# Documentation technique PEST AI OS
 
-Documentation technique officielle de PEST AI OS.
+| Dossier | Contenu |
+|---|---|
+| [01-architecture](01-architecture/) | Architecture technique et globale, modèle conceptuel, roadmap, [décisions d'architecture (ADR)](01-architecture/adr/) |
+| [02-database](02-database/) | Database Design v2.2, registre de décisions, audit d'intégrité |
+| [03-api](03-api/) | Conventions de l'API (la référence complète est publiée sur le site de documentation) |
+| [04-devops](04-devops/) | Déploiement Render et Vercel, environnements, sauvegardes |
+| [05-security](05-security/) | Sécurité, gestion des accès, protection des données |
+| [06-developer-guide](06-developer-guide/) | Installation, workflow Git, standards de code |
 
-Ce répertoire centralise :
-- Architecture technique
-- Architecture fonctionnelle
-- Conception de la base de données
-- Documentation des API
-- Sécurité et gestion des accès
-- DevOps et déploiement
-- Guides destinés aux développeurs
+Le portail de documentation pour les développeurs (guides + référence API interactive) est dans [`docs-site/`](../docs-site/).

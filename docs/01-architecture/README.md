@@ -9,3 +9,7 @@ l'architecture fonctionnelle et technique de PEST AI OS.
 - Functional Architecture
 - Application Architecture
 - Security Architecture
+
+## Décisions d'architecture
+
+Les décisions structurantes sont documentées dans [adr/](adr/) (ADR 0001 à 0007).
