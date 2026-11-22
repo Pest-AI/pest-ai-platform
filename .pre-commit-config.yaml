@@ -1,0 +1,41 @@
+# Contrôles lancés automatiquement à chaque commit.
+# Installation (une fois) : pre-commit install
+# Lancer sur tout le dépôt : pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+        exclude: ^docs/02-database/.*\.pdf$
+      - id: detect-private-key
+      - id: forbid-new-submodules
+
+  # Bloque tout fichier .env (sauf .env.example) qui serait ajouté par erreur
+  - repo: local
+    hooks:
+      - id: interdire-fichiers-env
+        name: Interdire les fichiers .env
+        entry: "Fichier .env détecté : les secrets ne doivent jamais être commités."
+        language: fail
+        files: (^|/)\.env(\..+)?$
+        exclude: (^|/)\.env\.example$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+        files: ^backend/
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.10.1
+    hooks:
+      - id: black
+        files: ^backend/

@@ -1,16 +1,7 @@
-# PEST AI — Mobile Application
+# PEST AI OS — Application mobile
 
-Application mobile destinée aux producteurs et aux agents de terrain.
+Application pour les **agents de terrain** (`field_agent`) et les **producteurs** (`producer`) : enrôlement, capture GPS des parcelles, observations avec photos, fonctionnement hors ligne et synchronisation.
 
-Technologies envisagées :
-- React Native
-- Expo
-- TypeScript
+**Technologies :** React Native avec Expo (TypeScript), expo-sqlite (file hors ligne), expo-location, expo-camera, expo-secure-store. Distribution : APK via EAS Build. Voir [ADR-0005](../docs/01-architecture/adr/0005-mobile-react-native-expo.md).
 
-Fonctionnalités prévues :
-- Gestion des parcelles AgroID
-- Collecte des données agricoles
-- Missions et visites terrain
-- Observations et photos
-- Fonctionnement hors ligne
-- Synchronisation des données
+Le code arrive au **J9** du planning.

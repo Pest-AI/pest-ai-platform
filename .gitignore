@@ -1,0 +1,51 @@
+# ── Secrets : ne jamais versionner ─────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── Django ────────────────────────────────────────────────
+*.sqlite3
+backend/staticfiles/
+backend/media/
+
+# ── Node / Next.js / Expo / Docusaurus ────────────────────
+node_modules/
+.next/
+out/
+.expo/
+.docusaurus/
+build/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+.vercel/
+
+# ── Mobile (artefacts de build) ───────────────────────────
+*.apk
+*.aab
+*.ipa
+
+# ── Systèmes et éditeurs ──────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp

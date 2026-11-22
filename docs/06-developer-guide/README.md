@@ -1,13 +1,11 @@
-# 06 — Developer Guide
+# 06 — Guide développeur
 
-Guides pratiques destinés aux développeurs de PEST AI OS.
+Guides pratiques pour développer sur PEST AI OS.
 
-## Documents prévus
+| Guide | Contenu |
+|---|---|
+| [installation-mac.md](installation-mac.md) | Installer l'environnement sur macOS et lancer le backend |
+| [git-workflow.md](git-workflow.md) | Branches, commits, pull requests, versions |
+| [coding-standards.md](coding-standards.md) | Règles de code backend, API, tests, migrations |
 
-- Development Setup
-- Project Structure
-- Coding Standards
-- Git Workflow
-- Testing Guide
-- Contribution Guide
-- Troubleshooting
+À venir : structure du frontend (J6), de l'application mobile (J9), guide de déploiement (J5).

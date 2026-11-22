@@ -1,0 +1,4 @@
+# Environnement de production (Render).
+-r base.txt
+gunicorn==27.0.1
+whitenoise==6.12.0
