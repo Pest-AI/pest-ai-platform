@@ -27,8 +27,8 @@ jobs:
     name: Qualité du code (Ruff, Black)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Installer Ruff et Black (versions du projet)
@@ -60,8 +60,8 @@ jobs:
       DJANGO_SECRET_KEY: ci-cle-factice-non-secrete
       DATABASE_URL: postgis://postgres:postgres@localhost:5432/pestai_ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip

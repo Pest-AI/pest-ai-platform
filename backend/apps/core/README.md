@@ -9,7 +9,7 @@ Briques réutilisées par toutes les apps métier. Elle ne crée **aucune table*
 | BASE | `BaseModel` | `id` (UUID), `created_at`, `updated_at`, `created_by`, `updated_by` | J1 |
 | ARCH | `ArchivableModel` | `is_archived`, `archived_at`, `archived_by`, `archive_reason` | J1 |
 | SYNC | `SyncModel` | `client_created_at`, `server_received_at`, `row_version` | J1 — `source_device` au J18 (modèle Device) |
-| TENANT | `TenantModel` | `organization` (immuable) | J3, avec Organization |
+| TENANT | `TenantModel` | `organization` (immuable), `objects.for_organization(org)` | J3 |
 | SPACE | `SpaceModel` | `organization` ou `personal_producer`, `space_key` généré | J10, avec Producer |
 
 Exemple :

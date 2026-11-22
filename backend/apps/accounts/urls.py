@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from apps.accounts.views import MeView, PasswordChangeView
+from apps.accounts.views import AcceptInvitationView, MeView, PasswordChangeView
 
 urlpatterns = [
     # Authentification JWT : connexion par numéro de téléphone + mot de passe.
@@ -15,4 +15,9 @@ urlpatterns = [
     # Compte connecté.
     path("me/", MeView.as_view(), name="me"),
     path("me/password/", PasswordChangeView.as_view(), name="me-password"),
+    path(
+        "me/memberships/<uuid:membership_id>/accept/",
+        AcceptInvitationView.as_view(),
+        name="me-accept-invitation",
+    ),
 ]

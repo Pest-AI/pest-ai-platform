@@ -43,3 +43,70 @@ def auth_client(user):
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}")
     client.user = user
     return client
+
+
+# ── Organisations, adhésions, espaces de travail ─────────────────────────────
+@pytest.fixture
+def roles(db):
+    """Les 7 rôles système et leurs permissions (déjà chargés après migrate ; idempotent)."""
+    from apps.organizations import services
+
+    services.sync_system_roles()
+
+
+@pytest.fixture
+def make_org(db):
+    """Fabrique d'organisations actives : make_org("Coopérative de Podor")."""
+    from apps.organizations.models import Organization
+
+    def _make_org(name="Coopérative de Podor", status=None, **fields):
+        fields.setdefault("organization_type", Organization.OrganizationType.COOPERATIVE)
+        return Organization.objects.create(
+            name=name, status=status or Organization.Status.ACTIVE, **fields
+        )
+
+    return _make_org
+
+
+@pytest.fixture
+def make_member(roles, make_user):
+    """Crée un utilisateur avec une adhésion ACTIVE et les rôles demandés.
+
+    user, membership = make_member(organisation, "organization_admin")
+    """
+    from apps.organizations import services
+
+    def _make_member(organization, *role_codes, user=None):
+        user = user or make_user()
+        membership = services.invite_member(
+            organization=organization, user=user, invited_by=None, role_codes=role_codes
+        )
+        services.accept_invitation(membership=membership, user=user)
+        membership.refresh_from_db()
+        return user, membership
+
+    return _make_member
+
+
+@pytest.fixture
+def api():
+    """Client API ; api.as_user(user, workspace=org) authentifie et fixe X-Workspace."""
+    client = APIClient()
+
+    def as_user(user, workspace=None):
+        client.force_authenticate(user=user)
+        if workspace is None:
+            client.credentials()
+        elif isinstance(workspace, str):
+            client.credentials(HTTP_X_WORKSPACE=workspace)
+        else:
+            client.credentials(HTTP_X_WORKSPACE=f"org:{workspace.pk}")
+        return client
+
+    client.as_user = as_user
+    return client
+
+
+@pytest.fixture
+def two_orgs(make_org):
+    return make_org("Coopérative A"), make_org("Coopérative B")

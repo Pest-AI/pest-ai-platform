@@ -3,12 +3,19 @@
 Ces routes concernent l'utilisateur lui-même : elles n'utilisent pas l'en-tête X-Workspace.
 """
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import services
-from apps.accounts.serializers import MeSerializer, PasswordChangeSerializer
+from apps.accounts.serializers import (
+    MeSerializer,
+    MyMembershipSerializer,
+    PasswordChangeSerializer,
+)
 
 
 class MeView(APIView):
@@ -37,3 +44,23 @@ class PasswordChangeView(APIView):
             user=request.user, new_password=serializer.validated_data["new_password"]
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AcceptInvitationView(APIView):
+    """POST /api/v1/me/memberships/<id>/accept/ : l'invité accepte son invitation."""
+
+    def post(self, request, membership_id):
+        from apps.organizations import services as org_services
+        from apps.organizations.models import OrganizationMembership
+
+        # Filtré sur l'utilisateur connecté : l'invitation d'un autre renvoie 404.
+        membership = get_object_or_404(
+            OrganizationMembership.objects.select_related("organization"),
+            pk=membership_id,
+            user=request.user,
+        )
+        try:
+            org_services.accept_invitation(membership=membership, user=request.user)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.messages) from exc
+        return Response(MyMembershipSerializer(membership).data, status=status.HTTP_200_OK)

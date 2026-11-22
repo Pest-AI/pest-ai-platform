@@ -5,7 +5,13 @@ Ces tables n'existent que dans la base de test, créée par pytest.
 
 from django.db import models
 
-from apps.core.models import ArchivableModel, BaseModel, ImmutableFieldsMixin, SyncModel
+from apps.core.models import (
+    ArchivableModel,
+    BaseModel,
+    ImmutableFieldsMixin,
+    SyncModel,
+    TenantModel,
+)
 
 
 class SampleRecord(ImmutableFieldsMixin, BaseModel, ArchivableModel, SyncModel):
@@ -19,5 +25,11 @@ class SampleRecord(ImmutableFieldsMixin, BaseModel, ArchivableModel, SyncModel):
 
 class SimpleRecord(BaseModel):
     """Enregistrement avec le seul mixin BASE (ni archivage ni synchronisation)."""
+
+    label = models.CharField(max_length=100)
+
+
+class TenantRecord(BaseModel, TenantModel):
+    """Enregistrement rattaché à une organisation (mixin TENANT)."""
 
     label = models.CharField(max_length=100)

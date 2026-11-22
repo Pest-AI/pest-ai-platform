@@ -14,3 +14,4 @@ Ce dossier contient la documentation des API de PEST AI OS.
 ## Guides
 
 - [Authentification](authentification.md) : connexion, jetons JWT, profil.
+- [Organisations et espaces de travail](organisations-et-espaces.md) : X-Workspace, adhésions, rôles.

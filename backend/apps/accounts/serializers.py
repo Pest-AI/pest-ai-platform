@@ -6,8 +6,32 @@ from rest_framework import serializers
 from apps.accounts.models import User
 
 
+class MyMembershipSerializer(serializers.Serializer):
+    """Une adhésion de l'utilisateur connecté, avec la valeur X-Workspace à utiliser."""
+
+    id = serializers.UUIDField(read_only=True)
+    organization_id = serializers.UUIDField(source="organization.id", read_only=True)
+    organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_type = serializers.CharField(
+        source="organization.organization_type", read_only=True
+    )
+    status = serializers.CharField(read_only=True)
+    joined_at = serializers.DateTimeField(read_only=True)
+    workspace = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
+
+    def get_workspace(self, obj) -> str:
+        """Valeur à envoyer dans l'en-tête X-Workspace pour agir dans cette organisation."""
+        return f"org:{obj.organization_id}"
+
+    def get_roles(self, obj) -> list[str]:
+        return sorted(a.role.code for a in obj.role_assignments.all() if a.revoked_at is None)
+
+
 class MeSerializer(serializers.ModelSerializer):
     """Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici."""
+
+    memberships = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -20,8 +44,14 @@ class MeSerializer(serializers.ModelSerializer):
             "preferred_language",
             "phone_verified_at",
             "date_joined",
+            "memberships",
         ]
         read_only_fields = ["id", "phone_number", "phone_verified_at", "date_joined"]
+
+    def get_memberships(self, obj) -> list[dict]:
+        from apps.organizations.selectors import memberships_of_user
+
+        return MyMembershipSerializer(memberships_of_user(obj), many=True).data
 
     def validate_email(self, value):
         if not value:

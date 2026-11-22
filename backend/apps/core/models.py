@@ -10,7 +10,7 @@ Aucune table n'est créée ici. Les modèles métier héritent de ces classes :
 | BASE                 | BaseModel             | J1         |
 | ARCH                 | ArchivableModel       | J1         |
 | SYNC                 | SyncModel             | J1 (source_device au J18, avec Device) |
-| TENANT               | TenantModel           | J3, avec Organization |
+| TENANT               | TenantModel           | J3                    |
 | SPACE                | SpaceModel            | J10, avec Producer |
 """
 
@@ -32,6 +32,10 @@ class CoreQuerySet(models.QuerySet):
     def active(self):
         """Lignes non archivées (modèles ARCH uniquement)."""
         return self.filter(is_archived=False)
+
+    def for_organization(self, organization):
+        """Lignes de l'organisation du contexte vérifié (modèles TENANT uniquement)."""
+        return self.filter(organization=organization)
 
     def update(self, **kwargs):
         # Une mise à jour en masse est aussi une modification : row_version +1 (mixin SYNC).
@@ -137,6 +141,43 @@ class SyncModel(models.Model):
             kwargs["update_fields"] = {*update_fields, "row_version"}
         super().save(*args, **kwargs)
         self.refresh_from_db(fields=["row_version"])
+
+
+class TenantModel(models.Model):
+    """Mixin TENANT : rattachement à une organisation propriétaire (isolation).
+
+    - `organization` est fixée à la création à partir du contexte X-Workspace vérifié,
+      jamais lue dans le corps de la requête ;
+    - elle n'est plus modifiable ensuite (contrôle applicatif ci-dessous ; trigger
+      PostgreSQL ajouté avec la première table métier TENANT, Design v2.2 T-04) ;
+    - les vues lisent via `Model.objects.for_organization(request.workspace.organization)` :
+      un objet d'une autre organisation renvoie donc 404.
+    """
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    objects = CoreQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            stored = (
+                type(self)
+                ._base_manager.filter(pk=self.pk)
+                .values_list("organization_id", flat=True)
+                .first()
+            )
+            if stored is not None and stored != self.organization_id:
+                raise ValidationError(
+                    {"organization": "L'organisation propriétaire ne peut pas être modifiée."}
+                )
+        super().save(*args, **kwargs)
 
 
 class ImmutableFieldsMixin(models.Model):
