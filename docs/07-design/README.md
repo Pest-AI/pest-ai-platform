@@ -29,6 +29,8 @@ Toutes les pages de travail reprennent la structure et la police de la maquette 
 
 Restent hors de cette structure (validés tels quels) : connexion, activation, choix de l'espace et fond photo de la vue d'ensemble.
 
+**Vue d'ensemble** (comme la maquette) : indicateurs, bandeau « Mise en route » compact (masqué quand tout est fait), barre de filtres de la carte (Campagne, Culture, Zone, Statut, Producteur, branchés au fil des modules), **grande carte pleine largeur** (MapLibre GL : fond satellite Esri ou plan CARTO/OpenStreetMap, outils flottants, légende, coordonnées du curseur, échelle, plein écran), puis l'activité récente (derniers producteurs, invitations en attente). Les tuiles satellite gratuites conviennent au développement et au pilote ; un fournisseur sous contrat sera choisi avant la production.
+
 Typographie (décision du fondateur, 23/11 au soir, remplace Montserrat + Inter) : **Century Gothic** comme la maquette AI Studio, sur toute l'application. Elle n'est jamais téléchargée par le site (licence web payante) : elle s'affiche si l'appareil l'a (Windows et Mac avec Office) ; sinon **Questrial**, sa version libre auto-hébergée. Chiffres et identifiants : **JetBrains Mono**. Tailles : titres de page 26–28 px, titres de carte 16–18 px, texte 14 px, étiquettes 12–13 px ; pas d'espacement négatif entre les lettres (police large). Attention : ni Century Gothic ni Questrial ne couvrent sûrement les lettres du pulaar (ɓ, ɗ, ŋ, ƴ), qui s'afficheront dans la police de secours.
 
 ## Navigation (plan MVP)
