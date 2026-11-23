@@ -2,6 +2,15 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version par fin de semaine du planning MVP.
 
+## [Non publié] — Semaine 2 : Web OS
+
+### Ajouté
+- Web OS Next.js : connexion sécurisée (jetons en cookies httpOnly), choix de l'espace de travail.
+- Design validé (J7) : thème PEST AI (Montserrat, Inter, IBM Plex Mono auto-hébergées), logo officiel, navigation latérale, puce AgroID.
+- Console Admin : liste des organisations pour le super-admin.
+- API : champ `is_platform_admin` sur `GET /api/v1/me/`.
+- Connexion : un numéro sénégalais saisi sans indicatif est complété avec +221.
+
 ## [0.0.1] — Semaine 1 : socle backend
 
 ### Ajouté

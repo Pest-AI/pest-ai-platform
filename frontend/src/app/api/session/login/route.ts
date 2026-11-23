@@ -4,11 +4,12 @@ import type { NextRequest } from "next/server";
 import { seeOther } from "@/lib/http";
 
 import { API_BASE_URL } from "@/lib/config";
+import { toInternationalPhone } from "@/lib/phone";
 import { ACCESS_COOKIE, ACCESS_MAX_AGE, REFRESH_COOKIE, REFRESH_MAX_AGE, cookieOptions } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
   const form = await request.formData();
-  const phone = String(form.get("phone_number") ?? "").trim();
+  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""));
   const password = String(form.get("password") ?? "");
   const back = (reason: string) =>
     seeOther(request, `/connexion?erreur=${reason}`);

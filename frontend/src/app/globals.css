@@ -1,21 +1,79 @@
 @import "tailwindcss";
 
-/* Charte PEST AI */
+/*
+ * Thème PEST AI OS : reprend le Design System validé (J7).
+ * Couleurs de la charte, Montserrat pour les titres, Inter pour le texte,
+ * IBM Plex Mono pour les identifiants (AgroID, coordonnées).
+ */
 @theme {
+  /* Vert PEST AI (marque) */
+  --color-brand-50: #eef7ef;
+  --color-brand-100: #d6ecd8;
+  --color-brand-200: #b0dbb4;
+  --color-brand-300: #7fc286;
+  --color-brand-400: #55a85d;
+  --color-brand-500: #3a9442;
+  --color-brand-600: #2b7334;
+  --color-brand-700: #215c2b;
+  --color-brand-800: #184429;
+  --color-brand-900: #0f2e1b;
+
+  /* Couleurs nommées de la charte */
   --color-forest: #184429;
   --color-leaf: #3a9442;
-  --color-leaf-light: #e3f1e4;
-  --color-sun: #e8aa17;
-  --color-sun-light: #fcf1d6;
+  --color-gold: #e8aa17;
   --color-night: #0b1929;
-  --color-mist: #f3f7f5;
-  --color-line: #d5dcd8;
-  --color-muted: #5b6b63;
+
+  /* Neutres (teinte légèrement verte) */
+  --color-canvas: #ffffff;
+  --color-surface: #f7faf8;
+  --color-subtle: #eff3f1;
+  --color-line: #e3e9e5;
+  --color-line-strong: #cdd6d1;
+  --color-field: #7a9286;
+  --color-ink: #0b1929;
+  --color-muted: #5b6b78;
+
+  /* États */
+  --color-success: #2b7334;
+  --color-success-bg: #eef7ef;
+  --color-warning: #8a5a00;
+  --color-warning-bg: #fdf8e9;
   --color-danger: #b42318;
-  --color-danger-light: #f8dedb;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --color-danger-bg: #fde8e6;
+  --color-info: #1f4a72;
+  --color-info-bg: #eaf1f7;
+
+  /* Typographie */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-display: "Montserrat Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Ombres discrètes */
+  --shadow-card: 0 1px 2px rgb(11 25 41 / 0.04);
+  --shadow-pop: 0 12px 32px -4px rgb(11 25 41 / 0.12), 0 4px 8px -2px rgb(11 25 41 / 0.08);
 }
 
-body {
-  @apply bg-mist text-night antialiased;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-surface font-sans text-[14px] leading-5 text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-ink;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+}
+
+/* Chiffres alignés dans les tableaux et indicateurs */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

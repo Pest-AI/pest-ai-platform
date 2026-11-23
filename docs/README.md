@@ -8,5 +8,6 @@
 | [04-devops](04-devops/) | Déploiement Render et Vercel, environnements, sauvegardes |
 | [05-security](05-security/) | Sécurité, gestion des accès, protection des données |
 | [06-developer-guide](06-developer-guide/) | Installation, workflow Git, standards de code |
+| [07-design](07-design/) | Direction visuelle validée, Design System, maquettes |
 
 Le portail de documentation pour les développeurs (guides + référence API interactive) est dans [`docs-site/`](../docs-site/).

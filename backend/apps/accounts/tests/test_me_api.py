@@ -92,3 +92,14 @@ def test_nouveau_mot_de_passe_trop_faible_refuse(auth_client):
 
     assert response.status_code == 400
     assert "new_password" in response.json()
+
+
+def test_me_indique_si_l_utilisateur_est_super_admin(auth_client, make_user, roles):
+    from apps.organizations import services
+
+    assert auth_client.get(reverse("me")).json()["is_platform_admin"] is False
+
+    services.grant_platform_role(
+        user=auth_client.user, granted_by=make_user(), justification="Test Console Admin"
+    )
+    assert auth_client.get(reverse("me")).json()["is_platform_admin"] is True

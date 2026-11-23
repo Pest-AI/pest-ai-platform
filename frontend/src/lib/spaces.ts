@@ -1,12 +1,5 @@
-/** Espaces applicatifs du Web OS selon les rôles (ADR-0004). */
+/** Libellés et règles d'affichage des espaces de travail du Web OS (ADR-0004). */
 export type SpaceKey = "admin" | "cooperative" | "agronome" | "ong";
-
-export const SPACES: Record<SpaceKey, { label: string; description: string }> = {
-  admin: { label: "Console Admin PEST AI", description: "Administration de la plateforme" },
-  cooperative: { label: "Espace Coopérative", description: "Membres, producteurs, parcelles, campagnes" },
-  agronome: { label: "Espace Agronome", description: "Observations et validation des diagnostics" },
-  ong: { label: "Espace ONG", description: "Programmes et indicateurs agrégés" },
-};
 
 const ROLE_TO_SPACE: Record<string, SpaceKey> = {
   organization_admin: "cooperative",
@@ -22,15 +15,31 @@ export function spacesForRoles(roles: readonly string[]): SpaceKey[] {
   return order.filter((key) => found.has(key));
 }
 
+/** Libellés affichés des 7 rôles système (Design System, section « Ton et contenu »). */
 export const ROLE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  organization_admin: "Administrateur",
-  cooperative_manager: "Gestionnaire",
-  field_agent: "Agent de terrain",
+  super_admin: "Super-admin",
+  organization_admin: "Administrateur d'organisation",
+  cooperative_manager: "Gérant de coopérative",
+  field_agent: "Agent terrain",
   agronomist: "Agronome",
   producer: "Producteur",
-  program_manager: "Responsable de programme",
+  program_manager: "Gestionnaire de programme",
 };
+
+const ROLE_PRIORITY = [
+  "organization_admin",
+  "cooperative_manager",
+  "program_manager",
+  "agronomist",
+  "field_agent",
+  "producer",
+];
+
+/** Rôle principal à afficher (le plus élevé), ou « Membre » sans rôle. */
+export function primaryRoleLabel(roles: readonly string[]): string {
+  const top = ROLE_PRIORITY.find((r) => roles.includes(r));
+  return (top && ROLE_LABELS[top]) || "Membre";
+}
 
 export const ORGANIZATION_TYPE_LABELS: Record<string, string> = {
   cooperative: "Coopérative",
@@ -41,3 +50,26 @@ export const ORGANIZATION_TYPE_LABELS: Record<string, string> = {
   public_agency: "Agence publique",
   pest_ai: "PEST AI",
 };
+
+export const ORGANIZATION_STATUS: Record<string, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
+  active: { label: "Active", tone: "success" },
+  pending: { label: "En attente", tone: "warning" },
+  suspended: { label: "Suspendue", tone: "danger" },
+  closed: { label: "Fermée", tone: "neutral" },
+};
+
+/** Initiales d'une organisation : « Coopérative agricole de Ross Béthio » → « RB ». */
+export function organizationInitials(name: string): string {
+  const stop = new Set(["de", "des", "du", "la", "le", "les", "et", "d", "l", "coopérative", "cooperative", "agricole", "union", "gie"]);
+  const words = name
+    .split(/[\s'’-]+/)
+    .filter(Boolean)
+    .filter((w) => !stop.has(w.toLowerCase()));
+  const pick = (words.length ? words : name.split(/\s+/)).slice(0, 2);
+  return pick.map((w) => w.charAt(0).toUpperCase()).join("") || "?";
+}
+
+/** Date courte française : 23/11/2026. */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+}

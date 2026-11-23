@@ -33,6 +33,7 @@ class MeSerializer(serializers.ModelSerializer):
     """Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici."""
 
     memberships = serializers.SerializerMethodField()
+    is_platform_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -46,6 +47,7 @@ class MeSerializer(serializers.ModelSerializer):
             "phone_verified_at",
             "date_joined",
             "memberships",
+            "is_platform_admin",
         ]
         read_only_fields = ["id", "phone_number", "phone_verified_at", "date_joined"]
 
@@ -54,6 +56,12 @@ class MeSerializer(serializers.ModelSerializer):
         from apps.organizations.selectors import memberships_of_user
 
         return MyMembershipSerializer(memberships_of_user(obj), many=True).data
+
+    def get_is_platform_admin(self, obj) -> bool:
+        """Vrai si l'utilisateur a un rôle super_admin actif (accès à la Console Admin)."""
+        from apps.organizations.selectors import has_active_platform_role
+
+        return has_active_platform_role(obj)
 
     def validate_email(self, value):
         if not value:

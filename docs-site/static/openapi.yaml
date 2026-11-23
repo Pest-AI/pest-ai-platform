@@ -832,10 +832,16 @@ components:
           items:
             $ref: '#/components/schemas/MyMembership'
           readOnly: true
+        is_platform_admin:
+          type: boolean
+          description: Vrai si l'utilisateur a un rôle super_admin actif (accès à
+            la Console Admin).
+          readOnly: true
       required:
       - date_joined
       - first_name
       - id
+      - is_platform_admin
       - last_name
       - memberships
       - phone_number

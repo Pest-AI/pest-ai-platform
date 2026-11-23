@@ -5,15 +5,21 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sun disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-forest text-white hover:bg-leaf",
-        secondary: "border border-line bg-white text-night hover:bg-leaf-light",
-        ghost: "text-night hover:bg-leaf-light",
+        primary: "bg-brand-800 text-white hover:bg-brand-700",
+        secondary: "border border-line-strong bg-canvas text-ink hover:bg-surface",
+        ghost: "text-ink hover:bg-subtle",
+        danger: "bg-danger text-white hover:bg-danger/90",
       },
-      size: { md: "h-10 px-4", lg: "h-12 px-6 text-base" },
+      size: {
+        sm: "h-8 px-3 text-[13px]",
+        md: "h-9 px-3.5 text-[14px]",
+        lg: "h-11 px-5 text-[15px]",
+        icon: "size-9",
+      },
     },
     defaultVariants: { variant: "primary", size: "md" },
   },
@@ -29,3 +35,5 @@ export function Button({
   const Comp = asChild ? Slot : "button";
   return <Comp className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
+
+export { buttonVariants };

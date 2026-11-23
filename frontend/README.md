@@ -9,7 +9,7 @@ Application web de PEST AI OS : un seul site, un espace par rôle.
 | Espace Agronome | `agronomist` |
 | Espace ONG | `program_manager` |
 
-**Technologies :** Next.js 16 (App Router), TypeScript, Tailwind CSS 4 (charte PEST AI), composants de type shadcn/ui, client API typé généré depuis OpenAPI (`openapi-typescript` + `openapi-fetch`). Hébergement : Vercel ([ADR-0004](../docs/01-architecture/adr/0004-frontend-nextjs.md)).
+**Technologies :** Next.js 16 (App Router), TypeScript, Tailwind CSS 4 (thème du [Design System PEST AI OS](../docs/07-design/README.md)), polices Montserrat / Inter / IBM Plex Mono auto-hébergées (`@fontsource`), composants de type shadcn/ui, client API typé généré depuis OpenAPI (`openapi-typescript` + `openapi-fetch`). Hébergement : Vercel ([ADR-0004](../docs/01-architecture/adr/0004-frontend-nextjs.md)).
 
 ## Démarrer
 
@@ -22,11 +22,14 @@ pnpm dev                       # http://localhost:3000
 
 L'API locale doit tourner (`make serveur` depuis la racine). Depuis la racine : `make web`.
 
-## Parcours actuel (J6)
+## Parcours actuel (J7)
 
-1. `/connexion` : numéro de téléphone + mot de passe.
-2. `/espaces` : choix de l'organisation (adhésions actives renvoyées par `/api/v1/me/`).
-3. `/tableau-de-bord` : organisation active, rôles, espaces accessibles.
+1. `/connexion` : numéro de téléphone (indicatif +221 ajouté automatiquement à un numéro sénégalais) + mot de passe.
+2. `/espaces` : choix de l'organisation (adhésions actives de `/api/v1/me/`) ; carte « Console d'administration » si `is_platform_admin`.
+3. `/tableau-de-bord` : vue d'ensemble de l'espace (navigation latérale, indicateurs, organisation, rôles).
+4. `/admin/organisations` : Console Admin, liste des organisations (super-admin uniquement, `GET /api/v1/platform/organizations/`).
+
+Les entrées de navigation marquées « Bientôt » arrivent avec les jours suivants du planning (registre AgroID, campagnes, terrain).
 
 ## Session et sécurité ([ADR-0008](../docs/01-architecture/adr/0008-session-web-cookies-httponly.md))
 
@@ -42,15 +45,22 @@ src/
 ├── app/
 │   ├── connexion/            Page de connexion
 │   ├── espaces/              Choix de l'espace de travail
-│   ├── tableau-de-bord/      Accueil de l'espace
+│   ├── tableau-de-bord/      Vue d'ensemble de l'espace
+│   ├── admin/organisations/  Console Admin : organisations
 │   └── api/session/          login, logout, workspace (formulaires → cookies)
-├── components/               Marque, en-tête, composants d'interface (ui/)
+├── components/
+│   ├── app-shell.tsx         Navigation latérale, fil d'Ariane, en-tête de page, indicateurs
+│   ├── logo.tsx              Logo officiel PEST AI (public/brand/)
+│   ├── agroid-badge.tsx      Identifiant AgroID (élément signature)
+│   └── ui/                   Bouton, champ, badge, alerte, carte
 ├── lib/
 │   ├── api/client.ts         Client API côté serveur (getApi)
 │   ├── api/schema.d.ts       Types générés depuis OpenAPI — ne pas modifier
 │   ├── session.ts            Cookies, expiration des jetons
 │   ├── http.ts               Redirections sur l'origine du navigateur
-│   └── spaces.ts             Rôles → espaces, libellés français
+│   ├── navigation.ts         Menus par espace (entrées « Bientôt » sans lien)
+│   ├── phone.ts              Saisie du numéro → format international E.164
+│   └── spaces.ts             Rôles → espaces, libellés français, initiales, dates
 └── proxy.ts                  Contrôle d'accès et renouvellement des jetons
 ```
 
@@ -74,3 +84,9 @@ const { data: org } = await api.GET("/api/v1/organization/", {
 | `pnpm build` | Build de production |
 
 Après une modification de l'API : `make api-types` (régénère le schéma puis les types). La CI refuse des types obsolètes.
+
+## Design
+
+- Le style suit le **Design System PEST AI OS** et les maquettes validées le 23/11/2026 ([docs/07-design](../docs/07-design/README.md)).
+- Couleurs et polices : uniquement via les tokens de `src/app/globals.css` (`bg-brand-800`, `text-muted`, `font-display`…). Jamais de couleur hexadécimale en dur dans un composant.
+- Titres en Montserrat (`font-display`), texte en Inter, identifiants (AgroID, coordonnées) en IBM Plex Mono (`font-mono`). Montserrat et Inter couvrent les lettres du pulaar (ɓ, ɗ, ŋ, ƴ).

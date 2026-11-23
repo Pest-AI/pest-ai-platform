@@ -470,6 +470,8 @@ export interface components {
              */
             readonly date_joined: string;
             readonly memberships: components["schemas"]["MyMembership"][];
+            /** @description Vrai si l'utilisateur a un rôle super_admin actif (accès à la Console Admin). */
+            readonly is_platform_admin: boolean;
         };
         MemberUser: {
             /** Format: uuid */
