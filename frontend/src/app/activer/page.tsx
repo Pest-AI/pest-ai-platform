@@ -11,7 +11,7 @@ export default function ActivationPage() {
   return (
     <AuthLayout>
       <div className="text-center">
-        <h1 className="text-[28px] leading-9 font-bold tracking-[-0.02em] sm:text-[32px] sm:leading-10">Activer mon compte</h1>
+        <h1 className="text-[28px] leading-9 font-bold sm:text-[32px] sm:leading-10">Activer mon compte</h1>
         <p className="mt-1.5 text-[15px] text-muted">Saisissez le code reçu et choisissez votre mot de passe.</p>
       </div>
       <ActivationForm />

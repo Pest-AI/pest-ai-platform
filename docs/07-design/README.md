@@ -17,6 +17,20 @@ PEST AI n'est pas un outil de diagnostic : c'est l'**identité numérique de cha
 - **Carte immersive** et **explorateur** façon Google Earth Engine pour les écrans géographiques (J14) ; couches satellite en Phase 2 (F-02).
 - **Puce AgroID** (marine et or, IBM Plex Mono) : élément signature.
 
+## Structure des écrans (maquette AI Studio, 23/11 au soir)
+
+Toutes les pages de travail reprennent la structure et la police de la maquette Google AI Studio du fondateur :
+- **barre latérale** vert forêt : logo + « Espace … », carte « Périmètre actif », liste plate, élément actif en pastille blanche, « Aide et support » et « Paramètres » en bas ;
+- **barre du haut** : espace actif / page, recherche globale (producteurs), notifications, menu profil ;
+- **en-tête de page** : ligne de contexte (organisation · type), titre, sous-titre, actions (Exporter, action principale) ;
+- **indicateurs** : étiquette, chiffre en IBM Plex Mono, précision colorée, icône à droite ;
+- **carte de filtres** : recherche, compteur « n sur N », bascule Tableau / Cartes, filtres (listes déroulantes ou onglets avec compteurs) ;
+- **tableaux** : identifiants et téléphones en police à chasse fixe, pastilles de statut, bouton « Profil » / « Gérer ».
+
+Restent hors de cette structure (validés tels quels) : connexion, activation, choix de l'espace et fond photo de la vue d'ensemble.
+
+Typographie (décision du fondateur, 23/11 au soir, remplace Montserrat + Inter) : **Century Gothic** comme la maquette AI Studio, sur toute l'application. Elle n'est jamais téléchargée par le site (licence web payante) : elle s'affiche si l'appareil l'a (Windows et Mac avec Office) ; sinon **Questrial**, sa version libre auto-hébergée. Chiffres et identifiants : **JetBrains Mono**. Tailles : titres de page 26–28 px, titres de carte 16–18 px, texte 14 px, étiquettes 12–13 px ; pas d'espacement négatif entre les lettres (police large). Attention : ni Century Gothic ni Questrial ne couvrent sûrement les lettres du pulaar (ɓ, ɗ, ŋ, ƴ), qui s'afficheront dans la police de secours.
+
 ## Navigation (plan MVP)
 
 | Espace | Entrées | Livraison |
@@ -32,7 +46,7 @@ Connexion et activation partagent `AuthLayout` : mobile = bandeau visuel + feuil
 
 ## Typographie
 
-Montserrat pour les titres et chiffres clés, Inter pour le texte, IBM Plex Mono pour les identifiants. Century Gothic reste réservée aux documents imprimés (licence web et mobile payante). Montserrat et Inter couvrent les lettres du pulaar (ɓ, ɗ, ŋ, ƴ) ; IBM Plex Mono ne les couvre pas, elle ne sert qu'aux codes.
+Voir « Structure des écrans » ci-dessus : Century Gothic (ou Questrial) et JetBrains Mono depuis le 23/11 au soir.
 
 ## Sources
 

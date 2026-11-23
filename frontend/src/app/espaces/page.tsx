@@ -129,7 +129,7 @@ export default async function WorkspacesPage({
           <p className="text-[16px] font-medium text-white/90 sm:text-[18px]">
             Bonjour {me.first_name} <span aria-hidden>👋</span>
           </p>
-          <h1 className="mt-1 text-[30px] leading-9 font-bold tracking-[-0.02em] text-white sm:text-[40px] sm:leading-[48px] lg:text-[46px] lg:leading-[54px]">
+          <h1 className="mt-1 text-[30px] leading-9 font-bold text-white sm:text-[40px] sm:leading-[48px] lg:text-[46px] lg:leading-[54px]">
             Choisissez votre espace
           </h1>
           <p className="mt-2 text-[15px] text-white/85 sm:text-[17px]">Retrouvez vos environnements de travail.</p>

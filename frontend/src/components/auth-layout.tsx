@@ -81,7 +81,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
             className="h-24 w-auto self-start drop-shadow-[0_2px_10px_rgb(255_255_255/0.6)] sm:h-28 lg:h-40"
           />
           <div className="md:mt-10 lg:mt-0">
-            <h2 className="font-display text-[28px] leading-[34px] font-bold tracking-[-0.02em] text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.35)] sm:text-[36px] sm:leading-[42px] lg:text-[54px] lg:leading-[62px]">
+            <h2 className="font-display text-[28px] leading-[34px] font-bold text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.35)] sm:text-[36px] sm:leading-[42px] lg:text-[54px] lg:leading-[62px]">
               Une agriculture plus <span className="text-gold">intelligente</span> pour l&apos;Afrique
             </h2>
             <span aria-hidden className="mt-5 hidden h-1 w-24 rounded-full bg-gold sm:block lg:mt-7" />

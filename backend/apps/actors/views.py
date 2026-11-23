@@ -75,6 +75,13 @@ def _candidate(producer: Producer, organization) -> dict:
         parameters=[
             OpenApiParameter("q", str, description="Texte recherché."),
             OpenApiParameter("status", str, enum=["active", "inactive"]),
+            OpenApiParameter("sex", str, enum=["female", "male", "unspecified"]),
+            OpenApiParameter(
+                "relationship",
+                str,
+                enum=["member", "beneficiary", "client"],
+                description="Type de relation du rattachement actif.",
+            ),
         ],
     ),
     retrieve=extend_schema(
@@ -161,6 +168,14 @@ class ProducerViewSet(
             ).distinct()
         if params.get("status") in ("active", "inactive"):
             queryset = queryset.filter(status=params["status"])
+        if params.get("sex") in ("female", "male", "unspecified"):
+            queryset = queryset.filter(sex=params["sex"])
+        if params.get("relationship") in ("member", "beneficiary", "client"):
+            queryset = queryset.filter(
+                assignments__organization=organization,
+                assignments__end_date__isnull=True,
+                assignments__relationship_type=params["relationship"],
+            )
         return queryset
 
     def get_serializer_context(self):

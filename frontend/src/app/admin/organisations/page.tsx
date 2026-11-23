@@ -4,7 +4,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AppShell, PageHeader, Stat, StatRow } from "@/components/app-shell";
-import { Badge, type BadgeTone, StatusDot } from "@/components/ui/badge";
+import { StatusPill } from "@/components/list-toolbar";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getApi } from "@/lib/api/client";
@@ -58,9 +59,13 @@ export default async function AdminOrganizationsPage({
       workspace={{ name: "Console d'administration", roleLabel: "Plateforme PEST AI", initials: "PA", dark: true }}
       user={{ firstName: me.first_name, lastName: me.last_name, roleLabel: "Super-admin" }}
       breadcrumbs={["Console d'administration", "Organisations"]}
+      spaceLabel="Console Admin"
+      search={null}
     >
       <PageHeader
+        context="Plateforme PEST AI · Console d'administration"
         title="Organisations"
+        description="Coopératives, ONG et programmes inscrits sur PEST AI OS."
         actions={
           <CreateOrganizationDialog />
         }
@@ -68,8 +73,8 @@ export default async function AdminOrganizationsPage({
 
       <StatRow>
         <Stat label="Organisations" icon={Building2} value={String(total)} />
-        <Stat label="Actives" icon={CircleCheck} value={complete ? String(count("active")) : "—"} />
-        <Stat label="En attente" icon={CircleDashed} iconTone="gold" value={complete ? String(count("pending")) : "—"} />
+        <Stat label="Actives" icon={CircleCheck} valueTone="success" value={complete ? String(count("active")) : "—"} hint="accès ouvert" hintTone="success" />
+        <Stat label="En attente" icon={CircleDashed} iconTone="gold" valueTone="warning" value={complete ? String(count("pending")) : "—"} hint="à activer" hintTone="warning" />
         <Stat
           label="Suspendues ou fermées"
           icon={CirclePause}
@@ -78,7 +83,7 @@ export default async function AdminOrganizationsPage({
         />
       </StatRow>
 
-      <Card className="mt-6 overflow-hidden lg:mt-8">
+      <Card className="mt-5 overflow-hidden rounded-2xl">
         {organizations.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <p className="font-display text-[16px] font-semibold">Aucune organisation</p>
@@ -88,7 +93,7 @@ export default async function AdminOrganizationsPage({
           <>
             <div
               aria-hidden
-              className="hidden border-b border-line bg-surface px-5 py-2.5 text-[12px] font-medium text-muted md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_110px_auto] md:gap-4"
+              className="hidden border-b border-line bg-surface px-5 py-3 text-[12px] font-semibold text-muted md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_110px_auto] md:gap-4"
             >
               <span>Organisation</span>
               <span>Type</span>
@@ -123,13 +128,13 @@ export default async function AdminOrganizationsPage({
                         {ORGANIZATION_TYPE_LABELS[o.organization_type] ?? o.organization_type}
                       </Badge>
                       <span className="md:hidden">
-                        <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                        <StatusPill tone={status.tone}>{status.label}</StatusPill>
                       </span>
                     </span>
                     <span className="hidden md:block">
-                      <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                      <StatusPill tone={status.tone}>{status.label}</StatusPill>
                     </span>
-                    <span className="tabular hidden text-[13px] text-muted md:block">{formatDate(o.created_at)}</span>
+                    <span className="tabular hidden font-mono text-[13px] text-muted md:block">{formatDate(o.created_at)}</span>
                     <span className="col-start-2 row-span-2 row-start-1 text-right md:col-start-auto md:row-span-1 md:row-start-auto md:w-[150px]">
                       {!o.is_archived && o.status !== "closed" ? (
                         <DesignateAdminDialog organizationId={o.id} organization={o.name} />

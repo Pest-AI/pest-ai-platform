@@ -1907,6 +1907,9 @@ export interface operations {
                 page?: number;
                 /** @description Texte recherché. */
                 q?: string;
+                /** @description Type de relation du rattachement actif. */
+                relationship?: "beneficiary" | "client" | "member";
+                sex?: "female" | "male" | "unspecified";
                 status?: "active" | "inactive";
             };
             header: {

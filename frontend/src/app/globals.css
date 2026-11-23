@@ -2,8 +2,8 @@
 
 /*
  * Thème PEST AI OS : reprend le Design System validé (J7).
- * Couleurs de la charte, Montserrat pour les titres, Inter pour le texte,
- * IBM Plex Mono pour les identifiants (AgroID, coordonnées).
+ * Couleurs de la charte ; police de la maquette AI Studio (Century Gothic, ou Questrial
+ * en secours), JetBrains Mono pour les chiffres et identifiants (AgroID, coordonnées).
  */
 @theme {
   /* Vert PEST AI (marque) */
@@ -44,10 +44,12 @@
   --color-info: #1f4a72;
   --color-info-bg: #eaf1f7;
 
-  /* Typographie */
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  --font-display: "Montserrat Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Typographie (maquette AI Studio, 23/11) : Century Gothic installée sur l'appareil
+     (Windows, Mac avec Office), sinon Questrial, sa version libre auto-hébergée.
+     La police Century Gothic n'est jamais téléchargée par le site (licence web payante). */
+  --font-sans: "Century Gothic", "CenturyGothic", "AppleGothic", "Questrial", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Century Gothic", "CenturyGothic", "AppleGothic", "Questrial", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Ombres discrètes */
   --shadow-card: 0 1px 2px rgb(11 25 41 / 0.04);
@@ -60,7 +62,6 @@
   }
   body {
     @apply bg-surface font-sans text-[14px] leading-5 text-ink antialiased;
-    font-feature-settings: "cv11", "ss01";
   }
   h1,
   h2,

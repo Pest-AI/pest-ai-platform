@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  ArrowUpRight,
   ChartColumn,
   Check,
   ChevronRight,
@@ -9,14 +8,13 @@ import {
   Sprout,
   UsersRound,
   Zap,
-  type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { AppShell, PageHeader } from "@/components/app-shell";
+import { AppShell, PageHeader, Stat, StatRow } from "@/components/app-shell";
 import { FieldVisual } from "@/components/field-visual";
 import { StatusDot } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,70 +32,6 @@ import { cn } from "@/lib/utils";
 import paysage from "../../../public/brand/tableau-paysage.jpg";
 
 export const metadata: Metadata = { title: "Vue d'ensemble" };
-
-const TONES = {
-  green: "bg-brand-50 text-brand-700",
-  gold: "bg-warning-bg text-[#b07d00]",
-  blue: "bg-info-bg text-info",
-} as const;
-
-/** Indicateur clé : icône, chiffre, tendance et accès au module. */
-function KpiCard({
-  icon: Icon,
-  tone,
-  label,
-  value,
-  unit,
-  trend,
-  hint,
-  href,
-}: {
-  icon: LucideIcon;
-  tone: keyof typeof TONES;
-  label: string;
-  value: string;
-  unit?: string;
-  trend?: string;
-  hint?: string;
-  href?: string;
-}) {
-  const body = (
-    <>
-      <span className={cn("grid size-11 shrink-0 place-items-center rounded-2xl sm:size-12", TONES[tone])}>
-        <Icon className="size-6" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1 max-sm:w-full">
-        <span className={cn("block truncate text-[13px] font-medium text-muted sm:text-[14px]", href && "sm:pr-8")}>{label}</span>
-        <span className="tabular mt-0.5 block font-display text-[24px] leading-8 font-bold tracking-[-0.02em] sm:text-[28px] sm:leading-9">
-          {value}
-          {unit && value !== "—" ? <span className="ml-1 text-[18px] sm:text-[22px]">{unit}</span> : null}
-        </span>
-        {trend ? (
-          <span className="mt-0.5 flex items-center gap-1 text-[12px] font-medium whitespace-nowrap text-success">
-            <ArrowUpRight className="size-3.5" aria-hidden />
-            {trend}
-          </span>
-        ) : hint ? (
-          <span className="mt-0.5 block truncate text-[12px] text-muted">{hint}</span>
-        ) : null}
-      </span>
-      {href ? (
-        <span className="absolute top-3 right-3 grid size-8 place-items-center rounded-full bg-surface text-ink transition-colors group-hover:bg-brand-50 group-hover:text-brand-700 max-sm:hidden">
-          <ArrowRight className="size-4" aria-hidden />
-        </span>
-      ) : null}
-    </>
-  );
-  const cls =
-    "group relative flex flex-col items-start gap-3 rounded-2xl border border-line bg-canvas p-4 shadow-[0_8px_24px_-12px_rgb(11_25_41/0.15)] sm:flex-row sm:items-center sm:gap-4 sm:p-5";
-  return href ? (
-    <Link href={href} className={cn(cls, "transition-shadow hover:shadow-pop")}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
 
 type Step = { label: string; done: boolean; href?: string };
 
@@ -165,32 +99,40 @@ export default async function DashboardPage() {
         description="Voici un aperçu de votre espace PEST AI OS."
       />
 
-      <div className="mt-7 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <KpiCard
-          icon={Sprout}
-          tone="green"
+      <StatRow>
+        <Stat
           label="Membres actifs"
+          icon={Sprout}
           value={active === null ? "—" : `${active.length}${partial ? "+" : ""}`}
-          trend={newThisWeek ? `+${newThisWeek} cette semaine` : undefined}
-          hint={active === null ? "Réservé aux gérants" : invited ? `${invited} invitation${invited > 1 ? "s" : ""} en attente` : undefined}
+          valueTone="success"
+          hint={
+            active === null
+              ? "Réservé aux gérants"
+              : newThisWeek
+                ? `↗ +${newThisWeek} cette semaine`
+                : invited
+                  ? `${invited} invitation${invited > 1 ? "s" : ""} en attente`
+                  : "équipe à jour"
+          }
+          hintTone={newThisWeek ? "success" : invited ? "warning" : "muted"}
           href="/equipe"
         />
-        <KpiCard icon={MapIcon} tone="gold" label="Parcelles AgroID" value="—" hint="Bientôt disponible" />
-        <KpiCard icon={ChartColumn} tone="green" label="Surface suivie" value="—" unit="ha" hint="Bientôt disponible" />
-        <KpiCard
-          icon={UsersRound}
-          tone="blue"
+        <Stat label="Parcelles AgroID" icon={MapIcon} iconTone="gold" value="—" hint="Bientôt disponible" />
+        <Stat label="Surface suivie" icon={ChartColumn} value="—" unit="ha" hint="Bientôt disponible" />
+        <Stat
           label="Producteurs"
+          icon={UsersRound}
+          iconTone="night"
           value={producerCount === null ? "—" : String(producerCount)}
-          hint={producerCount === null ? "Non accessible avec votre rôle" : producerCount === 0 ? "Aucun pour le moment" : "rattachés"}
+          hint={producerCount === null ? "Non accessible avec votre rôle" : producerCount === 0 ? "aucun pour le moment" : "rattachés"}
           href={producerCount === null ? undefined : "/producteurs"}
         />
-      </div>
+      </StatRow>
 
       <div className="mt-5 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_360px] lg:gap-5">
         <Card className="flex flex-col overflow-hidden rounded-2xl p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-[18px] font-bold">
+            <h2 className="flex items-center gap-2 text-[18px] font-semibold">
               <MapPin className="size-5 text-brand-700" aria-hidden />
               Carte des parcelles
             </h2>
@@ -224,7 +166,7 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-4 lg:gap-5">
           <Card className="rounded-2xl p-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-[18px] font-bold">
+              <h2 className="flex items-center gap-2 text-[18px] font-semibold">
                 <Zap className="size-5 fill-gold text-gold" aria-hidden />
                 Vos actions
               </h2>
@@ -275,7 +217,7 @@ export default async function DashboardPage() {
           </Card>
 
           <Card className="rounded-2xl p-5">
-            <h2 className="text-[18px] font-bold">Votre organisation</h2>
+            <h2 className="text-[18px] font-semibold">Votre organisation</h2>
             <div className="mt-4 flex items-center gap-3 border-t border-line pt-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-gold font-display text-[14px] font-bold text-night">
                 {organizationInitials(org.name)}

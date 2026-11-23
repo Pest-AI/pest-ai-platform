@@ -894,6 +894,23 @@ paths:
           type: string
         description: Texte recherché.
       - in: query
+        name: relationship
+        schema:
+          type: string
+          enum:
+          - beneficiary
+          - client
+          - member
+        description: Type de relation du rattachement actif.
+      - in: query
+        name: sex
+        schema:
+          type: string
+          enum:
+          - female
+          - male
+          - unspecified
+      - in: query
         name: status
         schema:
           type: string

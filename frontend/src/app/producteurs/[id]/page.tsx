@@ -95,7 +95,7 @@ export default async function ProducerPage({
             {producerInitials(p.first_name, p.last_name)}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-[24px] leading-8 font-bold tracking-[-0.02em] sm:text-[28px] sm:leading-9">{name}</h1>
+            <h1 className="text-[24px] leading-8 font-bold sm:text-[28px] sm:leading-9">{name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge tone="brand">{RELATIONSHIP_LABELS[p.assignment?.relationship_type ?? "member"]}</Badge>
               {p.assignment?.membership_number ? (
@@ -142,7 +142,7 @@ export default async function ProducerPage({
       <div className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-[1fr_360px] lg:gap-5">
         <div className="space-y-4 lg:space-y-5">
           <Card className="rounded-2xl p-5">
-            <h2 className="text-[17px] font-bold">Identité</h2>
+            <h2 className="text-[17px] font-semibold">Identité</h2>
             <dl className="mt-3 grid gap-x-6 sm:grid-cols-2">
               {facts.map(([Icon, label, value]) => (
                 <div key={label} className="flex items-start gap-3 border-b border-line py-3 last:border-0 sm:[&:nth-last-child(2)]:border-0">
@@ -157,7 +157,7 @@ export default async function ProducerPage({
           </Card>
 
           <Card className="rounded-2xl p-5">
-            <h2 className="text-[17px] font-bold">Contacts</h2>
+            <h2 className="text-[17px] font-semibold">Contacts</h2>
             {p.contacts.length === 0 ? (
               <p className="mt-2 text-[14px] text-muted">Aucun contact enregistré.</p>
             ) : (
@@ -191,14 +191,14 @@ export default async function ProducerPage({
               <Fingerprint className="size-6" aria-hidden />
             </span>
             <div>
-              <h2 className="text-[16px] font-bold">Parcelles AgroID</h2>
+              <h2 className="text-[16px] font-semibold">Parcelles AgroID</h2>
               <p className="text-[14px] text-muted">Les parcelles de ce producteur apparaîtront ici avec le registre cartographique.</p>
             </div>
           </Card>
         </div>
 
         <Card className="h-fit rounded-2xl p-5">
-          <h2 className="text-[17px] font-bold">Rattachement</h2>
+          <h2 className="text-[17px] font-semibold">Rattachement</h2>
           <ol className="mt-4 space-y-0">
             {p.history.map((a, i) => (
               <li key={a.id} className="relative flex gap-3 pb-5 last:pb-0">

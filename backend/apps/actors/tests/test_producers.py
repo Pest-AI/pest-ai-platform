@@ -256,3 +256,14 @@ def test_workspace_context_for_organization(make_org, make_member, api):
     assert "producers.create" in context["permissions"]
     assert "producers.manage" not in context["permissions"]
     assert not any(p.startswith("personal.") for p in context["permissions"])
+
+
+def test_list_filters(make_org, make_member, api):
+    org = make_org()
+    _register(org, first_name="Awa", last_name="Ba", sex="female")
+    _register(org, first_name="Modou", last_name="Fall", sex="male", relationship_type="client")
+    admin, _ = make_member(org, "organization_admin")
+    client = api.as_user(admin, org)
+    assert client.get(URL, {"sex": "female"}).json()["count"] == 1
+    assert client.get(URL, {"relationship": "client"}).json()["count"] == 1
+    assert client.get(URL, {"relationship": "member"}).json()["count"] == 1

@@ -29,7 +29,7 @@ export default async function LoginPage({
   return (
     <AuthLayout>
       <div className="text-center">
-        <h1 className="text-[28px] leading-9 font-bold tracking-[-0.02em] sm:text-[34px] sm:leading-10">Connexion</h1>
+        <h1 className="text-[28px] leading-9 font-bold sm:text-[34px] sm:leading-10">Connexion</h1>
         <p className="mt-1.5 text-[15px] text-muted">Accédez à votre espace PEST AI OS</p>
       </div>
 

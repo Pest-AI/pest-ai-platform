@@ -1,7 +1,7 @@
-import "@fontsource-variable/inter";
-import "@fontsource-variable/montserrat";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/500.css";
+// Police de la maquette AI Studio : Century Gothic si elle est installée sur l'appareil,
+// sinon Questrial (libre, auto-hébergée), très proche. Chiffres : JetBrains Mono.
+import "@fontsource/questrial/400.css";
+import "@fontsource-variable/jetbrains-mono";
 
 import type { Metadata, Viewport } from "next";
 
