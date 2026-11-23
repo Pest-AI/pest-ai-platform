@@ -49,4 +49,4 @@ Toute route est annotée pour drf-spectacular (`@extend_schema`). Après modific
 
 ## Mixins communs (`apps/core/models.py`)
 
-`BaseModel` (BASE), `ArchivableModel` (ARCH), `SyncModel` (SYNC), `TenantModel` (TENANT), `ImmutableFieldsMixin`. SPACE arrive au J10 avec Producer. Archiver / restaurer : `apps.core.services.archive()` / `restore()`, auteur passé explicitement.
+`BaseModel` (BASE), `ArchivableModel` (ARCH), `SyncModel` (SYNC), `TenantModel` (TENANT), `ImmutableFieldsMixin`. SPACE arrive avec les premiers enregistrements agricoles (campagnes, J16). Producteurs : app `actors` (J9). Archiver / restaurer : `apps.core.services.archive()` / `restore()`, auteur passé explicitement.

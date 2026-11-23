@@ -56,6 +56,7 @@ LOCAL_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.organizations",
+    "apps.actors",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -178,6 +179,9 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "ENUM_NAME_OVERRIDES": {
         "MembershipStatusEnum": "apps.organizations.models.MembershipStatus",
+        "ProducerStatusEnum": "apps.actors.models.ProducerStatus",
+        "SexEnum": "apps.actors.models.Sex",
+        "PreferredLanguageEnum": "apps.accounts.models.Language",
         "OrganizationStatusEnum": "apps.organizations.models.OrganizationStatus",
     },
     "TAGS": [

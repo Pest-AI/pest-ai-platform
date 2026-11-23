@@ -16,6 +16,7 @@ ROLE_CHANGE = "role_change"
 MEMBERSHIP_CHANGE = "membership_change"
 ORGANIZATION_CHANGE = "organization_change"
 ACCOUNT_ACTIVATION = "account_activation"
+PRODUCER_CHANGE = "producer_change"
 
 
 def security_event(

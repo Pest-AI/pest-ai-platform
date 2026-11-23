@@ -16,6 +16,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Matrice des permissions : le gérant de coopérative invite et gère les rôles (jamais un administrateur).
 - Console Admin : création d'une organisation et désignation de son administrateur (compte créé avec code d'activation si besoin).
 
+- **Producteurs (J9)** : app `actors` (`Producer`, `ProducerContact`, `ProducerOrganizationAssignment` historisé) ; producteur rattaché (cas A) ou indépendant (cas B, `/api/v1/me/producer/`) ; API `/api/v1/producers/` (liste et recherche, fiche, création, modification, rattachement d'une fiche existante, clôture du rattachement) ; détection des doublons à la création (D-28, réponse 409) ; permissions `producers.view|create|manage`.
+- Espace personnel : `X-Workspace: personal` ouvert par un profil producteur actif, avec les 9 permissions `personal.*` (D-11) ; route `/api/v1/workspace/` (rôles et permissions de l'espace).
+- Rôle `producer` attribuable à un membre dont la fiche est rattachée à l'organisation.
+- Web OS : page Producteurs (liste, recherche, fiche, création avec gestion des doublons, modification, retrait) ; indicateur et étape « producteurs » sur la vue d'ensemble.
+
 ### Modifié
 - Refonte visuelle du Web OS (référence AI Studio) : barre latérale vert forêt, menu mobile en tiroir, navigation calée sur les modules du MVP, indicateurs en cartes, listes responsives, textes raccourcis.
 - Connexion et activation : nouvelle mise en page mobile / tablette / ordinateur avec visuel de parcelles ; vue d'ensemble avec parcours « Pour démarrer » ; choix de l'espace en liste.

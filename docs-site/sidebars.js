@@ -8,7 +8,7 @@ const sidebars = {
       type: "category",
       label: "Utiliser l'API",
       collapsed: false,
-      items: ["authentification", "espaces-de-travail", "roles-et-permissions", "conventions"],
+      items: ["authentification", "espaces-de-travail", "roles-et-permissions", "producteurs", "conventions"],
     },
     "contribuer",
   ],

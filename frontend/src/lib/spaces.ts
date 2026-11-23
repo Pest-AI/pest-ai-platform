@@ -71,7 +71,14 @@ export function organizationInitials(name: string): string {
 
 /** Date courte française : 23/11/2026. */
 export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+  // Une date seule (« 2026-11-23 ») est lue en UTC pour ne jamais glisser d'un jour.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    ...(dateOnly ? { timeZone: "UTC" } : {}),
+  }).format(new Date(iso));
 }
 
 /** Nombre de dates (arrivées dans l'organisation) comprises dans les `days` derniers jours. */

@@ -150,6 +150,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/producer/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mon profil producteur
+         * @description Profil producteur lié au compte connecté (404 s'il n'existe pas). Un profil actif ouvre l'espace personnel (`X-Workspace: personal`).
+         */
+        get: operations["me_producer_retrieve"];
+        put?: never;
+        /**
+         * Créer mon profil producteur (indépendant)
+         * @description Cas B : le producteur s'inscrit lui-même, sans organisation. Le profil ouvre l'espace personnel. Un compte n'a qu'un profil producteur.
+         */
+        post: operations["me_producer_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/memberships/": {
         parameters: {
             query?: never;
@@ -470,6 +494,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/producers/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Producteurs de l'organisation
+         * @description Producteurs rattachés (lien actif) à l'organisation du contexte. Recherche `q` sur le nom, la localité, le téléphone ou le numéro d'adhérent. Permission : `producers.view`.
+         */
+        get: operations["producers_list"];
+        put?: never;
+        /**
+         * Enregistrer un producteur
+         * @description Crée la fiche (cas A, sans compte) et la rattache à l'organisation. Si des doublons probables existent (même téléphone, ou même nom dans la même localité), renvoie **409** avec les candidats : rattacher une fiche existante (`/producers/attach/`) ou renvoyer la demande avec `confirm_new: true`. Permission : `producers.create`.
+         */
+        post: operations["producers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/producers/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fiche producteur
+         * @description Permission : `producers.view`.
+         */
+        get: operations["producers_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Modifier un producteur
+         * @description Fiche, téléphone principal et rattachement (type, numéro d'adhérent). Un producteur qui a son propre compte (inscrit lui-même) ne peut pas être modifié par une organisation. Permission : `producers.manage`.
+         */
+        patch: operations["producers_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/producers/{id}/detach/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clore le rattachement
+         * @description Le producteur n'est plus suivi par l'organisation (historique conservé, rien n'est supprimé). Son rôle producteur éventuel dans l'organisation est retiré. Permission : `producers.manage`.
+         */
+        post: operations["producers_detach_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/producers/attach/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rattacher une fiche existante
+         * @description Rattache à l'organisation un producteur déjà enregistré (doublon signalé). Impossible pour un producteur inscrit lui-même : son accord sera nécessaire. Permission : `producers.create`.
+         */
+        post: operations["producers_attach_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspace/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contexte de l'espace
+         * @description Vérifie l'en-tête `X-Workspace` et renvoie les rôles et permissions du compte dans cet espace. Les interfaces s'en servent pour masquer les actions non autorisées ; le serveur revérifie chaque action. 400 si l'en-tête est absent ou invalide, 403 si l'espace n'est pas accessible.
+         */
+        get: operations["workspace_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -487,6 +619,60 @@ export interface components {
         };
         ArchiveRequest: {
             reason: string;
+        };
+        Assignment: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly relationship_type: components["schemas"]["RelationshipTypeEnum"];
+            readonly membership_number: string | null;
+            /** Format: date */
+            readonly start_date: string;
+            /** Format: date */
+            readonly end_date: string | null;
+            readonly is_active: boolean;
+        };
+        AttachProducerRequest: {
+            /** Format: uuid */
+            producer_id: string;
+            relationship_type?: components["schemas"]["RelationshipTypeEnum"];
+            membership_number?: string;
+            /** Format: date */
+            start_date?: string;
+        };
+        /** @enum {unknown} */
+        BlankEnum: "";
+        /**
+         * @description * `phone` - Téléphone
+         *     * `whatsapp` - WhatsApp
+         *     * `email` - E-mail
+         *     * `relay_person` - Personne relais
+         * @enum {string}
+         */
+        ContactTypeEnum: "phone" | "whatsapp" | "email" | "relay_person";
+        DetachProducerRequest: {
+            /**
+             * Format: date
+             * @description Fin du rattachement (défaut : aujourd'hui).
+             */
+            end_date?: string;
+        };
+        /** @description Doublon probable, avec le minimum d'informations (minimisation, D-08). */
+        DuplicateCandidate: {
+            /** Format: uuid */
+            id: string;
+            /** @description Prénom et initiale du nom, ou nom complet si déjà rattaché. */
+            display_name: string;
+            locality: string;
+            /** @description Deux derniers chiffres du téléphone, ou vide. */
+            phone_hint: string;
+            /** @description Déjà rattaché à votre organisation. */
+            in_organization: boolean;
+            /** @description Peut être rattaché par votre organisation. */
+            can_attach: boolean;
+        };
+        DuplicateResponse: {
+            detail: string;
+            candidates: components["schemas"]["DuplicateCandidate"][];
         };
         /** @description Adhésion créée, avec le code d'activation à transmettre (affiché une seule fois). */
         InvitationResult: {
@@ -515,6 +701,12 @@ export interface components {
             last_name: string;
             roles?: components["schemas"]["RolesEnum"][];
         };
+        /**
+         * @description * `organization` - organization
+         *     * `personal` - personal
+         * @enum {string}
+         */
+        KindEnum: "organization" | "personal";
         /** @description Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici. */
         Me: {
             /** Format: uuid */
@@ -702,6 +894,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["PlatformOrganization"][];
         };
+        PaginatedProducerList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Producer"][];
+        };
         PasswordChangeRequest: {
             current_password: string;
             new_password: string;
@@ -745,6 +952,41 @@ export interface components {
              * @description Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
              */
             parent_organization?: string | null;
+        };
+        PatchedProducerUpdateRequest: {
+            first_name?: string;
+            last_name?: string;
+            sex?: components["schemas"]["SexEnum"] | components["schemas"]["BlankEnum"];
+            birth_year?: number | null;
+            locality_text?: string;
+            preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            phone_number?: string;
+            relationship_type?: components["schemas"]["RelationshipTypeEnum"];
+            membership_number?: string;
+        };
+        /** @description Profil producteur du compte connecté (espace personnel). */
+        PersonalProfile: {
+            /** Format: uuid */
+            readonly id: string;
+            first_name: string;
+            last_name: string;
+            sex?: components["schemas"]["SexEnum"] | components["schemas"]["BlankEnum"];
+            birth_year?: number | null;
+            locality_text?: string;
+            preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            readonly registration_channel: components["schemas"]["RegistrationChannelEnum"];
+            readonly status: components["schemas"]["ProducerStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /** @description Profil producteur du compte connecté (espace personnel). */
+        PersonalProfileRequest: {
+            first_name: string;
+            last_name: string;
+            sex?: components["schemas"]["SexEnum"] | components["schemas"]["BlankEnum"];
+            birth_year?: number | null;
+            locality_text?: string;
+            preferred_language?: components["schemas"]["PreferredLanguageEnum"];
         };
         /** @description Création et gestion par le Super Admin (portée plateforme). */
         PlatformOrganization: {
@@ -805,6 +1047,83 @@ export interface components {
          * @enum {string}
          */
         PreferredLanguageEnum: "fr" | "wo" | "ff";
+        /** @description Fiche producteur vue par l'organisation du contexte. */
+        Producer: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly first_name: string;
+            readonly last_name: string;
+            readonly sex: components["schemas"]["SexEnum"];
+            readonly birth_year: number | null;
+            readonly locality_text: string;
+            readonly preferred_language: components["schemas"]["PreferredLanguageEnum"];
+            readonly registration_channel: components["schemas"]["RegistrationChannelEnum"];
+            readonly status: components["schemas"]["ProducerStatusEnum"];
+            /** @description Téléphone principal (E.164) ou vide. */
+            readonly phone_number: string;
+            /** @description Le producteur a un compte PEST AI. */
+            readonly has_account: boolean;
+            readonly contacts: components["schemas"]["ProducerContact"][];
+            /** @description Rattachement actif à votre organisation. */
+            readonly assignment: components["schemas"]["Assignment"] | null;
+            /** @description Rattachements à votre organisation, du plus récent. */
+            readonly history: components["schemas"]["Assignment"][];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly row_version: number;
+        };
+        ProducerContact: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly contact_type: components["schemas"]["ContactTypeEnum"];
+            readonly value: string;
+            readonly relay_name: string;
+            readonly is_primary: boolean;
+            readonly sms_consent: boolean;
+        };
+        ProducerCreateRequest: {
+            first_name: string;
+            last_name: string;
+            sex?: components["schemas"]["SexEnum"] | components["schemas"]["BlankEnum"];
+            birth_year?: number | null;
+            locality_text?: string;
+            preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            /** @description Téléphone principal, format E.164 (+221…). */
+            phone_number?: string;
+            relationship_type?: components["schemas"]["RelationshipTypeEnum"];
+            membership_number?: string;
+            /**
+             * Format: date
+             * @description Début du rattachement (défaut : aujourd'hui).
+             */
+            start_date?: string;
+            /**
+             * @description Créer la fiche même si des doublons probables ont été signalés (réponse 409).
+             * @default false
+             */
+            confirm_new: boolean;
+        };
+        /**
+         * @description * `active` - Actif
+         *     * `inactive` - Inactif
+         * @enum {string}
+         */
+        ProducerStatusEnum: "active" | "inactive";
+        /**
+         * @description * `organization` - Inscrit par une organisation
+         *     * `self_signup` - Inscrit par lui-même
+         * @enum {string}
+         */
+        RegistrationChannelEnum: "organization" | "self_signup";
+        /**
+         * @description * `member` - Membre
+         *     * `beneficiary` - Bénéficiaire
+         *     * `client` - Client
+         * @enum {string}
+         */
+        RelationshipTypeEnum: "member" | "beneficiary" | "client";
         RoleCodeRequest: {
             role: components["schemas"]["RoleEnum"];
         };
@@ -829,6 +1148,13 @@ export interface components {
          * @enum {string}
          */
         RolesEnum: "organization_admin" | "cooperative_manager" | "field_agent" | "agronomist" | "producer" | "program_manager";
+        /**
+         * @description * `female` - Femme
+         *     * `male` - Homme
+         *     * `unspecified` - Non précisé
+         * @enum {string}
+         */
+        SexEnum: "female" | "male" | "unspecified";
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -846,6 +1172,19 @@ export interface components {
         };
         TokenRefreshRequest: {
             refresh: string;
+        };
+        WorkspaceContext: {
+            kind: components["schemas"]["KindEnum"];
+            /** Format: uuid */
+            organization_id: string | null;
+            /**
+             * Format: uuid
+             * @description Profil producteur (espace personnel).
+             */
+            producer_id: string | null;
+            roles: string[];
+            permissions: string[];
+            is_platform_access: boolean;
         };
     };
     responses: never;
@@ -1054,6 +1393,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    me_producer_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalProfile"];
+                };
+            };
+        };
+    };
+    me_producer_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalProfileRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PersonalProfileRequest"];
+                "multipart/form-data": components["schemas"]["PersonalProfileRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalProfile"];
+                };
             };
         };
     };
@@ -1513,6 +1896,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlatformOrganization"];
+                };
+            };
+        };
+    };
+    producers_list: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+                /** @description Texte recherché. */
+                q?: string;
+                status?: "active" | "inactive";
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedProducerList"];
+                };
+            };
+        };
+    };
+    producers_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProducerCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProducerCreateRequest"];
+                "multipart/form-data": components["schemas"]["ProducerCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producer"];
+                };
+            };
+            /** @description Doublons probables */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateResponse"];
+                };
+            };
+        };
+    };
+    producers_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) producteur. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producer"];
+                };
+            };
+        };
+    };
+    producers_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) producteur. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedProducerUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedProducerUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedProducerUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producer"];
+                };
+            };
+        };
+    };
+    producers_detach_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) producteur. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DetachProducerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DetachProducerRequest"];
+                "multipart/form-data": components["schemas"]["DetachProducerRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    producers_attach_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachProducerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AttachProducerRequest"];
+                "multipart/form-data": components["schemas"]["AttachProducerRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Producer"];
+                };
+            };
+        };
+    };
+    workspace_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceContext"];
                 };
             };
         };

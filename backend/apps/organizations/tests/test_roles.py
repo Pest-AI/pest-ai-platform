@@ -48,9 +48,7 @@ def test_role_permission_scope_mismatch_rejected(roles):
 
 
 def test_personal_permission_never_granted_by_role(roles):
-    personal = Permission.objects.create(
-        code="personal.parcels.view", domain="parcels", scope="personal"
-    )
+    personal = Permission.objects.get(code="personal.parcels.view", scope="personal")
     with pytest.raises(ValidationError):
         RolePermission.objects.create(role=Role.objects.get(code="producer"), permission=personal)
 
@@ -71,7 +69,7 @@ def test_super_admin_never_assignable_by_membership(make_member, make_org):
 
 
 def test_producer_role_requires_producer_domain(make_member, make_org):
-    """v2.2 : producer exige un profil Producer rattaché ; domaine non encore développé."""
+    """v2.2 : producer exige un profil Producer rattaché (sinon refus)."""
     _, membership = make_member(make_org())
     with pytest.raises(ValidationError):
         services.assign_role(membership=membership, role_code="producer", assigned_by=None)

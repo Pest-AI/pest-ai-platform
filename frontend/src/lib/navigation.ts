@@ -32,7 +32,7 @@ export const COOPERATIVE_NAV: NavSection[] = [
     items: [
       { label: "Vue d'ensemble", icon: "home", href: "/tableau-de-bord" },
       { label: "Parcelles & AgroID", icon: "map" }, // J11 → J15
-      { label: "Producteurs", icon: "users" }, // J9
+      { label: "Producteurs", icon: "users", href: "/producteurs" }, // J9
     ],
   },
   {

@@ -264,15 +264,17 @@ def assign_role(
             {"role": "super_admin ne s'attribue jamais par une adhésion (PlatformRoleAssignment)."}
         )
     if role.code == C.PRODUCER:
-        # v2.2 : le rôle producer exige un profil Producer avec un ProducerOrganizationAssignment
-        # actif dans cette organisation. Le domaine Producteurs n'existe pas encore :
-        # refus explicite.
-        raise ValidationError(
-            {
-                "role": "Le rôle producer exige un profil producteur rattaché à cette "
-                "organisation (domaine Producteurs, mission ultérieure)."
-            }
-        )
+        # v2.2 : le rôle producer exige un profil Producer, lié au compte de ce membre,
+        # avec un ProducerOrganizationAssignment actif dans cette organisation.
+        from apps.actors.selectors import has_active_assignment
+
+        if not has_active_assignment(user=membership.user, organization=membership.organization):
+            raise ValidationError(
+                {
+                    "role": "Le rôle producteur exige une fiche producteur liée à ce compte et "
+                    "rattachée à cette organisation."
+                }
+            )
     if membership.status == Status.REVOKED:
         raise ValidationError("Impossible d'attribuer un rôle sur une adhésion révoquée.")
     if MembershipRole.objects.active().filter(membership=membership, role=role).exists():

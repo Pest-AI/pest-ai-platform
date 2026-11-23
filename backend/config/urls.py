@@ -7,6 +7,7 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 
+from apps.core.views import WorkspaceContextView
 from config.views import api_docs, health
 
 urlpatterns = [
@@ -17,4 +18,6 @@ urlpatterns = [
     path("api/docs/", api_docs, name="api-docs"),
     path("api/v1/", include("apps.accounts.urls")),
     path("api/v1/", include("apps.organizations.urls")),
+    path("api/v1/", include("apps.actors.urls")),
+    path("api/v1/workspace/", WorkspaceContextView.as_view(), name="workspace-context"),
 ]

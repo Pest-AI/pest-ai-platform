@@ -107,10 +107,11 @@ export default async function DashboardPage() {
 
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, membersResult] = await Promise.all([
+  const [{ data: me }, orgResult, membersResult, producersResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/memberships/", { params: { header } }),
+    api.GET("/api/v1/producers/", { params: { header } }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -124,11 +125,13 @@ export default async function DashboardPage() {
   const newThisWeek = active ? countSince(active.map((m) => m.joined_at), 7) : 0;
   const invited = list ? list.filter((m) => m.status === "invited").length : 0;
   const typeLabel = ORGANIZATION_TYPE_LABELS[org.organization_type] ?? org.organization_type;
+  // null : registre non accessible avec ce rôle.
+  const producerCount = producersResult.data ? producersResult.data.count : null;
 
   const steps: Step[] = [
     { label: "Créer l'organisation", done: true },
     { label: "Inviter l'équipe", done: (list?.length ?? 0) > 1, href: "/equipe" },
-    { label: "Enregistrer les producteurs", done: false },
+    { label: "Enregistrer les producteurs", done: (producerCount ?? 0) > 0, href: "/producteurs" },
     { label: "Cartographier les parcelles", done: false },
   ];
 
@@ -149,7 +152,7 @@ export default async function DashboardPage() {
               priority
               placeholder="blur"
               sizes="(min-width: 768px) 60vw, 100vw"
-              className="object-cover object-[center_62%]"
+              className="object-cover object-[center_52%]"
             />
           </div>
           <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,var(--color-surface)_92%)]" />
@@ -174,7 +177,14 @@ export default async function DashboardPage() {
         />
         <KpiCard icon={MapIcon} tone="gold" label="Parcelles AgroID" value="—" hint="Bientôt disponible" />
         <KpiCard icon={ChartColumn} tone="green" label="Surface suivie" value="—" unit="ha" hint="Bientôt disponible" />
-        <KpiCard icon={UsersRound} tone="blue" label="Producteurs" value="—" hint="Bientôt disponible" />
+        <KpiCard
+          icon={UsersRound}
+          tone="blue"
+          label="Producteurs"
+          value={producerCount === null ? "—" : String(producerCount)}
+          hint={producerCount === null ? "Non accessible avec votre rôle" : producerCount === 0 ? "Aucun pour le moment" : "rattachés"}
+          href={producerCount === null ? undefined : "/producteurs"}
+        />
       </div>
 
       <div className="mt-5 grid gap-4 lg:mt-6 lg:grid-cols-[1fr_360px] lg:gap-5">

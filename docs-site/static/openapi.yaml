@@ -209,6 +209,51 @@ paths:
       responses:
         '204':
           description: Mot de passe changé.
+  /api/v1/me/producer/:
+    get:
+      operationId: me_producer_retrieve
+      description: 'Profil producteur lié au compte connecté (404 s''il n''existe
+        pas). Un profil actif ouvre l''espace personnel (`X-Workspace: personal`).'
+      summary: Mon profil producteur
+      tags:
+      - account
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalProfile'
+          description: ''
+    post:
+      operationId: me_producer_create
+      description: 'Cas B : le producteur s''inscrit lui-même, sans organisation.
+        Le profil ouvre l''espace personnel. Un compte n''a qu''un profil producteur.'
+      summary: Créer mon profil producteur (indépendant)
+      tags:
+      - account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonalProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonalProfileRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalProfile'
+          description: ''
   /api/v1/memberships/:
     get:
       operationId: memberships_list
@@ -821,6 +866,272 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlatformOrganization'
           description: ''
+  /api/v1/producers/:
+    get:
+      operationId: producers_list
+      description: 'Producteurs rattachés (lien actif) à l''organisation du contexte.
+        Recherche `q` sur le nom, la localité, le téléphone ou le numéro d''adhérent.
+        Permission : `producers.view`.'
+      summary: Producteurs de l'organisation
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Texte recherché.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - inactive
+      tags:
+      - producers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProducerList'
+          description: ''
+    post:
+      operationId: producers_create
+      description: 'Crée la fiche (cas A, sans compte) et la rattache à l''organisation.
+        Si des doublons probables existent (même téléphone, ou même nom dans la même
+        localité), renvoie **409** avec les candidats : rattacher une fiche existante
+        (`/producers/attach/`) ou renvoyer la demande avec `confirm_new: true`. Permission
+        : `producers.create`.'
+      summary: Enregistrer un producteur
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - producers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProducerCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProducerCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProducerCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateResponse'
+          description: Doublons probables
+  /api/v1/producers/{id}/:
+    get:
+      operationId: producers_retrieve
+      description: 'Permission : `producers.view`.'
+      summary: Fiche producteur
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) producteur.
+        required: true
+      tags:
+      - producers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+          description: ''
+    patch:
+      operationId: producers_partial_update
+      description: 'Fiche, téléphone principal et rattachement (type, numéro d''adhérent).
+        Un producteur qui a son propre compte (inscrit lui-même) ne peut pas être
+        modifié par une organisation. Permission : `producers.manage`.'
+      summary: Modifier un producteur
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) producteur.
+        required: true
+      tags:
+      - producers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProducerUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProducerUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProducerUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+          description: ''
+  /api/v1/producers/{id}/detach/:
+    post:
+      operationId: producers_detach_create
+      description: 'Le producteur n''est plus suivi par l''organisation (historique
+        conservé, rien n''est supprimé). Son rôle producteur éventuel dans l''organisation
+        est retiré. Permission : `producers.manage`.'
+      summary: Clore le rattachement
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) producteur.
+        required: true
+      tags:
+      - producers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetachProducerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DetachProducerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DetachProducerRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/producers/attach/:
+    post:
+      operationId: producers_attach_create
+      description: 'Rattache à l''organisation un producteur déjà enregistré (doublon
+        signalé). Impossible pour un producteur inscrit lui-même : son accord sera
+        nécessaire. Permission : `producers.create`.'
+      summary: Rattacher une fiche existante
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - producers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachProducerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttachProducerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachProducerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producer'
+          description: ''
+  /api/v1/workspace/:
+    get:
+      operationId: workspace_retrieve
+      description: Vérifie l'en-tête `X-Workspace` et renvoie les rôles et permissions
+        du compte dans cet espace. Les interfaces s'en servent pour masquer les actions
+        non autorisées ; le serveur revérifie chaque action. 400 si l'en-tête est
+        absent ou invalide, 403 si l'espace n'est pas accessible.
+      summary: Contexte de l'espace
+      tags:
+      - workspace
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceContext'
+          description: ''
 components:
   schemas:
     AccountActivationRequest:
@@ -864,6 +1175,119 @@ components:
           minLength: 3
       required:
       - reason
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        relationship_type:
+          allOf:
+          - $ref: '#/components/schemas/RelationshipTypeEnum'
+          readOnly: true
+        membership_number:
+          type: string
+          readOnly: true
+          nullable: true
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+      required:
+      - end_date
+      - id
+      - is_active
+      - membership_number
+      - relationship_type
+      - start_date
+    AttachProducerRequest:
+      type: object
+      properties:
+        producer_id:
+          type: string
+          format: uuid
+        relationship_type:
+          $ref: '#/components/schemas/RelationshipTypeEnum'
+        membership_number:
+          type: string
+          maxLength: 50
+        start_date:
+          type: string
+          format: date
+      required:
+      - producer_id
+    BlankEnum:
+      enum:
+      - ''
+    ContactTypeEnum:
+      enum:
+      - phone
+      - whatsapp
+      - email
+      - relay_person
+      type: string
+      description: |-
+        * `phone` - Téléphone
+        * `whatsapp` - WhatsApp
+        * `email` - E-mail
+        * `relay_person` - Personne relais
+    DetachProducerRequest:
+      type: object
+      properties:
+        end_date:
+          type: string
+          format: date
+          description: 'Fin du rattachement (défaut : aujourd''hui).'
+    DuplicateCandidate:
+      type: object
+      description: Doublon probable, avec le minimum d'informations (minimisation,
+        D-08).
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          description: Prénom et initiale du nom, ou nom complet si déjà rattaché.
+        locality:
+          type: string
+        phone_hint:
+          type: string
+          description: Deux derniers chiffres du téléphone, ou vide.
+        in_organization:
+          type: boolean
+          description: Déjà rattaché à votre organisation.
+        can_attach:
+          type: boolean
+          description: Peut être rattaché par votre organisation.
+      required:
+      - can_attach
+      - display_name
+      - id
+      - in_organization
+      - locality
+      - phone_hint
+    DuplicateResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/DuplicateCandidate'
+      required:
+      - candidates
+      - detail
     InvitationResult:
       type: object
       description: Adhésion créée, avec le code d'activation à transmettre (affiché
@@ -944,6 +1368,14 @@ components:
             $ref: '#/components/schemas/RolesEnum'
       required:
       - phone_number
+    KindEnum:
+      enum:
+      - organization
+      - personal
+      type: string
+      description: |-
+        * `organization` - organization
+        * `personal` - personal
     Me:
       type: object
       description: Profil de l'utilisateur connecté. Le numéro de téléphone n'est
@@ -1332,6 +1764,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlatformOrganization'
+    PaginatedProducerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Producer'
     PasswordChangeRequest:
       type: object
       properties:
@@ -1439,6 +1894,112 @@ components:
           format: uuid
           nullable: true
           description: Ex. union de coopératives. Ne donne AUCUN droit d'accès implicite.
+    PatchedProducerUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        birth_year:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
+        locality_text:
+          type: string
+          maxLength: 200
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+        phone_number:
+          type: string
+        relationship_type:
+          $ref: '#/components/schemas/RelationshipTypeEnum'
+        membership_number:
+          type: string
+          maxLength: 50
+    PersonalProfile:
+      type: object
+      description: Profil producteur du compte connecté (espace personnel).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        birth_year:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        locality_text:
+          type: string
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+        registration_channel:
+          allOf:
+          - $ref: '#/components/schemas/RegistrationChannelEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProducerStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - first_name
+      - id
+      - last_name
+      - registration_channel
+      - status
+    PersonalProfileRequest:
+      type: object
+      description: Profil producteur du compte connecté (espace personnel).
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        birth_year:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        locality_text:
+          type: string
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+      required:
+      - first_name
+      - last_name
     PlatformOrganization:
       type: object
       description: Création et gestion par le Super Admin (portée plateforme).
@@ -1563,6 +2124,198 @@ components:
         * `fr` - Français
         * `wo` - Wolof
         * `ff` - Pulaar
+    Producer:
+      type: object
+      description: Fiche producteur vue par l'organisation du contexte.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        sex:
+          allOf:
+          - $ref: '#/components/schemas/SexEnum'
+          readOnly: true
+        birth_year:
+          type: integer
+          readOnly: true
+          nullable: true
+        locality_text:
+          type: string
+          readOnly: true
+        preferred_language:
+          allOf:
+          - $ref: '#/components/schemas/PreferredLanguageEnum'
+          readOnly: true
+        registration_channel:
+          allOf:
+          - $ref: '#/components/schemas/RegistrationChannelEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProducerStatusEnum'
+          readOnly: true
+        phone_number:
+          type: string
+          readOnly: true
+          description: Téléphone principal (E.164) ou vide.
+        has_account:
+          type: boolean
+          readOnly: true
+          description: Le producteur a un compte PEST AI.
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProducerContact'
+          readOnly: true
+        assignment:
+          allOf:
+          - $ref: '#/components/schemas/Assignment'
+          nullable: true
+          readOnly: true
+          description: Rattachement actif à votre organisation.
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assignment'
+          readOnly: true
+          description: Rattachements à votre organisation, du plus récent.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        row_version:
+          type: integer
+          readOnly: true
+      required:
+      - assignment
+      - birth_year
+      - contacts
+      - created_at
+      - first_name
+      - has_account
+      - history
+      - id
+      - last_name
+      - locality_text
+      - phone_number
+      - preferred_language
+      - registration_channel
+      - row_version
+      - sex
+      - status
+      - updated_at
+    ProducerContact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        contact_type:
+          allOf:
+          - $ref: '#/components/schemas/ContactTypeEnum'
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+        relay_name:
+          type: string
+          readOnly: true
+        is_primary:
+          type: boolean
+          readOnly: true
+        sms_consent:
+          type: boolean
+          readOnly: true
+      required:
+      - contact_type
+      - id
+      - is_primary
+      - relay_name
+      - sms_consent
+      - value
+    ProducerCreateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sex:
+          oneOf:
+          - $ref: '#/components/schemas/SexEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        birth_year:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
+        locality_text:
+          type: string
+          maxLength: 200
+        preferred_language:
+          $ref: '#/components/schemas/PreferredLanguageEnum'
+        phone_number:
+          type: string
+          description: Téléphone principal, format E.164 (+221…).
+        relationship_type:
+          $ref: '#/components/schemas/RelationshipTypeEnum'
+        membership_number:
+          type: string
+          maxLength: 50
+        start_date:
+          type: string
+          format: date
+          description: 'Début du rattachement (défaut : aujourd''hui).'
+        confirm_new:
+          type: boolean
+          default: false
+          description: Créer la fiche même si des doublons probables ont été signalés
+            (réponse 409).
+      required:
+      - first_name
+      - last_name
+    ProducerStatusEnum:
+      enum:
+      - active
+      - inactive
+      type: string
+      description: |-
+        * `active` - Actif
+        * `inactive` - Inactif
+    RegistrationChannelEnum:
+      enum:
+      - organization
+      - self_signup
+      type: string
+      description: |-
+        * `organization` - Inscrit par une organisation
+        * `self_signup` - Inscrit par lui-même
+    RelationshipTypeEnum:
+      enum:
+      - member
+      - beneficiary
+      - client
+      type: string
+      description: |-
+        * `member` - Membre
+        * `beneficiary` - Bénéficiaire
+        * `client` - Client
     RoleCodeRequest:
       type: object
       properties:
@@ -1604,6 +2357,16 @@ components:
         * `agronomist` - agronomist
         * `producer` - producer
         * `program_manager` - program_manager
+    SexEnum:
+      enum:
+      - female
+      - male
+      - unspecified
+      type: string
+      description: |-
+        * `female` - Femme
+        * `male` - Homme
+        * `unspecified` - Non précisé
     TokenBlacklistRequest:
       type: object
       properties:
@@ -1658,6 +2421,37 @@ components:
           minLength: 1
       required:
       - refresh
+    WorkspaceContext:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        organization_id:
+          type: string
+          format: uuid
+          nullable: true
+        producer_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Profil producteur (espace personnel).
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        is_platform_access:
+          type: boolean
+      required:
+      - is_platform_access
+      - kind
+      - organization_id
+      - permissions
+      - producer_id
+      - roles
   securitySchemes:
     jwtAuth:
       type: http

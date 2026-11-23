@@ -32,6 +32,9 @@ Les permissions suivent le format `domaine.action` (par exemple `memberships.man
 | `memberships.view` | `organization_admin`, `cooperative_manager` |
 | `memberships.manage` | `organization_admin`, `cooperative_manager` |
 | `roles.assign` | `organization_admin`, `cooperative_manager` |
+| `producers.view` | `organization_admin`, `cooperative_manager`, `field_agent`, `agronomist`, `program_manager` |
+| `producers.create` | `organization_admin`, `cooperative_manager`, `field_agent` |
+| `producers.manage` | `organization_admin`, `cooperative_manager` |
 | `platform.organizations.view` / `.manage` | `super_admin` |
 
 :::info Règles complémentaires (validées le 23/11/2026)
@@ -40,5 +43,11 @@ Les permissions suivent le format `domaine.action` (par exemple `memberships.man
 :::
 
 :::note Matrice en cours d'extension
-Cette matrice couvre le domaine organisations. Elle s'étendra avec chaque domaine (parcelles, observations, diagnostics…).
+Cette matrice couvre les organisations et les producteurs (J9 : droits des producteurs proposés, à valider par le fondateur). Elle s'étendra avec chaque domaine (parcelles, observations, diagnostics…).
+
+Le rôle `producer` ne s'attribue qu'à un membre dont le compte est lié à une fiche producteur **rattachée** à l'organisation ; il est retiré automatiquement quand le rattachement est clos.
+
+## Permissions de l'espace personnel
+
+Un producteur indépendant (cas B) agit avec `X-Workspace: personal`. Ses droits sont les 9 permissions `personal.*` (décision D-11), accordées par son profil producteur actif et **jamais** par un rôle. Elles n'ouvrent aucune route d'organisation, et les droits d'une organisation n'ouvrent jamais son espace personnel.
 :::

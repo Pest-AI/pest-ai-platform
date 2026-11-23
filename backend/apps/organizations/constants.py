@@ -101,6 +101,25 @@ PERMISSIONS = [
         SCOPE_ORGANIZATION,
         "Attribuer ou retirer des rôles d'organisation.",
     ),
+    # Domaine Producteurs (J9)
+    (
+        "producers.view",
+        "actors",
+        SCOPE_ORGANIZATION,
+        "Consulter les producteurs rattachés à l'organisation.",
+    ),
+    (
+        "producers.create",
+        "actors",
+        SCOPE_ORGANIZATION,
+        "Enregistrer un producteur ou rattacher une fiche existante à l'organisation.",
+    ),
+    (
+        "producers.manage",
+        "actors",
+        SCOPE_ORGANIZATION,
+        "Modifier un producteur, ses contacts et clore son rattachement.",
+    ),
     (
         "platform.organizations.view",
         "platform",
@@ -115,6 +134,28 @@ PERMISSIONS = [
     ),
 ]
 
+# Permissions de portée personal (décision D-11) : accordées par un profil Producer actif
+# (espace « personal »), JAMAIS par un rôle. Les conditions détaillées de chaque permission
+# (accès à la parcelle, consentement…) sont vérifiées par les fonctionnalités concernées.
+PERSONAL_PERMISSIONS = [
+    ("personal.parcels.register", "Enregistrer une parcelle dans son espace personnel."),
+    ("personal.parcels.view", "Consulter une parcelle accessible et son historique."),
+    ("personal.parcels.manage", "Modifier une parcelle accessible en gestion."),
+    (
+        "personal.parcels.consent_link",
+        "Accepter ou refuser le suivi de sa parcelle par une organisation.",
+    ),
+    ("personal.crop_cycles.manage", "Gérer ses campagnes, cycles, opérations et récoltes."),
+    ("personal.observations.create", "Enregistrer des observations et des photos."),
+    ("personal.diagnostics.request", "Demander un diagnostic IA (consentement explicite)."),
+    ("personal.diagnostics.view", "Consulter ses diagnostics validés."),
+    ("personal.workspace.sync", "Synchroniser son espace personnel hors ligne."),
+]
+PERSONAL_PERMISSION_CODES = [code for code, _ in PERSONAL_PERMISSIONS]
+PERMISSIONS += [
+    (code, "personal", SCOPE_PERSONAL, description) for code, description in PERSONAL_PERMISSIONS
+]
+
 # Matrice rôle -> permissions. Validé par le fondateur le 23/11/2026 : le gérant de
 # coopérative invite et gère les rôles comme l'administrateur, sans jamais pouvoir nommer
 # ni modifier un administrateur d'organisation (contrôle dans les vues des adhésions).
@@ -127,15 +168,22 @@ ROLE_PERMISSIONS = {
         "memberships.view",
         "memberships.manage",
         "roles.assign",
+        "producers.view",
+        "producers.create",
+        "producers.manage",
     ],
     COOPERATIVE_MANAGER: [
         "organization.view",
         "memberships.view",
         "memberships.manage",
         "roles.assign",
+        "producers.view",
+        "producers.create",
+        "producers.manage",
     ],
-    FIELD_AGENT: ["organization.view"],
-    AGRONOMIST: ["organization.view"],
+    # L'agent terrain enregistre les producteurs sur le terrain (proposition J9, à valider).
+    FIELD_AGENT: ["organization.view", "producers.view", "producers.create"],
+    AGRONOMIST: ["organization.view", "producers.view"],
     PRODUCER: ["organization.view"],
-    PROGRAM_MANAGER: ["organization.view"],
+    PROGRAM_MANAGER: ["organization.view", "producers.view"],
 }

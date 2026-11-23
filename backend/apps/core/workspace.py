@@ -34,6 +34,7 @@ class WorkspaceContext:
     kind: str  # "organization" ou "personal"
     organization: object | None = None
     membership: object | None = None
+    producer: object | None = None  # profil Producer de l'espace personnel
     role_codes: frozenset[str] = field(default_factory=frozenset)
     permission_codes: frozenset[str] = field(default_factory=frozenset)
     is_platform_access: bool = False  # lecture exceptionnelle d'un super_admin
@@ -66,10 +67,18 @@ def resolve_workspace(request) -> WorkspaceContext:
     user = request.user
 
     if kind == PERSONAL:
-        # L'espace personnel exige un profil Producer actif (domaine Producteurs,
-        # mission ultérieure). Aucun compte n'en possède encore : refus explicite.
-        security_event(ACCESS_DENIED, user=user, reason="personal_workspace_unavailable")
-        raise PermissionDenied("Aucun profil producteur actif n'est associé à ce compte.")
+        # Espace personnel (D-01, cas B) : profil Producer actif lié au compte requis.
+        # Les droits sont les permissions de portée personal, jamais un rôle (D-11).
+        from apps.actors.selectors import active_personal_profile
+        from apps.organizations.constants import PERSONAL_PERMISSION_CODES
+
+        producer = active_personal_profile(user)
+        if producer is None:
+            security_event(ACCESS_DENIED, user=user, reason="personal_workspace_unavailable")
+            raise PermissionDenied("Aucun profil producteur actif n'est associé à ce compte.")
+        return WorkspaceContext(
+            kind=PERSONAL, producer=producer, permission_codes=frozenset(PERSONAL_PERMISSION_CODES)
+        )
 
     membership = selectors.get_active_membership(user=user, organization_id=organization_id)
     if membership is not None:
