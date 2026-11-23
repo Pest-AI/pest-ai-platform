@@ -439,7 +439,9 @@ export interface paths {
         put?: never;
         /**
          * Désigner un administrateur
-         * @description Invite un utilisateur comme organization_admin (amorçage d'une organisation).
+         * @description Invite une personne comme organization_admin (amorçage d'une organisation).
+         *
+         *     Sans compte existant, le compte est créé et un code d'activation est renvoyé.
          */
         post: operations["platform_organizations_admins_create"];
         delete?: never;
@@ -623,9 +625,18 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
-        /** @description Désignation du premier administrateur d'une organisation par le Super Admin. */
+        /**
+         * @description Désignation d'un administrateur d'organisation par le Super Admin.
+         *
+         *     Même règle que l'invitation : sans compte existant, le compte est créé (prénom et nom
+         *     requis) et un code d'activation est renvoyé.
+         */
         OrganizationAdminRequest: {
             phone_number: string;
+            /** @default  */
+            first_name: string;
+            /** @default  */
+            last_name: string;
         };
         /**
          * @description * `pending` - En attente
@@ -1473,7 +1484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Membership"];
+                    "application/json": components["schemas"]["InvitationResult"];
                 };
             };
         };

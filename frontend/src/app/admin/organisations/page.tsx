@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,6 +11,8 @@ import { getApi } from "@/lib/api/client";
 import { ADMIN_NAV } from "@/lib/navigation";
 import { ORGANIZATION_STATUS, ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
+
+import { CreateOrganizationDialog, DesignateAdminDialog } from "./organization-dialogs";
 
 export const metadata: Metadata = { title: "Organisations · Console d'administration" };
 
@@ -61,10 +63,7 @@ export default async function AdminOrganizationsPage({
         title="Organisations"
         description="Coopératives, ONG et programmes inscrits sur PEST AI OS."
         actions={
-          <Button disabled title="Bientôt disponible">
-            <Plus aria-hidden />
-            Nouvelle organisation
-          </Button>
+          <CreateOrganizationDialog />
         }
       />
 
@@ -96,6 +95,9 @@ export default async function AdminOrganizationsPage({
                   <th scope="col" className="px-4 py-2.5 font-medium">Contact</th>
                   <th scope="col" className="px-4 py-2.5 font-medium">Statut</th>
                   <th scope="col" className="px-4 py-2.5 font-medium">Créée le</th>
+                  <th scope="col" className="px-4 py-2.5">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -127,6 +129,11 @@ export default async function AdminOrganizationsPage({
                         <StatusDot tone={status.tone}>{status.label}</StatusDot>
                       </td>
                       <td className="tabular px-4 py-3 text-muted">{formatDate(o.created_at)}</td>
+                      <td className="px-4 py-3 text-right">
+                        {!o.is_archived && o.status !== "closed" ? (
+                          <DesignateAdminDialog organizationId={o.id} organization={o.name} />
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}

@@ -162,3 +162,45 @@ def test_l_administrateur_peut_nommer_un_administrateur(make_member, make_org, a
     )
     assert response.status_code == 200
     assert "organization_admin" in response.json()["roles"]
+
+
+# --- Amorçage d'une organisation par le Super Admin ---------------------------
+@pytest.fixture
+def super_admin(roles, make_user):
+    from apps.organizations import services
+
+    user = make_user()
+    services.grant_platform_role(user=user, granted_by=make_user(), justification="Exploitation")
+    return user
+
+
+def test_super_admin_designe_un_administrateur_sans_compte(super_admin, api):
+    client = api.as_user(super_admin)
+    org_id = client.post(
+        "/api/v1/platform/organizations/",
+        {"name": "Coopérative de Guédé", "organization_type": "cooperative", "status": "active"},
+        format="json",
+    ).json()["id"]
+    response = client.post(
+        f"/api/v1/platform/organizations/{org_id}/admins/",
+        {"phone_number": NEW_PHONE, "first_name": "Coumba", "last_name": "Sy"},
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.json()["roles"] == ["organization_admin"]
+    assert response.json()["activation_code"]
+
+
+def test_super_admin_se_designe_lui_meme_administrateur(super_admin, api):
+    client = api.as_user(super_admin)
+    org_id = client.post(
+        "/api/v1/platform/organizations/",
+        {"name": "Coopérative de test", "organization_type": "cooperative", "status": "active"},
+        format="json",
+    ).json()["id"]
+    response = client.post(
+        f"/api/v1/platform/organizations/{org_id}/admins/",
+        {"phone_number": super_admin.phone_number},
+        format="json",
+    )
+    assert response.status_code == 201 and response.json()["activation_code"] is None

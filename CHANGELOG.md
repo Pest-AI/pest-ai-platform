@@ -14,6 +14,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Comptes créés par invitation : code d'activation (7 jours, usage unique, haché, 5 essais) et page publique « Activer mon compte » ; route `POST /api/v1/auth/activate/` limitée en fréquence.
 - Invitations à accepter sur la page de choix de l'espace.
 - Matrice des permissions : le gérant de coopérative invite et gère les rôles (jamais un administrateur).
+- Console Admin : création d'une organisation et désignation de son administrateur (compte créé avec code d'activation si besoin).
 
 ## [0.0.1] — Semaine 1 : socle backend
 

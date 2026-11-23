@@ -149,16 +149,22 @@ class RoleCodeSerializer(serializers.Serializer):
 
 
 class OrganizationAdminSerializer(serializers.Serializer):
-    """Désignation du premier administrateur d'une organisation par le Super Admin."""
+    """Désignation d'un administrateur d'organisation par le Super Admin.
+
+    Même règle que l'invitation : sans compte existant, le compte est créé (prénom et nom
+    requis) et un code d'activation est renvoyé.
+    """
 
     phone_number = serializers.CharField(max_length=32)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
 
     def validate_phone_number(self, value):
         phone = normalize_phone_number(value)
-        user = User.objects.filter(phone_number=phone, is_active=True).first()
-        if user is None:
-            raise serializers.ValidationError("Aucun compte actif n'existe pour ce numéro.")
-        self.context["admin_user"] = user
+        try:
+            validate_e164(phone)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
         return phone
 
 

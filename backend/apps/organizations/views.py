@@ -263,7 +263,7 @@ class MembershipViewSet(
         tags=["platform"],
         summary="Désigner un administrateur",
         request=OrganizationAdminSerializer,
-        responses={201: MembershipSerializer},
+        responses={201: InvitationResultSerializer},
     ),
 )
 class PlatformOrganizationViewSet(
@@ -311,14 +311,20 @@ class PlatformOrganizationViewSet(
 
     @action(detail=True, methods=["post"], url_path="admins")
     def designate_admin(self, request, pk=None):
-        """Invite un utilisateur comme organization_admin (amorçage d'une organisation)."""
+        """Invite une personne comme organization_admin (amorçage d'une organisation).
+
+        Sans compte existant, le compte est créé et un code d'activation est renvoyé.
+        """
         organization = self.get_object()
-        serializer = OrganizationAdminSerializer(data=request.data, context={})
+        serializer = OrganizationAdminSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        membership = _run(
-            services.invite_member,
+        data = serializer.validated_data
+        membership, code = _run(
+            services.invite_by_phone,
             organization=organization,
-            user=serializer.context["admin_user"],
+            phone_number=data["phone_number"],
+            first_name=data["first_name"],
+            last_name=data["last_name"],
             invited_by=request.user,
             role_codes=[C.ORGANIZATION_ADMIN],
         )
@@ -327,7 +333,8 @@ class PlatformOrganizationViewSet(
             .prefetch_related("role_assignments__role")
             .get(pk=membership.pk)
         )
-        return Response(MembershipSerializer(membership).data, status=status.HTTP_201_CREATED)
+        membership.activation_code = code
+        return Response(InvitationResultSerializer(membership).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(get=extend_schema(tags=["me"], summary="Mes organisations (choix de l'espace)"))

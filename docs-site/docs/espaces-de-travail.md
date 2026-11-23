@@ -55,6 +55,8 @@ Types : `cooperative`, `union`, `ngo`, `company`, `institution`, `public_agency`
 
 ### 2. Désignation de l'administrateur (Super Admin)
 
+Depuis le Web OS : Console d'administration → Organisations → « Nouvelle organisation » (avec son administrateur) ou bouton « Administrateur » sur une organisation existante. Sans compte existant, le compte est créé (prénom et nom requis) et la réponse contient un `activation_code`.
+
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/platform/organizations/<org_id>/admins/ \
   -H "Authorization: Bearer <access>" -H "Content-Type: application/json" \

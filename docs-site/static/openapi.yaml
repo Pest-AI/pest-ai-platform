@@ -748,8 +748,10 @@ paths:
   /api/v1/platform/organizations/{id}/admins/:
     post:
       operationId: platform_organizations_admins_create
-      description: Invite un utilisateur comme organization_admin (amorçage d'une
-        organisation).
+      description: |-
+        Invite une personne comme organization_admin (amorçage d'une organisation).
+
+        Sans compte existant, le compte est créé et un code d'activation est renvoyé.
       summary: Désigner un administrateur
       parameters:
       - in: path
@@ -780,7 +782,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Membership'
+                $ref: '#/components/schemas/InvitationResult'
           description: ''
   /api/v1/platform/organizations/{id}/archive/:
     post:
@@ -1211,13 +1213,24 @@ components:
       - status
     OrganizationAdminRequest:
       type: object
-      description: Désignation du premier administrateur d'une organisation par le
-        Super Admin.
+      description: |-
+        Désignation d'un administrateur d'organisation par le Super Admin.
+
+        Même règle que l'invitation : sans compte existant, le compte est créé (prénom et nom
+        requis) et un code d'activation est renvoyé.
       properties:
         phone_number:
           type: string
           minLength: 1
           maxLength: 32
+        first_name:
+          type: string
+          default: ''
+          maxLength: 100
+        last_name:
+          type: string
+          default: ''
+          maxLength: 100
       required:
       - phone_number
     OrganizationStatusEnum:
