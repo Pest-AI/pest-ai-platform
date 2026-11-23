@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { toInternationalPhone } from "@/lib/phone";
+import { formatPhone, toInternationalPhone } from "@/lib/phone";
 
 describe("toInternationalPhone", () => {
   it("complète un numéro sénégalais local avec +221", () => {
@@ -20,5 +20,12 @@ describe("toInternationalPhone", () => {
 
   it("laisse l'API refuser un numéro incomplet", () => {
     expect(toInternationalPhone("7843")).toBe("7843");
+  });
+});
+
+describe("formatPhone", () => {
+  it("espace un numéro sénégalais", () => {
+    expect(formatPhone("+221784363537")).toBe("+221 78 436 35 37");
+    expect(formatPhone("+33612345678")).toBe("+33612345678");
   });
 });

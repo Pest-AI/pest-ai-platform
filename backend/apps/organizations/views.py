@@ -11,7 +11,7 @@ from django.db.models import Prefetch
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -20,7 +20,9 @@ from apps.organizations import constants as C
 from apps.organizations import services
 from apps.organizations.models import MembershipRole, Organization, OrganizationMembership
 from apps.organizations.serializers import (
+    ActivationCodeSerializer,
     ArchiveSerializer,
+    InvitationResultSerializer,
     InviteMemberSerializer,
     MembershipSerializer,
     OrganizationAdminSerializer,
@@ -73,7 +75,18 @@ class CurrentOrganizationView(generics.RetrieveUpdateAPIView):
         tags=["memberships"],
         summary="Inviter un membre",
         request=InviteMemberSerializer,
-        responses={201: MembershipSerializer},
+        responses={201: InvitationResultSerializer},
+        description="Invite une personne par son numéro. Sans compte existant, le compte est créé "
+        "(prénom et nom requis) et un code d'activation est renvoyé une seule fois. "
+        "Un gérant de coopérative ne peut pas attribuer le rôle administrateur.",
+    ),
+    activation_code=extend_schema(
+        tags=["memberships"],
+        summary="Nouveau code d'activation",
+        description="Émet un nouveau code pour un membre dont le compte n'est pas encore activé "
+        "(les codes précédents sont annulés).",
+        request=None,
+        responses=ActivationCodeSerializer,
     ),
     suspend=extend_schema(tags=["memberships"], summary="Suspendre", request=None),
     reactivate=extend_schema(tags=["memberships"], summary="Réactiver", request=None),
@@ -111,6 +124,7 @@ class MembershipViewSet(
         "revoke": "memberships.manage",
         "assign_role": "roles.assign",
         "revoke_role": "roles.assign",
+        "activation_code": "memberships.manage",
     }
 
     def get_queryset(self):
@@ -125,40 +139,86 @@ class MembershipViewSet(
             .order_by("user__last_name", "user__first_name")
         )
 
+    # -- Garde-fous (décision du 23/11/2026) -----------------------------------
+    def _is_admin(self) -> bool:
+        return C.ORGANIZATION_ADMIN in self.request.workspace.role_codes
+
+    def _guard_role(self, role_code: str) -> None:
+        """Seul un administrateur d'organisation nomme un administrateur."""
+        if role_code == C.ORGANIZATION_ADMIN and not self._is_admin():
+            raise PermissionDenied(
+                "Seul un administrateur d'organisation peut nommer un administrateur."
+            )
+
+    def _guard_target(self, membership, *, allow_self: bool = False) -> None:
+        """Pas d'action sur sa propre adhésion ; pas d'action d'un gérant sur un administrateur."""
+        if not allow_self and membership.user_id == self.request.user.pk:
+            raise PermissionDenied(
+                "Vous ne pouvez pas effectuer cette action sur votre propre accès."
+            )
+        target_roles = {
+            a.role.code for a in membership.role_assignments.all() if a.revoked_at is None
+        }
+        if C.ORGANIZATION_ADMIN in target_roles and not self._is_admin():
+            raise PermissionDenied(
+                "Seul un administrateur d'organisation peut modifier un administrateur."
+            )
+
     def create(self, request, *args, **kwargs):
-        serializer = InviteMemberSerializer(data=request.data, context={})
+        serializer = InviteMemberSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        membership = _run(
-            services.invite_member,
+        data = serializer.validated_data
+        for code in data["roles"]:
+            self._guard_role(code)
+        membership, code = _run(
+            services.invite_by_phone,
             organization=request.workspace.organization,
-            user=serializer.context["invited_user"],
+            phone_number=data["phone_number"],
+            first_name=data["first_name"],
+            last_name=data["last_name"],
             invited_by=request.user,
-            role_codes=serializer.validated_data["roles"],
+            role_codes=data["roles"],
         )
-        return Response(
-            self.get_serializer(self.get_queryset().get(pk=membership.pk)).data,
-            status=status.HTTP_201_CREATED,
-        )
+        membership = self.get_queryset().get(pk=membership.pk)
+        membership.activation_code = code
+        return Response(InvitationResultSerializer(membership).data, status=status.HTTP_201_CREATED)
 
     def _respond(self, membership):
         return Response(self.get_serializer(self.get_queryset().get(pk=membership.pk)).data)
 
+    @action(detail=True, methods=["post"], url_path="activation-code")
+    def activation_code(self, request, pk=None):
+        from apps.accounts.activation import issue_activation_code
+
+        membership = self.get_object()
+        self._guard_target(membership)
+        if membership.status == OrganizationMembership.Status.REVOKED:
+            raise ValidationError("Cette adhésion est révoquée.")
+        code, activation = _run(issue_activation_code, user=membership.user, issued_by=request.user)
+        return Response({"activation_code": code, "expires_at": activation.expires_at})
+
     @action(detail=True, methods=["post"])
     def suspend(self, request, pk=None):
+        membership = self.get_object()
+        self._guard_target(membership)
         return self._respond(
-            _run(services.suspend_membership, membership=self.get_object(), actor=request.user)
+            _run(services.suspend_membership, membership=membership, actor=request.user)
         )
 
     @action(detail=True, methods=["post"])
     def reactivate(self, request, pk=None):
+        membership = self.get_object()
+        self._guard_target(membership)
         return self._respond(
-            _run(services.reactivate_membership, membership=self.get_object(), actor=request.user)
+            _run(services.reactivate_membership, membership=membership, actor=request.user)
         )
 
     @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):
+        membership = self.get_object()
+        self._guard_target(membership)
         return self._respond(
-            _run(services.revoke_membership, membership=self.get_object(), actor=request.user)
+            _run(services.revoke_membership, membership=membership, actor=request.user)
         )
 
     @action(detail=True, methods=["post"], url_path="roles")
@@ -166,6 +226,8 @@ class MembershipViewSet(
         membership = self.get_object()
         serializer = RoleCodeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        self._guard_target(membership, allow_self=self._is_admin())
+        self._guard_role(serializer.validated_data["role"])
         _run(
             services.assign_role,
             membership=membership,
@@ -177,6 +239,8 @@ class MembershipViewSet(
     @action(detail=True, methods=["post"], url_path=r"roles/(?P<role_code>[a-z_]+)/revoke")
     def revoke_role(self, request, pk=None, role_code=None):
         membership = self.get_object()
+        self._guard_target(membership)
+        self._guard_role(role_code)
         _run(
             services.revoke_role,
             membership=membership,

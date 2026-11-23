@@ -115,7 +115,10 @@ PERMISSIONS = [
     ),
 ]
 
-# Matrice initiale proposée (à valider) : rôle -> permissions.
+# Matrice rôle -> permissions. Validé par le fondateur le 23/11/2026 : le gérant de
+# coopérative invite et gère les rôles comme l'administrateur, sans jamais pouvoir nommer
+# ni modifier un administrateur d'organisation (contrôle dans les vues des adhésions).
+# Le reste de la matrice reste une proposition technique à valider.
 ROLE_PERMISSIONS = {
     SUPER_ADMIN: ["platform.organizations.view", "platform.organizations.manage"],
     ORGANIZATION_ADMIN: [
@@ -125,7 +128,12 @@ ROLE_PERMISSIONS = {
         "memberships.manage",
         "roles.assign",
     ],
-    COOPERATIVE_MANAGER: ["organization.view", "memberships.view"],
+    COOPERATIVE_MANAGER: [
+        "organization.view",
+        "memberships.view",
+        "memberships.manage",
+        "roles.assign",
+    ],
     FIELD_AGENT: ["organization.view"],
     AGRONOMIST: ["organization.view"],
     PRODUCER: ["organization.view"],

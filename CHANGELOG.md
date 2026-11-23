@@ -10,6 +10,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Console Admin : liste des organisations pour le super-admin.
 - API : champ `is_platform_admin` sur `GET /api/v1/me/`.
 - Connexion : un numéro sénégalais saisi sans indicatif est complété avec +221.
+- Espace Coopérative, « Membres et invitations » : liste de l'équipe, invitation par numéro (création du compte si besoin), attribution et retrait des rôles, suspension, réactivation, retrait.
+- Comptes créés par invitation : code d'activation (7 jours, usage unique, haché, 5 essais) et page publique « Activer mon compte » ; route `POST /api/v1/auth/activate/` limitée en fréquence.
+- Invitations à accepter sur la page de choix de l'espace.
+- Matrice des permissions : le gérant de coopérative invite et gère les rôles (jamais un administrateur).
 
 ## [0.0.1] — Semaine 1 : socle backend
 

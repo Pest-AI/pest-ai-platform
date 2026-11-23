@@ -20,8 +20,21 @@
 | GET | `/api/v1/me/` | Profil de l'utilisateur connecté | Jeton d'accès |
 | PATCH | `/api/v1/me/` | Modifier prénom, nom, e-mail, langue | Jeton d'accès |
 | POST | `/api/v1/me/password/` | Changer son mot de passe | Jeton d'accès |
+| POST | `/api/v1/auth/activate/` | Activer un compte créé par invitation : numéro + code + mot de passe choisi | Non (limité à 20/h par adresse) |
 
 Exemples : [docs-site/docs/authentification.md](../../../docs-site/docs/authentification.md).
+
+## Comptes créés par invitation (`AccountActivation`)
+
+Quand un gérant invite un numéro sans compte, le compte est créé **sans mot de passe** et un code d'activation est émis (`apps/accounts/activation.py`) :
+
+- 8 caractères (alphabet Crockford, sans I, L, O, U), affichés `ABCD-EF12` ; saisie tolérante (minuscules, tirets, O→0, I/L→1) ;
+- seule une empreinte HMAC-SHA256 (clé `SECRET_KEY`) est stockée, jamais le code ;
+- valable 7 jours, à usage unique, annulé après 5 essais erronés ; un nouveau code annule les précédents ;
+- message d'erreur identique quel que soit le motif (numéro inconnu, code faux ou expiré) ;
+- événements journalisés : `account_activation` (`code_issued`, `refused`, `activated`).
+
+Remplacé par l'envoi automatique d'un SMS quand la vérification OTP (D-14) sera livrée.
 
 ## Durée de vie des jetons
 

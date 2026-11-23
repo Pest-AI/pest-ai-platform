@@ -135,6 +135,55 @@ def invite_member(
     return membership
 
 
+@transaction.atomic
+def invite_by_phone(
+    *,
+    organization: Organization,
+    phone_number: str,
+    invited_by,
+    first_name: str = "",
+    last_name: str = "",
+    role_codes=(),
+):
+    """Invite une personne par son numéro, en créant son compte si elle n'en a pas.
+
+    Renvoie (adhésion, code d'activation en clair ou None). Un code est émis quand le
+    compte n'a pas encore de mot de passe (compte créé ici, ou invitation précédente
+    jamais activée).
+    """
+    from django.contrib.auth import get_user_model
+
+    from apps.accounts.activation import issue_activation_code
+
+    User = get_user_model()
+    user = User.objects.filter(phone_number=phone_number).first()
+    if user is not None and not user.is_active:
+        raise ValidationError("Ce compte est désactivé : contactez PEST AI.")
+    if user is None:
+        if not first_name.strip() or not last_name.strip():
+            raise ValidationError(
+                {
+                    "first_name": "Aucun compte pour ce numéro : indiquez le prénom et le nom "
+                    "pour le créer."
+                }
+            )
+        user = User.objects.create_user(
+            phone_number,
+            password=None,
+            first_name=first_name.strip(),
+            last_name=last_name.strip(),
+            created_by=invited_by,
+            updated_by=invited_by,
+        )
+    membership = invite_member(
+        organization=organization, user=user, invited_by=invited_by, role_codes=role_codes
+    )
+    code = None
+    if not user.has_usable_password():
+        code, _ = issue_activation_code(user=user, issued_by=invited_by)
+    return membership, code
+
+
 def _set_status(membership, *, allowed_from, new_status, actor, **extra):
     if membership.status not in allowed_from:
         raise ValidationError(f"Transition impossible : {membership.status} -> {new_status}.")

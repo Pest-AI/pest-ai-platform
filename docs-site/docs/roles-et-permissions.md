@@ -30,10 +30,15 @@ Les permissions suivent le format `domaine.action` (par exemple `memberships.man
 | `organization.view` | Tous les rôles d'organisation |
 | `organization.manage` | `organization_admin` |
 | `memberships.view` | `organization_admin`, `cooperative_manager` |
-| `memberships.manage` | `organization_admin` |
-| `roles.assign` | `organization_admin` |
+| `memberships.manage` | `organization_admin`, `cooperative_manager` |
+| `roles.assign` | `organization_admin`, `cooperative_manager` |
 | `platform.organizations.view` / `.manage` | `super_admin` |
 
-:::note Matrice en cours de validation
+:::info Règles complémentaires (validées le 23/11/2026)
+- Seul un `organization_admin` peut attribuer le rôle `organization_admin`, ou modifier, suspendre ou retirer un administrateur (403 sinon).
+- Personne ne peut suspendre ni retirer sa propre adhésion, ni retirer ses propres rôles.
+:::
+
+:::note Matrice en cours d'extension
 Cette matrice couvre le domaine organisations. Elle s'étendra avec chaque domaine (parcelles, observations, diagnostics…).
 :::

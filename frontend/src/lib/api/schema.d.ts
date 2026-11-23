@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/auth/activate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activer mon compte
+         * @description Numéro de téléphone, code d'activation reçu du gérant et mot de passe choisi. Le code est valable 7 jours, à usage unique, annulé après 5 essais erronés.
+         */
+        post: operations["auth_activate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/logout/": {
         parameters: {
             query?: never;
@@ -148,10 +168,7 @@ export interface paths {
         put?: never;
         /**
          * Inviter un membre
-         * @description Membres de l'organisation du contexte.
-         *
-         *     Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
-         *     est toujours filtré sur l'organisation vérifiée.
+         * @description Invite une personne par son numéro. Sans compte existant, le compte est créé (prénom et nom requis) et un code d'activation est renvoyé une seule fois. Un gérant de coopérative ne peut pas attribuer le rôle administrateur.
          */
         post: operations["memberships_create"];
         delete?: never;
@@ -177,6 +194,26 @@ export interface paths {
         get: operations["memberships_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/memberships/{id}/activation-code/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nouveau code d'activation
+         * @description Émet un nouveau code pour un membre dont le compte n'est pas encore activé (les codes précédents sont annulés).
+         */
+        post: operations["memberships_activation_code_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -435,11 +472,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Activation d'un compte créé par invitation. */
+        AccountActivationRequest: {
+            phone_number: string;
+            code: string;
+            new_password: string;
+        };
+        ActivationCode: {
+            readonly activation_code: string;
+            /** Format: date-time */
+            readonly expires_at: string;
+        };
         ArchiveRequest: {
             reason: string;
         };
+        /** @description Adhésion créée, avec le code d'activation à transmettre (affiché une seule fois). */
+        InvitationResult: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly user: components["schemas"]["MemberUser"];
+            readonly status: components["schemas"]["MembershipStatusEnum"];
+            readonly roles: string[];
+            /** Format: uuid */
+            readonly invited_by: string | null;
+            /** Format: date-time */
+            readonly joined_at: string | null;
+            /** Format: date-time */
+            readonly ended_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** @description Code à remettre à la personne si son compte n'est pas encore activé, sinon null. Affiché une seule fois. */
+            readonly activation_code: string | null;
+        };
+        /** @description Invitation par numéro. Prénom et nom sont requis si aucun compte n'existe encore. */
         InviteMemberRequest: {
             phone_number: string;
+            /** @default  */
+            first_name: string;
+            /** @default  */
+            last_name: string;
             roles?: components["schemas"]["RolesEnum"][];
         };
         /** @description Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici. */
@@ -485,6 +556,8 @@ export interface components {
              * @description Identifiant de connexion, format international E.164 (+221…).
              */
             readonly phone_number: string;
+            /** @description Faux tant que la personne invitée n'a pas choisi son mot de passe. */
+            readonly account_activated: boolean;
         };
         Membership: {
             /** Format: uuid */
@@ -772,6 +845,44 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    auth_activate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountActivationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AccountActivationRequest"];
+                "multipart/form-data": components["schemas"]["AccountActivationRequest"];
+            };
+        };
+        responses: {
+            /** @description Compte activé : la personne peut se connecter. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Numéro ou code invalide ou expiré, ou mot de passe trop faible. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Trop de tentatives : réessayez plus tard. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     auth_logout_create: {
         parameters: {
             query?: never;
@@ -983,7 +1094,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Membership"];
+                    "application/json": components["schemas"]["InvitationResult"];
                 };
             };
         };
@@ -1009,6 +1120,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Membership"];
+                };
+            };
+        };
+    };
+    memberships_activation_code_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) adhésion. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationCode"];
                 };
             };
         };

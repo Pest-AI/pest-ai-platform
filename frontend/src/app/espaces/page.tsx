@@ -1,4 +1,4 @@
-import { ChevronRight, Clock3, Globe2, Inbox, ShieldCheck, Sprout } from "lucide-react";
+import { ChevronRight, Clock3, Globe2, Inbox, MailOpen, ShieldCheck, Sprout } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,9 +8,12 @@ import { Logo } from "@/components/logo";
 import { LogoutButton } from "@/components/logout-button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { ORGANIZATION_TYPE_LABELS, formatDate, primaryRoleLabel } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
+
+import { acceptInvitation } from "./actions";
 
 export const metadata: Metadata = { title: "Choisir un espace" };
 
@@ -70,16 +73,16 @@ function WorkspaceCard({
 export default async function WorkspacesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ erreur?: string }>;
+  searchParams: Promise<{ erreur?: string; bienvenue?: string }>;
 }) {
-  const { erreur } = await searchParams;
+  const { erreur, bienvenue } = await searchParams;
   const api = await getApi();
   const { data: me, response } = await api.GET("/api/v1/me/");
   if (response.status === 401 || !me) redirect("/connexion?erreur=session");
 
   const lastWorkspace = await currentWorkspace();
   const memberships = me.memberships.filter((m) => m.status === "active");
-  const invitations = me.memberships.filter((m) => m.status === "invited").length;
+  const invitations = me.memberships.filter((m) => m.status === "invited");
   const total = memberships.length + (me.is_platform_admin ? 1 : 0);
 
   return (
@@ -106,15 +109,42 @@ export default async function WorkspacesPage({
         <div className="mt-6 space-y-3 empty:hidden">
           {erreur === "acces" ? <Alert>Vous n&apos;avez plus accès à cet espace. Choisissez-en un autre.</Alert> : null}
           {erreur === "espace" ? <Alert>Espace invalide.</Alert> : null}
-          {invitations > 0 ? (
-            <Alert tone="info">
-              Vous avez {invitations} invitation{invitations > 1 ? "s" : ""} en attente. Elle
-              {invitations > 1 ? "s apparaîtront" : " apparaîtra"} ici une fois acceptée{invitations > 1 ? "s" : ""}.
-            </Alert>
-          ) : null}
+          {erreur === "invitation" ? <Alert>Cette invitation n&apos;est plus valable.</Alert> : null}
+          {bienvenue ? <Alert tone="info">Invitation acceptée : l&apos;organisation fait maintenant partie de vos espaces.</Alert> : null}
         </div>
 
-        {total === 0 ? (
+        {invitations.length > 0 ? (
+          <section aria-labelledby="invitations" className="mt-8">
+            <h2 id="invitations" className="font-sans text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">
+              Invitations à accepter
+            </h2>
+            <ul className="mt-3 space-y-3">
+              {invitations.map((inv) => (
+                <li
+                  key={inv.id}
+                  className="flex flex-wrap items-center gap-4 rounded-xl border border-gold/60 bg-warning-bg/50 px-5 py-4"
+                >
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-canvas text-warning">
+                    <MailOpen className="size-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-[15px] font-semibold">{inv.organization_name}</span>
+                    <span className="block text-[13px] text-muted">
+                      {ORGANIZATION_TYPE_LABELS[inv.organization_type] ?? inv.organization_type} · vous invite comme{" "}
+                      {primaryRoleLabel(inv.roles).toLowerCase()}
+                    </span>
+                  </span>
+                  <form action={acceptInvitation}>
+                    <input type="hidden" name="membership_id" value={inv.id} />
+                    <Button type="submit">Accepter l&apos;invitation</Button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {total === 0 && invitations.length === 0 ? (
           <div className="mt-8 flex flex-col items-center rounded-xl border border-dashed border-line-strong bg-canvas px-6 py-14 text-center">
             <Inbox className="size-8 text-muted" aria-hidden />
             <p className="mt-3 font-display text-[16px] font-semibold">Aucun espace pour le moment</p>

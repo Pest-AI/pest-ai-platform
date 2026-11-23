@@ -21,6 +21,8 @@ import {
 } from "@/lib/session";
 
 const PUBLIC_PATHS = ["/connexion"];
+/** Pages publiques accessibles même connecté (activation d'un compte invité). */
+const OPEN_PATHS = ["/activer"];
 
 function toLogin(request: NextRequest, reason?: string) {
   const url = new URL("/connexion", requestOrigin(request));
@@ -50,6 +52,7 @@ export async function proxy(request: NextRequest) {
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
   const isPublic = PUBLIC_PATHS.includes(pathname);
+  if (OPEN_PATHS.includes(pathname)) return NextResponse.next();
 
   if (isPublic) {
     // Déjà connecté : inutile de revoir la page de connexion.

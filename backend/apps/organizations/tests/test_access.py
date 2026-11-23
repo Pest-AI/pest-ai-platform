@@ -121,10 +121,8 @@ def test_deactivated_account_loses_access(make_member, make_org, api):
 
 
 # --- Permissions par rôle -----------------------------------------------------------
-@pytest.mark.parametrize(
-    "role", ["cooperative_manager", "field_agent", "agronomist", "program_manager"]
-)
-def test_only_organization_admin_can_invite(role, make_member, make_org, make_user, api):
+@pytest.mark.parametrize("role", ["field_agent", "agronomist", "program_manager"])
+def test_only_admin_or_manager_can_invite(role, make_member, make_org, make_user, api):
     org = make_org()
     user, _ = make_member(org, role)
     target = make_user()
@@ -194,13 +192,14 @@ def test_admin_cannot_assign_super_admin_or_producer(make_member, make_org, api)
     )
 
 
-def test_invite_unknown_phone_is_400(make_member, make_org, api):
+def test_invite_unknown_phone_without_names_is_400(make_member, make_org, api):
     org = make_org()
     admin, _ = make_member(org, "organization_admin")
     response = api.as_user(admin, org).post(
         MEMBERS_URL, {"phone_number": "+221789999999"}, format="json"
     )
     assert response.status_code == 400
+    assert "first_name" in response.json()
 
 
 def test_organization_id_is_never_taken_from_payload(two_orgs, make_member, make_user, api):

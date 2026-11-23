@@ -3,6 +3,17 @@
 import pytest
 from rest_framework.test import APIClient
 
+
+@pytest.fixture(autouse=True)
+def _vider_le_cache():
+    """Cache vidé à chaque test : les compteurs de limitation de fréquence repartent de zéro."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 TEST_PASSWORD = "Mot-de-passe-test-2026"  # noqa: S105 (valeur factice de test)
 
 

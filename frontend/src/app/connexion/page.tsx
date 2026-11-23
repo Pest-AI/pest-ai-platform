@@ -1,5 +1,6 @@
 import { BadgeCheck, Globe, Lock, Users } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AgroIdBadge } from "@/components/agroid-badge";
 import { Logo } from "@/components/logo";
@@ -80,9 +81,9 @@ function IdentityCardIllustration() {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ erreur?: string; deconnecte?: string }>;
+  searchParams: Promise<{ erreur?: string; deconnecte?: string; active?: string }>;
 }) {
-  const { erreur, deconnecte } = await searchParams;
+  const { erreur, deconnecte, active } = await searchParams;
   const error = erreur ? (ERRORS[erreur] ?? ERRORS.serveur) : null;
 
   return (
@@ -128,6 +129,9 @@ export default async function LoginPage({
           <div className="mt-6 space-y-3 empty:hidden">
             {error ? <Alert>{error}</Alert> : null}
             {deconnecte ? <Alert tone="info">Vous êtes déconnecté.</Alert> : null}
+            {active ? (
+              <Alert tone="info">Votre compte est activé. Connectez-vous avec votre nouveau mot de passe.</Alert>
+            ) : null}
           </div>
 
           <form action="/api/session/login" method="post" className="mt-7 space-y-5">
@@ -159,7 +163,13 @@ export default async function LoginPage({
 
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-[13px] text-muted">
             <Users className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <p>L&apos;accès se fait sur invitation de votre coopérative ou de votre organisation.</p>
+            <p>
+              L&apos;accès se fait sur invitation de votre coopérative ou de votre organisation. Vous avez reçu un
+              code ?{" "}
+              <Link href="/activer" className="font-medium text-brand-700 hover:underline">
+                Activer mon compte
+              </Link>
+            </p>
           </div>
         </div>
         <div className="mx-auto flex w-full max-w-[380px] flex-wrap items-center justify-between gap-3 text-[12px] text-muted">

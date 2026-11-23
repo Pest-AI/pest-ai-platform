@@ -16,3 +16,9 @@ export function toInternationalPhone(input: string): string {
   if (SENEGAL_LOCAL.test(cleaned)) return `+221${cleaned}`;
   return cleaned;
 }
+
+/** Affichage lisible d'un numéro sénégalais : +221 78 436 35 37 (autres numéros inchangés). */
+export function formatPhone(e164: string): string {
+  const m = /^\+221(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(e164);
+  return m ? `+221 ${m[1]} ${m[2]} ${m[3]} ${m[4]}` : e164;
+}

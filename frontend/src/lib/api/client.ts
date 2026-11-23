@@ -25,7 +25,22 @@ export type { paths };
 export async function getApi() {
   const access = (await cookies()).get(ACCESS_COOKIE)?.value;
   const headers: Record<string, string> = access ? { Authorization: `Bearer ${access}` } : {};
-  return createClient<paths>({ baseUrl: API_BASE_URL, headers, cache: "no-store" });
+  return createClient<paths>({ baseUrl: API_BASE_URL, headers, cache: "no-store", fetch: bufferedFetch });
+}
+
+/**
+ * Envoie le corps des requêtes en un bloc (avec Content-Length) au lieu d'un flux
+ * « chunked » : le serveur de développement Django (`make serveur`) ne lit pas les
+ * corps envoyés en flux.
+ */
+async function bufferedFetch(request: Request): Promise<Response> {
+  const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  return fetch(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: hasBody ? await request.arrayBuffer() : undefined,
+    cache: "no-store",
+  });
 }
 
 export async function currentWorkspace(): Promise<string | null> {

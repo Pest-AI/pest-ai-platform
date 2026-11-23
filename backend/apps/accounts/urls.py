@@ -6,7 +6,12 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from apps.accounts.views import AcceptInvitationView, MeView, PasswordChangeView
+from apps.accounts.views import (
+    AcceptInvitationView,
+    AccountActivationView,
+    MeView,
+    PasswordChangeView,
+)
 
 TokenObtain = extend_schema_view(
     post=extend_schema(
@@ -35,6 +40,7 @@ urlpatterns = [
     path("auth/token/", TokenObtain.as_view(), name="token-obtain"),
     path("auth/token/refresh/", TokenRefresh.as_view(), name="token-refresh"),
     path("auth/logout/", TokenLogout.as_view(), name="token-logout"),
+    path("auth/activate/", AccountActivationView.as_view(), name="account-activate"),
     # Compte connecté.
     path("me/", MeView.as_view(), name="me"),
     path("me/password/", PasswordChangeView.as_view(), name="me-password"),

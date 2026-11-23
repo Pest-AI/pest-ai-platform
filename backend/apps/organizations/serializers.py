@@ -4,10 +4,11 @@ Règle (section 9.5) : l'organisation d'un objet n'est jamais lue dans le payloa
 elle vient du contexte vérifié de la requête.
 """
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from apps.accounts.models import User
-from apps.accounts.validators import normalize_phone_number
+from apps.accounts.validators import normalize_phone_number, validate_e164
 from apps.organizations import constants as C
 from apps.organizations.models import Organization, OrganizationMembership
 
@@ -68,10 +69,16 @@ class PlatformOrganizationSerializer(serializers.ModelSerializer):
 
 
 class MemberUserSerializer(serializers.ModelSerializer):
+    account_activated = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ["id", "first_name", "last_name", "phone_number"]
+        fields = ["id", "first_name", "last_name", "phone_number", "account_activated"]
         read_only_fields = fields
+
+    def get_account_activated(self, obj) -> bool:
+        """Faux tant que la personne invitée n'a pas choisi son mot de passe."""
+        return obj.has_usable_password()
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -97,7 +104,11 @@ class MembershipSerializer(serializers.ModelSerializer):
 
 
 class InviteMemberSerializer(serializers.Serializer):
+    """Invitation par numéro. Prénom et nom sont requis si aucun compte n'existe encore."""
+
     phone_number = serializers.CharField(max_length=32)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     roles = serializers.ListField(
         child=serializers.ChoiceField(choices=C.ORGANIZATION_ROLE_CODES),
         required=False,
@@ -106,13 +117,31 @@ class InviteMemberSerializer(serializers.Serializer):
 
     def validate_phone_number(self, value):
         phone = normalize_phone_number(value)
-        user = User.objects.filter(phone_number=phone, is_active=True).first()
-        if user is None:
-            # L'inscription autonome avec OTP (D-14) viendra plus tard :
-            # l'invité doit déjà avoir un compte.
-            raise serializers.ValidationError("Aucun compte actif n'existe pour ce numéro.")
-        self.context["invited_user"] = user
+        try:
+            validate_e164(phone)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
         return phone
+
+
+class InvitationResultSerializer(MembershipSerializer):
+    """Adhésion créée, avec le code d'activation à transmettre (affiché une seule fois)."""
+
+    activation_code = serializers.CharField(
+        allow_null=True,
+        read_only=True,
+        help_text="Code à remettre à la personne si son compte n'est pas encore activé, "
+        "sinon null. Affiché une seule fois.",
+    )
+
+    class Meta(MembershipSerializer.Meta):
+        fields = [*MembershipSerializer.Meta.fields, "activation_code"]
+        read_only_fields = fields
+
+
+class ActivationCodeSerializer(serializers.Serializer):
+    activation_code = serializers.CharField(read_only=True)
+    expires_at = serializers.DateTimeField(read_only=True)
 
 
 class RoleCodeSerializer(serializers.Serializer):

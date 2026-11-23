@@ -56,9 +56,12 @@ Une méthode absente de `required_permissions` est refusée (refus par défaut).
 |---|---|---|
 | GET | `/api/v1/organizations/` | Toute personne connectée : ses organisations (choix de l'espace) |
 | GET / PATCH | `/api/v1/organization/` | Membre (lecture) / `organization_admin` (modification) |
-| GET / POST | `/api/v1/memberships/` | Liste / invitation de membres |
-| POST | `/api/v1/memberships/<id>/suspend/`, `reactivate/`, `revoke/` | `organization_admin` |
-| POST | `/api/v1/memberships/<id>/roles/` · `roles/<code>/revoke/` | `organization_admin` |
+| GET / POST | `/api/v1/memberships/` | Liste / invitation de membres (création du compte et code d'activation si besoin) |
+| POST | `/api/v1/memberships/<id>/suspend/`, `reactivate/`, `revoke/` | `organization_admin`, `cooperative_manager` |
+| POST | `/api/v1/memberships/<id>/roles/` · `roles/<code>/revoke/` | `organization_admin`, `cooperative_manager` |
+| POST | `/api/v1/memberships/<id>/activation-code/` | `organization_admin`, `cooperative_manager` : nouveau code pour un compte non activé |
+
+Garde-fous (validés le 23/11/2026) : seul un `organization_admin` nomme, modifie, suspend ou retire un administrateur ; personne n'agit sur sa propre adhésion ni ne retire ses propres rôles.
 | POST | `/api/v1/me/memberships/<id>/accept/` | L'invité lui-même |
 | GET / POST / PATCH | `/api/v1/platform/organizations/` | `super_admin` |
 | POST | `/api/v1/platform/organizations/<id>/archive/` · `admins/` | `super_admin` |

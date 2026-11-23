@@ -88,3 +88,11 @@ class PasswordChangeSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         password_validation.validate_password(value, user=self.context["request"].user)
         return value
+
+
+class AccountActivationSerializer(serializers.Serializer):
+    """Activation d'un compte créé par invitation."""
+
+    phone_number = serializers.CharField(max_length=32)
+    code = serializers.CharField(max_length=16, trim_whitespace=True)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False)

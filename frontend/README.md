@@ -28,6 +28,8 @@ L'API locale doit tourner (`make serveur` depuis la racine). Depuis la racine : 
 2. `/espaces` : choix de l'organisation (adhésions actives de `/api/v1/me/`) ; carte « Console d'administration » si `is_platform_admin`.
 3. `/tableau-de-bord` : vue d'ensemble de l'espace (navigation latérale, indicateurs, organisation, rôles).
 4. `/admin/organisations` : Console Admin, liste des organisations (super-admin uniquement, `GET /api/v1/platform/organizations/`).
+5. `/equipe` : membres et invitations de l'organisation (administrateur et gérant) ; actions serveur dans `src/app/equipe/actions.ts`.
+6. `/activer` : page publique d'activation d'un compte invité (numéro + code + mot de passe choisi).
 
 Les entrées de navigation marquées « Bientôt » arrivent avec les jours suivants du planning (registre AgroID, campagnes, terrain).
 
@@ -47,6 +49,8 @@ src/
 │   ├── espaces/              Choix de l'espace de travail
 │   ├── tableau-de-bord/      Vue d'ensemble de l'espace
 │   ├── admin/organisations/  Console Admin : organisations
+│   ├── equipe/               Membres et invitations (actions serveur, fenêtres)
+│   ├── activer/              Activation d'un compte invité (page publique)
 │   └── api/session/          login, logout, workspace (formulaires → cookies)
 ├── components/
 │   ├── app-shell.tsx         Navigation latérale, fil d'Ariane, en-tête de page, indicateurs

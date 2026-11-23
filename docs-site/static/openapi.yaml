@@ -9,6 +9,36 @@ info:
 
     **Espace de travail** : les routes d'organisation exigent l'en-tête `X-Workspace: org:<uuid>`.
 paths:
+  /api/v1/auth/activate/:
+    post:
+      operationId: auth_activate_create
+      description: Numéro de téléphone, code d'activation reçu du gérant et mot de
+        passe choisi. Le code est valable 7 jours, à usage unique, annulé après 5
+        essais erronés.
+      summary: Activer mon compte
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountActivationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountActivationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountActivationRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: 'Compte activé : la personne peut se connecter.'
+        '400':
+          description: Numéro ou code invalide ou expiré, ou mot de passe trop faible.
+        '429':
+          description: 'Trop de tentatives : réessayez plus tard.'
   /api/v1/auth/logout/:
     post:
       operationId: auth_logout_create
@@ -216,11 +246,9 @@ paths:
           description: ''
     post:
       operationId: memberships_create
-      description: |-
-        Membres de l'organisation du contexte.
-
-        Un identifiant d'adhésion d'une autre organisation renvoie 404 : le queryset
-        est toujours filtré sur l'organisation vérifiée.
+      description: Invite une personne par son numéro. Sans compte existant, le compte
+        est créé (prénom et nom requis) et un code d'activation est renvoyé une seule
+        fois. Un gérant de coopérative ne peut pas attribuer le rôle administrateur.
       summary: Inviter un membre
       parameters:
       - in: header
@@ -252,7 +280,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Membership'
+                $ref: '#/components/schemas/InvitationResult'
           description: ''
   /api/v1/memberships/{id}/:
     get:
@@ -289,6 +317,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Membership'
+          description: ''
+  /api/v1/memberships/{id}/activation-code/:
+    post:
+      operationId: memberships_activation_code_create
+      description: Émet un nouveau code pour un membre dont le compte n'est pas encore
+        activé (les codes précédents sont annulés).
+      summary: Nouveau code d'activation
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - memberships
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationCode'
           description: ''
   /api/v1/memberships/{id}/reactivate/:
     post:
@@ -760,6 +821,39 @@ paths:
           description: ''
 components:
   schemas:
+    AccountActivationRequest:
+      type: object
+      description: Activation d'un compte créé par invitation.
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        code:
+          type: string
+          minLength: 1
+          maxLength: 16
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - code
+      - new_password
+      - phone_number
+    ActivationCode:
+      type: object
+      properties:
+        activation_code:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - activation_code
+      - expires_at
     ArchiveRequest:
       type: object
       properties:
@@ -768,13 +862,80 @@ components:
           minLength: 3
       required:
       - reason
+    InvitationResult:
+      type: object
+      description: Adhésion créée, avec le code d'activation à transmettre (affiché
+        une seule fois).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/MemberUser'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MembershipStatusEnum'
+          readOnly: true
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        invited_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        activation_code:
+          type: string
+          readOnly: true
+          nullable: true
+          description: Code à remettre à la personne si son compte n'est pas encore
+            activé, sinon null. Affiché une seule fois.
+      required:
+      - activation_code
+      - created_at
+      - ended_at
+      - id
+      - invited_by
+      - joined_at
+      - roles
+      - status
+      - user
     InviteMemberRequest:
       type: object
+      description: Invitation par numéro. Prénom et nom sont requis si aucun compte
+        n'existe encore.
       properties:
         phone_number:
           type: string
           minLength: 1
           maxLength: 32
+        first_name:
+          type: string
+          default: ''
+          maxLength: 100
+        last_name:
+          type: string
+          default: ''
+          maxLength: 100
         roles:
           type: array
           items:
@@ -866,7 +1027,13 @@ components:
           readOnly: true
           title: Numéro de téléphone
           description: Identifiant de connexion, format international E.164 (+221…).
+        account_activated:
+          type: boolean
+          description: Faux tant que la personne invitée n'a pas choisi son mot de
+            passe.
+          readOnly: true
       required:
+      - account_activated
       - first_name
       - id
       - last_name

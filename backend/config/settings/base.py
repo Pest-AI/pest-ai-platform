@@ -141,6 +141,10 @@ REST_FRAMEWORK = {
     # Listes paginées : {"count", "next", "previous", "results"}, 50 éléments par page.
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
+    # Limitation de fréquence des routes publiques sensibles (par adresse IP).
+    "DEFAULT_THROTTLE_RATES": {
+        "account_activation": env.str("THROTTLE_ACCOUNT_ACTIVATION", default="20/hour"),
+    },
 }
 
 # ── Jetons JWT (SimpleJWT) ────────────────────────────────

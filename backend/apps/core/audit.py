@@ -15,6 +15,7 @@ CROSS_ORG_ACCESS = "cross_org_access"
 ROLE_CHANGE = "role_change"
 MEMBERSHIP_CHANGE = "membership_change"
 ORGANIZATION_CHANGE = "organization_change"
+ACCOUNT_ACTIVATION = "account_activation"
 
 
 def security_event(

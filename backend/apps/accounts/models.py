@@ -97,3 +97,29 @@ class User(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return f"{self.full_name} ({self.phone_number})"
+
+
+class AccountActivation(BaseModel):
+    """Code d'activation d'un compte créé par invitation (sans mot de passe).
+
+    Le code (8 caractères) est remis à la personne invitée par le gérant ; elle l'utilise
+    une seule fois pour choisir son mot de passe. Seule une empreinte HMAC est stockée :
+    le code en clair n'est affiché qu'à sa création. Remplacé par un SMS automatique
+    quand la vérification OTP (D-14) sera livrée.
+    """
+
+    user = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="activations")
+    code_hash = models.CharField(max_length=64, editable=False)
+    expires_at = models.DateTimeField("expire le")
+    used_at = models.DateTimeField("utilisé le", null=True, blank=True)
+    revoked_at = models.DateTimeField("annulé le", null=True, blank=True)
+    failed_attempts = models.PositiveSmallIntegerField("essais échoués", default=0)
+
+    class Meta:
+        db_table = "accounts_account_activation"
+        verbose_name = "code d'activation"
+        verbose_name_plural = "codes d'activation"
+        indexes = [models.Index(fields=["user", "used_at", "revoked_at"])]
+
+    def __str__(self):
+        return f"Activation de {self.user_id}"

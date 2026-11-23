@@ -8,11 +8,14 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts import services
 from apps.accounts.serializers import (
+    AccountActivationSerializer,
     MeSerializer,
     MyMembershipSerializer,
     PasswordChangeSerializer,
@@ -84,3 +87,46 @@ class AcceptInvitationView(APIView):
         except DjangoValidationError as exc:
             raise ValidationError(exc.messages) from exc
         return Response(MyMembershipSerializer(membership).data, status=status.HTTP_200_OK)
+
+
+class AccountActivationView(APIView):
+    """POST /api/v1/auth/activate/ : la personne invitée choisit son mot de passe.
+
+    Route publique (pas de jeton), limitée en fréquence par adresse IP. Le message d'erreur
+    est le même quel que soit le motif, pour ne pas révéler si un numéro a un compte.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "account_activation"
+
+    @extend_schema(
+        tags=["auth"],
+        summary="Activer mon compte",
+        description="Numéro de téléphone, code d'activation reçu du gérant et mot de passe choisi. "
+        "Le code est valable 7 jours, à usage unique, annulé après 5 essais erronés.",
+        request=AccountActivationSerializer,
+        responses={
+            204: OpenApiResponse(description="Compte activé : la personne peut se connecter."),
+            400: OpenApiResponse(
+                description="Numéro ou code invalide ou expiré, ou mot de passe trop faible."
+            ),
+            429: OpenApiResponse(description="Trop de tentatives : réessayez plus tard."),
+        },
+    )
+    def post(self, request):
+        from apps.accounts.activation import activate_account
+
+        serializer = AccountActivationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            activate_account(
+                phone_number=data["phone_number"],
+                code=data["code"],
+                new_password=data["new_password"],
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"detail": exc.messages}) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)

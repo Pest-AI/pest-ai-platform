@@ -51,7 +51,7 @@ export const COOPERATIVE_NAV: NavSection[] = [
   {
     title: "Organisation",
     items: [
-      { label: "Membres et invitations", icon: "mail" },
+      { label: "Membres et invitations", icon: "mail", href: "/equipe" },
       { label: "Rapports", icon: "chart" },
     ],
   },
