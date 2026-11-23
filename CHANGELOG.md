@@ -16,6 +16,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Matrice des permissions : le gérant de coopérative invite et gère les rôles (jamais un administrateur).
 - Console Admin : création d'une organisation et désignation de son administrateur (compte créé avec code d'activation si besoin).
 
+### Modifié
+- Refonte visuelle du Web OS (référence AI Studio) : barre latérale vert forêt, menu mobile en tiroir, navigation calée sur les modules du MVP, indicateurs en cartes, listes responsives, textes raccourcis.
+- Connexion et activation : nouvelle mise en page mobile / tablette / ordinateur avec visuel de parcelles ; vue d'ensemble avec parcours « Pour démarrer » ; choix de l'espace en liste.
+
 ## [0.0.1] — Semaine 1 : socle backend
 
 ### Ajouté

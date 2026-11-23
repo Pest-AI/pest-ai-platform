@@ -1,6 +1,6 @@
 # Design PEST AI OS
 
-Direction validée par le fondateur le **23/11/2026** (J7).
+Direction validée par le fondateur le **23/11/2026** (J7), révisée le même jour d'après la maquette Google AI Studio (référence de mise en page, pas de contenu).
 
 ## Positionnement visuel
 
@@ -8,11 +8,27 @@ PEST AI n'est pas un outil de diagnostic : c'est l'**identité numérique de cha
 
 ## Direction retenue
 
-- **Base « épurée »** (inspirée de Linear / Stripe) : fond clair, filets fins, typographie précise, couleur rare. Navigation latérale claire.
-- **Carte immersive** sur les écrans géographiques (fiche parcelle, registre, vue d'ensemble) : contour de la parcelle en or, unités de culture, frise des campagnes.
-- **Explorateur cartographique** façon Google Earth Engine (carte plein écran, couches, inspecteur, console) : version **claire par défaut**, version **sombre en option**. Les couches satellite (Sentinel-2, NDVI, humidité) sont affichées « Phase 2 » (décision F-02).
-- **Bandeau vert « vitrine »** réservé à la connexion et aux rapports bailleurs de l'espace ONG.
-- **Puce AgroID** (marine et or, police IBM Plex Mono) : élément signature de la marque.
+- **Coquille** : barre latérale **vert forêt** (élément actif en pastille blanche, espace actif en haut, profil en bas), contenu sur fond blanc cassé. Petit écran : barre du haut + tiroir de menu.
+- **Couleurs équilibrées** : forêt pour la navigation et le bouton principal ; vert feuille pour les états « actif / sain » ; **or réservé à l'attention** (alertes, invitations, parcelle sélectionnée, focus clavier) ; bleu nuit pour le texte.
+- **Peu de texte** : un titre court par page, une ligne de contexte au plus ; indicateurs = un chiffre + une étiquette ; les explications vont dans les états vides et les fenêtres d'action.
+- **Indicateurs** en cartes compactes avec une icône discrète ; **listes responsives** (tableau sur écran large, cartes empilées sur mobile, jamais de défilement horizontal).
+- **Parcours** : « Pour démarrer » sur la vue d'ensemble (organisation → équipe → producteurs → parcelles) ; chaque module non livré s'affiche « Bientôt ».
+- **Visuel parcelles** (`FieldVisual`, SVG) : vue aérienne d'un périmètre irrigué, parcelle AgroID en or. Sert à la connexion, à l'activation, au choix de l'espace et à l'aperçu de carte. Une photo aérienne réelle pourra le remplacer.
+- **Carte immersive** et **explorateur** façon Google Earth Engine pour les écrans géographiques (J14) ; couches satellite en Phase 2 (F-02).
+- **Puce AgroID** (marine et or, IBM Plex Mono) : élément signature.
+
+## Navigation (plan MVP)
+
+| Espace | Entrées | Livraison |
+|---|---|---|
+| Coopérative | Vue d'ensemble · Parcelles & AgroID · Producteurs · Campagnes · Observations terrain · Diagnostics · Équipe | J9 → J23 |
+| Console Admin | Organisations · Utilisateurs · Journal d'audit | J8, puis consolidation |
+
+Les modules d'après le MVP (recommandations, programmes ONG, rapports) n'apparaissent qu'une fois planifiés.
+
+## Écrans d'accès
+
+Connexion et activation partagent `AuthLayout` : mobile = bandeau visuel + feuille blanche ; tablette = visuel plein écran + carte flottante ; ordinateur = panneau visuel à gauche, formulaire à droite.
 
 ## Typographie
 

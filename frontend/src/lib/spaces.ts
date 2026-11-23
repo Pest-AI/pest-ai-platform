@@ -73,3 +73,9 @@ export function organizationInitials(name: string): string {
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }
+
+/** Nombre de dates (arrivées dans l'organisation) comprises dans les `days` derniers jours. */
+export function countSince(dates: (string | null | undefined)[], days: number, now: number = Date.now()): number {
+  const from = now - days * 24 * 3600 * 1000;
+  return dates.filter((d) => d && Date.parse(d) >= from && Date.parse(d) <= now).length;
+}

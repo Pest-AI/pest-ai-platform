@@ -11,12 +11,15 @@ import { cn } from "@/lib/utils";
 export function Logo({
   variant = "mark",
   inverted = false,
+  size = "md",
   className,
 }: {
   variant?: "mark" | "full";
   inverted?: boolean;
+  size?: "md" | "lg";
   className?: string;
 }) {
+  const lg = size === "lg";
   if (variant === "full") {
     return (
       <Image
@@ -30,18 +33,20 @@ export function Logo({
     );
   }
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
+    <span className={cn("inline-flex items-center", lg ? "gap-3" : "gap-2.5", className)}>
       <span
         className={cn(
-          "grid size-8 shrink-0 place-items-center rounded-lg",
+          "grid shrink-0 place-items-center",
+          lg ? "size-12 rounded-xl" : "size-8 rounded-lg",
           inverted ? "bg-white" : "bg-transparent",
         )}
       >
-        <Image src="/brand/pest-ai-mark.png" alt="" width={280} height={310} className="h-6 w-auto" priority />
+        <Image src="/brand/pest-ai-mark.png" alt="" width={280} height={310} className={lg ? "h-9 w-auto" : "h-6 w-auto"} priority />
       </span>
       <span
         className={cn(
-          "font-display text-[15px] font-bold tracking-tight",
+          "font-display font-bold tracking-tight",
+          lg ? "text-[22px]" : "text-[15px]",
           inverted ? "text-white" : "text-ink",
         )}
       >

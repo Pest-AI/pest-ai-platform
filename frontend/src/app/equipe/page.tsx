@@ -1,3 +1,4 @@
+import { KeyRound, MailOpen, ShieldOff, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,19 +12,19 @@ import type { components } from "@/lib/api/schema";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
 import { formatPhone } from "@/lib/phone";
 import { teamRights } from "@/lib/roles";
-import { ROLE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
+import { ORGANIZATION_TYPE_LABELS, ROLE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
 
 import { InviteDialog } from "./invite-dialog";
 import { MemberDialog } from "./member-dialog";
 
-export const metadata: Metadata = { title: "Membres et invitations" };
+export const metadata: Metadata = { title: "Équipe" };
 
 type Membership = components["schemas"]["Membership"];
 
 const STATUS = {
   active: { label: "Active", tone: "success" },
-  invited: { label: "Invitation envoyée", tone: "warning" },
+  invited: { label: "Invité", tone: "warning" },
   suspended: { label: "Suspendue", tone: "danger" },
   revoked: { label: "Retirée", tone: "neutral" },
 } as const;
@@ -67,13 +68,16 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
     <AppShell
       nav={COOPERATIVE_NAV}
       activeHref="/equipe"
-      workspace={{ name: org.name, roleLabel: primaryRoleLabel(roles), initials: organizationInitials(org.name) }}
+      workspace={{
+        name: org.short_name || org.name,
+        roleLabel: ORGANIZATION_TYPE_LABELS[org.organization_type] ?? org.organization_type,
+        initials: organizationInitials(org.name),
+      }}
       user={{ firstName: me.first_name, lastName: me.last_name, roleLabel: primaryRoleLabel(roles) }}
-      breadcrumbs={[org.short_name || org.name, "Membres et invitations"]}
+      breadcrumbs={[org.short_name || org.name, "Équipe"]}
     >
       <PageHeader
-        title="Membres et invitations"
-        description="Les personnes qui travaillent dans l'organisation et leurs rôles."
+        title="Équipe"
         actions={canManage ? <InviteDialog isAdmin={isAdmin} organization={org.name} /> : undefined}
       />
 
@@ -84,105 +88,109 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       ) : (
         <>
           <StatRow>
-            <Stat label="Membres actifs" value={String(count("active"))} hint="accès ouvert" hintTone="success" />
-            <Stat label="Invitations en attente" value={String(count("invited"))} hint="pas encore acceptées" />
+            <Stat label="Membres actifs" icon={UsersRound} value={String(count("active"))} />
+            <Stat label="Invitations" icon={MailOpen} iconTone="gold" value={String(count("invited"))} hint="en attente" />
             <Stat
               label="Comptes à activer"
+              icon={KeyRound}
+              iconTone="gold"
               value={String(toActivate)}
-              hint="mot de passe non choisi"
-              hintTone={toActivate ? "warning" : "muted"}
+              hint={toActivate ? "Code à transmettre" : undefined}
+              hintTone="warning"
             />
-            <Stat label="Accès suspendus" value={String(count("suspended"))} hint="sans suppression" />
+            <Stat label="Suspendus" icon={ShieldOff} iconTone="night" value={String(count("suspended"))} />
           </StatRow>
 
-          <Card className="mt-8 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-[14px]">
-                <thead className="border-b border-line bg-surface text-[12px] text-muted">
-                  <tr>
-                    <th scope="col" className="px-4 py-2.5 font-medium">Membre</th>
-                    <th scope="col" className="px-4 py-2.5 font-medium">Rôles</th>
-                    <th scope="col" className="px-4 py-2.5 font-medium">Statut</th>
-                    <th scope="col" className="px-4 py-2.5 font-medium">Depuis</th>
-                    <th scope="col" className="w-24 px-4 py-2.5 font-medium">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((m) => {
-                    const status = STATUS[m.status];
-                    const isSelf = m.user.id === me.id;
-                    return (
-                      <tr key={m.id} className={cn("border-b border-line last:border-0", m.status === "revoked" && "text-muted")}>
-                        <td className="px-4 py-3">
-                          <span className="flex items-center gap-3">
-                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-semibold text-brand-800">
-                              {`${m.user.first_name.charAt(0)}${m.user.last_name.charAt(0)}`.toUpperCase()}
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium">
-                                {m.user.first_name} {m.user.last_name}
-                                {isSelf ? <span className="ml-1.5 text-[12px] font-normal text-muted">(vous)</span> : null}
-                              </span>
-                              <span className="tabular block text-[12px] text-muted">{formatPhone(m.user.phone_number)}</span>
-                            </span>
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="flex flex-wrap gap-1">
-                            {m.roles.length ? (
-                              m.roles.map((r) => (
-                                <Badge key={r} tone={r === "organization_admin" ? "dark" : "brand"}>
-                                  {ROLE_LABELS[r] ?? r}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-[13px] text-muted">Aucun rôle</span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="flex flex-col gap-1">
-                            <StatusDot tone={status.tone}>{status.label}</StatusDot>
-                            {!m.user.account_activated && m.status !== "revoked" ? (
-                              <span className="text-[12px] text-warning">Compte à activer</span>
-                            ) : null}
-                          </span>
-                        </td>
-                        <td className="tabular px-4 py-3 text-muted">
-                          {m.joined_at ? formatDate(m.joined_at) : `Invité le ${formatDate(m.created_at)}`}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {canManage ? (
-                            <MemberDialog
-                              isAdmin={isAdmin}
-                              isSelf={isSelf}
-                              organization={org.name}
-                              member={{
-                                id: m.id,
-                                firstName: m.user.first_name,
-                                lastName: m.user.last_name,
-                                phone: m.user.phone_number,
-                                roles: [...m.roles],
-                                status: m.status,
-                                accountActivated: m.user.account_activated,
-                              }}
-                            />
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <Card className="mt-6 overflow-hidden lg:mt-8">
+            <div
+              aria-hidden
+              className="hidden border-b border-line bg-surface px-5 py-2.5 text-[12px] font-medium text-muted md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(0,1.3fr)_minmax(0,1fr)_110px_84px] md:gap-4"
+            >
+              <span>Membre</span>
+              <span>Rôle</span>
+              <span>Statut</span>
+              <span>Depuis</span>
+              <span />
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-[13px] text-muted">
+            <ul aria-label="Membres de l'organisation">
+              {visible.map((m) => {
+                const status = STATUS[m.status];
+                const isSelf = m.user.id === me.id;
+                return (
+                  <li
+                    key={m.id}
+                    className={cn(
+                      "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3.5 last:border-0 sm:px-5 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1.3fr)_minmax(0,1fr)_110px_84px] md:gap-4",
+                      m.status === "revoked" && "text-muted",
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 font-display text-[11px] font-bold text-brand-800">
+                        {`${m.user.first_name.charAt(0)}${m.user.last_name.charAt(0)}`.toUpperCase()}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14px] font-semibold">
+                          {m.user.first_name} {m.user.last_name}
+                          {isSelf ? <span className="ml-1.5 text-[12px] font-normal text-muted">(vous)</span> : null}
+                        </span>
+                        <span className="tabular block text-[12px] text-muted">{formatPhone(m.user.phone_number)}</span>
+                      </span>
+                    </span>
+
+                    <span className="col-start-1 row-start-2 flex flex-wrap items-center gap-1.5 pl-12 md:col-start-auto md:row-start-auto md:pl-0">
+                      {m.roles.length ? (
+                        m.roles.map((r) => (
+                          <Badge key={r} tone={r === "organization_admin" ? "dark" : "brand"}>
+                            {ROLE_LABELS[r] ?? r}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-[13px] text-muted">Aucun rôle</span>
+                      )}
+                      <span className="md:hidden">
+                        <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                      </span>
+                    </span>
+
+                    <span className="hidden flex-col gap-0.5 md:flex">
+                      <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                      {!m.user.account_activated && m.status !== "revoked" ? (
+                        <span className="text-[12px] text-warning">Compte à activer</span>
+                      ) : null}
+                    </span>
+
+                    <span className="tabular hidden text-[13px] text-muted md:block">
+                      {formatDate(m.joined_at ?? m.created_at)}
+                    </span>
+
+                    <span className="col-start-2 row-span-2 row-start-1 text-right md:col-start-auto md:row-span-1 md:row-start-auto">
+                      {canManage ? (
+                        <MemberDialog
+                          isAdmin={isAdmin}
+                          isSelf={isSelf}
+                          organization={org.name}
+                          member={{
+                            id: m.id,
+                            firstName: m.user.first_name,
+                            lastName: m.user.last_name,
+                            phone: m.user.phone_number,
+                            roles: [...m.roles],
+                            status: m.status,
+                            accountActivated: m.user.account_activated,
+                          }}
+                        />
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-5 py-3 text-[13px] text-muted">
               <span>
                 {visible.length} membre{visible.length > 1 ? "s" : ""}
               </span>
               <Link href={showRevoked ? "/equipe" : "/equipe?retires=1"} className="font-medium text-brand-700 hover:underline">
-                {showRevoked ? "Masquer les personnes retirées" : "Afficher les personnes retirées"}
+                {showRevoked ? "Masquer les personnes retirées" : "Voir les personnes retirées"}
               </Link>
             </div>
           </Card>

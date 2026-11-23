@@ -6,7 +6,9 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
 /** Champ mot de passe avec bouton afficher / masquer. */
-export function PasswordInput(props: Omit<React.ComponentProps<"input">, "type" | "prefix">) {
+export function PasswordInput(
+  props: Omit<React.ComponentProps<"input">, "type" | "prefix"> & { icon?: React.ReactNode },
+) {
   const [visible, setVisible] = useState(false);
   return (
     <Input

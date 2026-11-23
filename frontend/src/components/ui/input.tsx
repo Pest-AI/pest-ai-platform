@@ -9,11 +9,21 @@ const FIELD =
 export function Input({
   className,
   prefix,
+  icon,
   end,
   ...props
-}: Omit<React.ComponentProps<"input">, "prefix"> & { prefix?: React.ReactNode; end?: React.ReactNode }) {
+}: Omit<React.ComponentProps<"input">, "prefix"> & {
+  prefix?: React.ReactNode;
+  icon?: React.ReactNode;
+  end?: React.ReactNode;
+}) {
   return (
     <div className={cn(FIELD, className)}>
+      {icon ? (
+        <span className="flex h-full items-center pl-3.5 text-muted [&_svg]:size-[18px]" aria-hidden>
+          {icon}
+        </span>
+      ) : null}
       {prefix ? (
         <span className="flex h-full items-center gap-1.5 rounded-l-lg border-r border-line bg-surface px-3 text-[14px] font-medium text-ink">
           {prefix}

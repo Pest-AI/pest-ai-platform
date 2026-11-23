@@ -17,7 +17,7 @@ export function ActivationForm() {
       {state.message ? <Alert>{state.message}</Alert> : null}
       <div className="space-y-1.5">
         <Label htmlFor="phone_number">Numéro de téléphone</Label>
-        <Input id="phone_number" name="phone_number" defaultValue={state.phone} type="tel" inputMode="tel" autoComplete="username" prefix="+221" placeholder="77 123 45 67" required />
+        <Input id="phone_number" name="phone_number" defaultValue={state.phone} type="tel" inputMode="tel" autoComplete="username" prefix="+221" placeholder="77 123 45 67" className="h-[52px] rounded-xl" required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="code">Code d&apos;activation</Label>
@@ -29,26 +29,26 @@ export function ActivationForm() {
           autoCapitalize="characters"
           spellCheck={false}
           placeholder="ABCD-EF12"
-          className="font-mono tracking-[0.12em] uppercase"
+          className="h-[52px] rounded-xl font-mono tracking-[0.12em] uppercase"
           aria-describedby="code-hint"
           required
         />
         <p id="code-hint" className="text-[12px] text-muted">
-          Transmis par votre coopérative ou votre organisation. Valable 7 jours.
+          Reçu de votre organisation, valable 7 jours.
         </p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Choisissez un mot de passe</Label>
-        <PasswordInput id="password" name="password" autoComplete="new-password" aria-describedby="password-hint" required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" aria-describedby="password-hint" className="h-[52px] rounded-xl" required />
         <p id="password-hint" className="text-[12px] text-muted">
-          Au moins 8 caractères, pas uniquement des chiffres ni un mot trop courant.
+          8 caractères minimum, pas uniquement des chiffres.
         </p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password_confirm">Confirmez le mot de passe</Label>
-        <PasswordInput id="password_confirm" name="password_confirm" autoComplete="new-password" required />
+        <PasswordInput id="password_confirm" name="password_confirm" autoComplete="new-password" className="h-[52px] rounded-xl" required />
       </div>
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="h-[52px] rounded-xl w-full" disabled={pending}>
         {pending ? "Activation…" : "Activer mon compte"}
       </Button>
     </form>

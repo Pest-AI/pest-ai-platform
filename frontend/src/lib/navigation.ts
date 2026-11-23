@@ -1,6 +1,10 @@
 /**
  * Navigation latérale du Web OS, par espace.
- * Une entrée sans `href` n'est pas encore livrée : elle s'affiche « Bientôt » et n'est pas cliquable.
+ *
+ * Les entrées suivent les modules du plan MVP (J9 → J23). Une entrée sans `href`
+ * n'est pas encore livrée : elle s'affiche « Bientôt » et n'est pas cliquable.
+ * Les modules d'après le MVP (recommandations, programmes, rapports) n'apparaissent
+ * pas tant qu'ils ne sont pas planifiés dans le sprint en cours.
  */
 export type NavIcon =
   | "home"
@@ -17,43 +21,31 @@ export type NavIcon =
   | "mail"
   | "shield"
   | "scroll"
-  | "map";
+  | "map"
+  | "team";
 
 export type NavItem = { label: string; icon: NavIcon; href?: string };
 export type NavSection = { title?: string; items: NavItem[] };
 
 export const COOPERATIVE_NAV: NavSection[] = [
-  { items: [{ label: "Vue d'ensemble", icon: "home", href: "/tableau-de-bord" }] },
   {
-    title: "Registre AgroID",
     items: [
-      { label: "Carte des parcelles", icon: "map" },
-      { label: "Parcelles", icon: "fingerprint" },
-      { label: "Producteurs", icon: "users" },
-      { label: "Unités de culture", icon: "layers" },
+      { label: "Vue d'ensemble", icon: "home", href: "/tableau-de-bord" },
+      { label: "Parcelles & AgroID", icon: "map" }, // J11 → J15
+      { label: "Producteurs", icon: "users" }, // J9
     ],
   },
   {
-    title: "Campagnes",
+    title: "Production",
     items: [
-      { label: "Campagnes et cycles", icon: "calendar" },
-      { label: "Opérations et récoltes", icon: "wheat" },
-    ],
-  },
-  {
-    title: "Terrain",
-    items: [
-      { label: "Missions et visites", icon: "route" },
-      { label: "Observations", icon: "eye" },
-      { label: "Santé des cultures", icon: "leaf" },
+      { label: "Campagnes", icon: "calendar" }, // J16
+      { label: "Observations terrain", icon: "eye" }, // J17 → J19
+      { label: "Diagnostics", icon: "leaf" }, // J21 → J23
     ],
   },
   {
     title: "Organisation",
-    items: [
-      { label: "Membres et invitations", icon: "mail", href: "/equipe" },
-      { label: "Rapports", icon: "chart" },
-    ],
+    items: [{ label: "Équipe", icon: "team", href: "/equipe" }],
   },
 ];
 
@@ -62,14 +54,10 @@ export const ADMIN_NAV: NavSection[] = [
     items: [
       { label: "Organisations", icon: "building", href: "/admin/organisations" },
       { label: "Utilisateurs", icon: "users" },
-      { label: "Invitations", icon: "mail" },
     ],
   },
   {
     title: "Sécurité",
-    items: [
-      { label: "Rôles et permissions", icon: "shield" },
-      { label: "Journal d'audit", icon: "scroll" },
-    ],
+    items: [{ label: "Journal d'audit", icon: "scroll" }],
   },
 ];

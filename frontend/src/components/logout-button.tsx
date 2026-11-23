@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useRef } from "react";
+import { useId, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils";
  * La fenêtre utilise l'élément natif <dialog> : focus piégé, touche Échap et
  * lecteurs d'écran gérés par le navigateur.
  */
-export function LogoutButton({ variant = "icon" }: { variant?: "icon" | "text" }) {
+export function LogoutButton({ variant = "icon", onDark = false }: { variant?: "icon" | "text" | "menu"; onDark?: boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const id = useId();
 
   return (
     <>
@@ -21,36 +22,39 @@ export function LogoutButton({ variant = "icon" }: { variant?: "icon" | "text" }
         onClick={() => dialogRef.current?.showModal()}
         aria-haspopup="dialog"
         className={cn(
-          "text-muted transition-colors hover:bg-subtle hover:text-ink",
-          variant === "icon"
-            ? "grid size-8 place-items-center rounded-md"
+          "transition-colors",
+          onDark ? "text-white/60 hover:bg-white/10 hover:text-white" : "text-muted hover:bg-subtle hover:text-ink",
+          variant === "menu"
+            ? "flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[14px] text-ink hover:bg-surface"
+            : variant === "icon"
+            ? "grid size-9 place-items-center rounded-lg"
             : "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px]",
         )}
         aria-label={variant === "icon" ? "Se déconnecter" : undefined}
         title={variant === "icon" ? "Se déconnecter" : undefined}
       >
         <LogOut className="size-4" aria-hidden />
-        {variant === "text" ? "Se déconnecter" : null}
+        {variant !== "icon" ? "Se déconnecter" : null}
       </button>
 
       <dialog
         ref={dialogRef}
-        aria-labelledby="logout-title"
-        aria-describedby="logout-text"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-text`}
         onClick={(e) => {
           if (e.target === e.currentTarget) e.currentTarget.close();
         }}
-        className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-xl border border-line bg-canvas p-0 text-ink shadow-pop backdrop:bg-night/40 backdrop:backdrop-blur-[2px]"
+        className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-line bg-canvas p-0 text-left text-ink shadow-pop backdrop:bg-night/40 backdrop:backdrop-blur-[2px]"
       >
         <div className="p-6">
           <span className="grid size-10 place-items-center rounded-full bg-subtle text-ink">
             <LogOut className="size-5" aria-hidden />
           </span>
-          <h2 id="logout-title" className="mt-4 text-[18px] leading-6 font-semibold">
+          <h2 id={`${id}-title`} className="mt-4 text-[18px] leading-6 font-semibold">
             Se déconnecter ?
           </h2>
-          <p id="logout-text" className="mt-1.5 text-[14px] text-muted">
-            Vous devrez saisir à nouveau votre numéro et votre mot de passe pour revenir dans PEST AI OS.
+          <p id={`${id}-text`} className="mt-1.5 text-[14px] text-muted">
+            Vous devrez vous reconnecter pour revenir dans votre espace.
           </p>
         </div>
         <form

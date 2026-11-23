@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, CircleCheck, CircleDashed, CirclePause, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -55,93 +55,93 @@ export default async function AdminOrganizationsPage({
     <AppShell
       nav={ADMIN_NAV}
       activeHref="/admin/organisations"
-      workspace={{ name: "Console d'administration", roleLabel: "Super-admin", initials: "PA", dark: true }}
+      workspace={{ name: "Console d'administration", roleLabel: "Plateforme PEST AI", initials: "PA", dark: true }}
       user={{ firstName: me.first_name, lastName: me.last_name, roleLabel: "Super-admin" }}
       breadcrumbs={["Console d'administration", "Organisations"]}
     >
       <PageHeader
         title="Organisations"
-        description="Coopératives, ONG et programmes inscrits sur PEST AI OS."
         actions={
           <CreateOrganizationDialog />
         }
       />
 
       <StatRow>
-        <Stat label="Organisations" value={String(total)} hint="inscrites sur la plateforme" />
-        <Stat label="Actives" value={complete ? String(count("active")) : "—"} hintTone="success" hint="accès ouvert" />
-        <Stat label="En attente" value={complete ? String(count("pending")) : "—"} hintTone="warning" hint="à activer" />
+        <Stat label="Organisations" icon={Building2} value={String(total)} />
+        <Stat label="Actives" icon={CircleCheck} value={complete ? String(count("active")) : "—"} />
+        <Stat label="En attente" icon={CircleDashed} iconTone="gold" value={complete ? String(count("pending")) : "—"} />
         <Stat
           label="Suspendues ou fermées"
+          icon={CirclePause}
+          iconTone="night"
           value={complete ? String(count("suspended") + count("closed")) : "—"}
-          hint="accès fermé"
         />
       </StatRow>
 
-      <Card className="mt-8 overflow-hidden">
+      <Card className="mt-6 overflow-hidden lg:mt-8">
         {organizations.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <p className="font-display text-[16px] font-semibold">Aucune organisation</p>
             <p className="mt-1 text-[13px] text-muted">Les organisations créées apparaîtront ici.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-[14px]">
-              <thead className="border-b border-line bg-surface text-[12px] text-muted">
-                <tr>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Organisation</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Type</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Pays</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Contact</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Statut</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Créée le</th>
-                  <th scope="col" className="px-4 py-2.5">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {organizations.map((o) => {
-                  const status = o.is_archived
-                    ? { label: "Archivée", tone: "neutral" as const }
-                    : (ORGANIZATION_STATUS[o.status ?? "pending"] ?? { label: String(o.status), tone: "neutral" as const });
-                  return (
-                    <tr key={o.id} className={cn("border-b border-line last:border-0", o.is_archived && "text-muted")}>
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-3">
-                          <span className="grid size-8 shrink-0 place-items-center rounded-md bg-subtle text-[11px] font-semibold text-ink">
-                            {organizationInitials(o.name)}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">{o.name}</span>
-                            {o.short_name ? <span className="block text-[12px] text-muted">{o.short_name}</span> : null}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge tone={TYPE_TONE[o.organization_type] ?? "neutral"}>
-                          {ORGANIZATION_TYPE_LABELS[o.organization_type] ?? o.organization_type}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted">{o.country_code === "SN" ? "Sénégal" : o.country_code}</td>
-                      <td className="px-4 py-3 text-muted">{o.phone_number || o.email || "—"}</td>
-                      <td className="px-4 py-3">
+          <>
+            <div
+              aria-hidden
+              className="hidden border-b border-line bg-surface px-5 py-2.5 text-[12px] font-medium text-muted md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_110px_auto] md:gap-4"
+            >
+              <span>Organisation</span>
+              <span>Type</span>
+              <span>Statut</span>
+              <span>Créée le</span>
+              <span className="w-[150px]" />
+            </div>
+            <ul aria-label="Organisations">
+              {organizations.map((o) => {
+                const status = o.is_archived
+                  ? { label: "Archivée", tone: "neutral" as const }
+                  : (ORGANIZATION_STATUS[o.status ?? "pending"] ?? { label: String(o.status), tone: "neutral" as const });
+                return (
+                  <li
+                    key={o.id}
+                    className={cn(
+                      "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3.5 last:border-0 sm:px-5 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_110px_auto] md:gap-4",
+                      o.is_archived && "text-muted",
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-subtle font-display text-[11px] font-bold text-ink">
+                        {organizationInitials(o.name)}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[14px] font-semibold">{o.name}</span>
+                        {o.short_name ? <span className="block truncate text-[12px] text-muted">{o.short_name}</span> : null}
+                      </span>
+                    </span>
+                    <span className="col-start-1 row-start-2 flex flex-wrap items-center gap-2 pl-12 md:col-start-auto md:row-start-auto md:pl-0">
+                      <Badge tone={TYPE_TONE[o.organization_type] ?? "neutral"}>
+                        {ORGANIZATION_TYPE_LABELS[o.organization_type] ?? o.organization_type}
+                      </Badge>
+                      <span className="md:hidden">
                         <StatusDot tone={status.tone}>{status.label}</StatusDot>
-                      </td>
-                      <td className="tabular px-4 py-3 text-muted">{formatDate(o.created_at)}</td>
-                      <td className="px-4 py-3 text-right">
-                        {!o.is_archived && o.status !== "closed" ? (
-                          <DesignateAdminDialog organizationId={o.id} organization={o.name} />
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </span>
+                    <span className="hidden md:block">
+                      <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                    </span>
+                    <span className="tabular hidden text-[13px] text-muted md:block">{formatDate(o.created_at)}</span>
+                    <span className="col-start-2 row-span-2 row-start-1 text-right md:col-start-auto md:row-span-1 md:row-start-auto md:w-[150px]">
+                      {!o.is_archived && o.status !== "closed" ? (
+                        <DesignateAdminDialog organizationId={o.id} organization={o.name} />
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-[13px] text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-5 py-3 text-[13px] text-muted">
           <span>
             {from}–{to} sur {total} organisation{total > 1 ? "s" : ""}
           </span>

@@ -77,3 +77,36 @@
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Tiroir du menu mobile */
+@keyframes nav-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Halo de la parcelle mise en avant (page de connexion) */
+@keyframes pulse-ring {
+  0% {
+    r: 6;
+    opacity: 0.9;
+  }
+  100% {
+    r: 22;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
