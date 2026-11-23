@@ -1,10 +1,11 @@
-import { ChevronRight, Clock3, Globe2, Inbox, LogOut, ShieldCheck, Sprout } from "lucide-react";
+import { ChevronRight, Clock3, Globe2, Inbox, ShieldCheck, Sprout } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type * as React from "react";
 
 import { Logo } from "@/components/logo";
+import { LogoutButton } from "@/components/logout-button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { currentWorkspace, getApi } from "@/lib/api/client";
@@ -93,15 +94,7 @@ export default async function WorkspacesPage({
             {me.first_name} {me.last_name}
           </span>
           <span className="h-5 w-px bg-line" aria-hidden />
-          <form action="/api/session/logout" method="post">
-            <button
-              type="submit"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] text-muted hover:bg-subtle hover:text-ink"
-            >
-              <LogOut className="size-4" aria-hidden />
-              Se déconnecter
-            </button>
-          </form>
+          <LogoutButton variant="text" />
         </div>
       </header>
 

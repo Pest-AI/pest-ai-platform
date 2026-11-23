@@ -9,7 +9,6 @@ import {
   House,
   Layers,
   Leaf,
-  LogOut,
   Mail,
   Map,
   Route,
@@ -22,6 +21,7 @@ import Link from "next/link";
 import type * as React from "react";
 
 import { Logo } from "@/components/logo";
+import { LogoutButton } from "@/components/logout-button";
 import type { NavIcon, NavSection } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -155,16 +155,7 @@ export function AppShell({
             </span>
             <span className="block truncate text-[12px] text-muted">{user.roleLabel}</span>
           </span>
-          <form action="/api/session/logout" method="post">
-            <button
-              type="submit"
-              className="grid size-8 place-items-center rounded-md text-muted transition-colors hover:bg-subtle hover:text-ink"
-              aria-label="Se déconnecter"
-              title="Se déconnecter"
-            >
-              <LogOut className="size-4" />
-            </button>
-          </form>
+          <LogoutButton />
         </div>
       </aside>
 
