@@ -39,6 +39,10 @@ make serveur     # serveur local
 make aide        # liste des commandes
 ```
 
+## Web OS (frontend/)
+
+Next.js 16 + TypeScript strict + Tailwind 4. Jetons en cookies httpOnly, appels API uniquement côté serveur (`getApi()`), X-Workspace passé explicitement (ADR-0008). Après modification de l'API : `make api-types`. Contrôles : `make web-verifier`.
+
 ## Documentation de l'API
 
 Toute route est annotée pour drf-spectacular (`@extend_schema`). Après modification d'une route : `make schema` (régénère `docs-site/static/openapi.yaml`) ; `make verifier` et la CI refusent un schéma obsolète. Guides : `docs-site/docs/`.

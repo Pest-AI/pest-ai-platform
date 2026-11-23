@@ -830,8 +830,7 @@ components:
         memberships:
           type: array
           items:
-            type: object
-            additionalProperties: {}
+            $ref: '#/components/schemas/MyMembership'
           readOnly: true
       required:
       - date_joined

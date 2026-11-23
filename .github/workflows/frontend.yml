@@ -1,0 +1,55 @@
+# Intégration continue du Web OS (Next.js) : types de l'API à jour, lint, types, tests, build.
+name: Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "docs-site/static/openapi.yaml"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "docs-site/static/openapi.yaml"
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  build:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+      - name: Vérifier que les types de l'API sont à jour
+        run: |
+          pnpm check:api \
+            || (echo "::error::Types de l'API obsolètes : lancez « make api-types » et commitez." && exit 1)
+      - name: Lint
+        run: pnpm lint
+      - name: Types TypeScript
+        run: pnpm typecheck
+      - name: Tests
+        run: pnpm test
+      - name: Build
+        run: pnpm build

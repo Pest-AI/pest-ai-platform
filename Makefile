@@ -6,7 +6,7 @@ VENV ?= backend/.venv
 BIN := $(abspath $(VENV))/bin
 
 .DEFAULT_GOAL := aide
-.PHONY: aide verifier qualite migrations-ok schema-ok tests serveur formater installer schema docs
+.PHONY: aide verifier qualite migrations-ok schema-ok tests serveur formater installer schema docs web web-verifier api-types
 
 aide: ## Affiche cette aide
 	@echo "Commandes disponibles :"
@@ -33,8 +33,18 @@ schema-ok: ## Vérifie que la référence API (docs-site) correspond au code
 schema: ## Régénère la référence API (docs-site/static/openapi.yaml)
 	cd backend && $(BIN)/python manage.py spectacular --validate --fail-on-warn --file ../docs-site/static/openapi.yaml
 
-docs: ## Lance le site de documentation sur http://localhost:3000
-	cd docs-site && pnpm install && pnpm start
+web: ## Lance le Web OS sur http://localhost:3000 (API locale requise : make serveur)
+	cd frontend && pnpm install && pnpm dev
+
+web-verifier: ## Contrôles du Web OS : types API à jour, lint, types, tests
+	cd frontend && pnpm check:api && pnpm lint && pnpm typecheck && pnpm test
+
+api-types: ## Régénère la référence API puis les types TypeScript du Web OS
+	$(MAKE) schema
+	cd frontend && pnpm gen:api
+
+docs: ## Lance le site de documentation sur http://localhost:3001
+	cd docs-site && pnpm install && pnpm start --port 3001
 
 tests: ## Lance les tests backend (pytest)
 	cd backend && $(BIN)/pytest

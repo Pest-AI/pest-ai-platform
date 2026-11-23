@@ -1,6 +1,7 @@
 """Sérialiseurs du compte connecté."""
 
 from django.contrib.auth import password_validation
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import User
@@ -48,6 +49,7 @@ class MeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "phone_number", "phone_verified_at", "date_joined"]
 
+    @extend_schema_field(MyMembershipSerializer(many=True))
     def get_memberships(self, obj) -> list[dict]:
         from apps.organizations.selectors import memberships_of_user
 

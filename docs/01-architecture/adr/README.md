@@ -11,6 +11,7 @@ Un ADR (*Architecture Decision Record*) documente une décision structurante : l
 | [0005](0005-mobile-react-native-expo.md) | Application mobile React Native (Expo) à la place de la PWA | Accepté | 22/11/2026 |
 | [0006](0006-documentation-api.md) | Documentation API : OpenAPI + Docusaurus + Scalar | Accepté | 22/11/2026 |
 | [0007](0007-environnement-local.md) | Environnement local : Postgres.app, bibliothèques GDAL configurables | Accepté | 22/11/2026 |
+| [0008](0008-session-web-cookies-httponly.md) | Session du Web OS : jetons en cookies httpOnly via le serveur Next.js | Accepté | 23/11/2026 |
 
 ## Créer un ADR
 

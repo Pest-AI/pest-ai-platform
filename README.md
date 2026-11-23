@@ -18,7 +18,7 @@ Plateforme d'intelligence agricole de **PEST AI** (Ecliptix SAS) pour les petits
 ```
 pest-ai-platform/
 ├── backend/          API Django (code, tests, dépendances)
-├── frontend/         Web OS Next.js (à partir du J6)
+├── frontend/         Web OS Next.js (connexion, choix de l'espace, tableau de bord)
 ├── mobile/           Application Expo (à partir du J9)
 ├── docs-site/        Portail de documentation développeurs (guides + référence API)
 ├── infrastructure/   Dockerfile, render.yaml, scripts (à partir du J5)
