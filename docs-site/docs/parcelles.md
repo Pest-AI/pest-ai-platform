@@ -98,3 +98,25 @@ La fiche détaille le contrôle dans `current_geometry.validation` : `status`, `
 3. Le producteur l'accepte ou la refuse dans son espace (`/api/v1/me/parcel-links/`). Accepté : l'organisation suit la parcelle, **en lecture**. Rien de l'espace personnel ne lui est transmis.
 
 Une organisation qui suit une parcelle peut aussi ouvrir à un producteur rattaché (avec un compte) l'accès **en consultation** dans son espace personnel (`…/personal-access/`), et le lui retirer avec un motif.
+
+## Import par fichier
+
+Enregistre plusieurs parcelles à la fois. Espace d'organisation seulement, permission `parcels.manage` (administrateur et gérant). Dans le Web OS : **Parcelles & AgroID → Importer un fichier**.
+
+| Format | Contenu attendu |
+|---|---|
+| KML, KMZ | Polygones (Google Earth, application GPS). Le nom du polygone devient le nom de la parcelle. |
+| Shapefile | Archive `.zip` avec `.shp`, `.shx`, `.dbf` **et `.prj`** (sans projection : refusé). Toute projection est convertie en WGS 84. |
+| GeoJSON | `FeatureCollection` de polygones ou de points. |
+| CSV | Colonne `wkt` (contour), ou `latitude` et `longitude` (point : contour à relever). Séparateur `,` ou `;`, virgule décimale acceptée. |
+
+Limites : 10 Mo, 1 000 parcelles par fichier. KML déclarant des entités XML refusé ; dans une archive, chemins sortants ignorés, 40 fichiers et 60 Mo décompressés au plus.
+
+**Rien n'est créé avant la confirmation.**
+
+1. `POST /api/v1/parcel-imports/` (multipart, champ `file`) : lit le fichier et renvoie l'aperçu (`rows`). Chaque ligne est `ok` (prête), `flagged` (à vérifier : surface hors bornes, chevauchement > 5 % avec une parcelle existante ou une autre ligne, exploitant introuvable) ou `refused` (géométrie absente ou impossible, doublon dans le fichier).
+2. `POST …/{id}/preview/` : choisit la colonne du nom (`name_column`) et celle de l'exploitant (`operator_column`, avec `operator_key` = `membership_number` ou `phone`). Un numéro local à 9 chiffres est lu comme sénégalais (+221).
+3. `POST …/{id}/commit/` : crée les lignes `ok` (et `flagged` si `include_flagged: true`) en une seule fois, chacune avec son AgroID ; l'exploitant reconnu devient exploitant principal. Le bilan ligne par ligne (`report`, avec les AgroID) reste consultable ; les contours du fichier ne sont plus conservés.
+4. `POST …/{id}/discard/` : abandonne l'aperçu.
+
+Un import n'est jamais supprimé. Le Web OS propose un **rapport CSV** (séparateur `;`, ouvrable dans Excel) avant et après confirmation.

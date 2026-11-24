@@ -24,6 +24,7 @@ from drf_spectacular.utils import (
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,12 +35,14 @@ from apps.core.workspace import PERSONAL
 from apps.organizations.models import Organization
 from apps.parcels import agroid as agroid_format
 from apps.parcels import geometry as geo
-from apps.parcels import selectors, serializers, services
+from apps.parcels import imports, selectors, serializers, services
+from apps.parcels.importers import MAX_BYTES, ImportFileError
 from apps.parcels.models import (
     AccessLevel,
     LinkStatus,
     LinkType,
     Parcel,
+    ParcelImport,
     ParcelOperatorAssignment,
     ParcelOrganizationLink,
     ParcelRegistrationChannel,
@@ -947,3 +950,161 @@ class MyParcelLinkDecisionView(APIView):
                 "start_date": link.start_date,
             }
         )
+
+
+# ── Import de parcelles par fichier (J15b) ───────────────────────────────
+
+
+def _import_payload(record, rows=None, *, with_report: bool = False) -> dict:
+    summary = {k: v for k, v in (record.summary or {}).items() if k != "report"}
+    data = {
+        "id": record.pk,
+        "file_name": record.file_name,
+        "file_format": record.file_format,
+        "file_size": record.file_size,
+        "status": record.status,
+        "columns": record.columns,
+        "mapping": record.mapping,
+        "summary": summary,
+        "parcels_created": record.parcels_created,
+        "created_at": record.created_at,
+        "committed_at": record.committed_at,
+    }
+    if rows is not None:
+        data["rows"] = rows
+    if with_report and "report" in (record.summary or {}):
+        data["report"] = record.summary["report"]
+    return data
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["parcels"],
+        summary="Imports de parcelles de l'organisation",
+        description="Historique des imports (fichier, date, statut, parcelles créées).",
+        responses=serializers.ParcelImportSerializer(many=True),
+    ),
+    retrieve=extend_schema(
+        tags=["parcels"],
+        summary="Import de parcelles",
+        description="Import en aperçu : avec les lignes (`rows`) recalculées. "
+        "Import confirmé : bilan ligne par ligne (`report`) avec les AgroID attribués.",
+        responses=serializers.ParcelImportSerializer,
+    ),
+)
+class ParcelImportViewSet(viewsets.GenericViewSet):
+    """Import de parcelles par fichier : aperçu, colonnes, confirmation. Organisation seulement."""
+
+    parser_classes = [MultiPartParser, JSONParser]
+    permission_classes = [IsAuthenticated, WorkspacePermission]
+    required_permissions = {
+        "list": "parcels.manage",
+        "retrieve": "parcels.manage",
+        "create": "parcels.manage",
+        "preview": "parcels.manage",
+        "commit": "parcels.manage",
+        "discard": "parcels.manage",
+    }
+    queryset = None
+    serializer_class = serializers.ParcelImportSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ParcelImport.objects.none()
+        return ParcelImport.objects.filter(organization=self.request.workspace.organization)
+
+    def _get(self):
+        record = self.get_queryset().filter(pk=self.kwargs["pk"]).first()
+        if record is None:
+            raise NotFound("Import introuvable.")
+        return record
+
+    def list(self, request):
+        page = self.paginate_queryset(self.get_queryset())
+        return self.get_paginated_response([_import_payload(r) for r in page])
+
+    def retrieve(self, request, pk=None):
+        record = self._get()
+        rows = imports.evaluate(record, record.mapping)[0] if record.status == "previewed" else None
+        return Response(_import_payload(record, rows, with_report=True))
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Déposer un fichier de parcelles (aperçu)",
+        description="Lit le fichier et renvoie l'**aperçu** ligne par ligne (`ok`, `flagged`, "
+        "`refused` et leurs motifs), avec les colonnes devinées pour le nom et l'exploitant. "
+        "**Rien n'est créé** avant `/commit/`. Formats : KML, KMZ, Shapefile (.zip), GeoJSON, "
+        "CSV. Permission : `parcels.manage`.",
+        request={"multipart/form-data": serializers.ImportUploadSerializer},
+        responses={
+            201: serializers.ParcelImportSerializer,
+            400: OpenApiResponse(description="Fichier refusé."),
+        },
+    )
+    def create(self, request):
+        serializer = serializers.ImportUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["file"]
+        if upload.size > MAX_BYTES:
+            raise ValidationError(
+                {"file": f"Fichier trop lourd (plus de {MAX_BYTES // (1024 * 1024)} Mo)."}
+            )
+        try:
+            record, rows = imports.start_import(
+                organization=request.workspace.organization,
+                by=request.user,
+                file_name=upload.name,
+                data=upload.read(),
+            )
+        except ImportFileError as exc:
+            raise ValidationError({"file": [str(exc)]}) from exc
+        return Response(_import_payload(record, rows), status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Changer les colonnes de l'aperçu",
+        description="Colonne du nom de parcelle, colonne de l'exploitant et sa nature "
+        "(`membership_number` : n° d'adhérent, `phone` : téléphone). L'aperçu est recalculé.",
+        request=serializers.ImportMappingSerializer,
+        responses=serializers.ParcelImportSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def preview(self, request, pk=None):
+        serializer = serializers.ImportMappingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record = self._get()
+        rows = _run(imports.preview, record, mapping=serializer.validated_data, by=request.user)
+        record.refresh_from_db()
+        return Response(_import_payload(record, rows))
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Confirmer l'import",
+        description="Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune avec "
+        "son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne sont jamais créées.",
+        request=serializers.ImportCommitSerializer,
+        responses=serializers.ParcelImportSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def commit(self, request, pk=None):
+        serializer = serializers.ImportCommitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record = _run(
+            imports.commit,
+            self._get(),
+            by=request.user,
+            include_flagged=serializer.validated_data["include_flagged"],
+        )
+        return Response(_import_payload(record, with_report=True))
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Abandonner l'import",
+        description="L'aperçu est abandonné ; rien n'est créé.",
+        request=None,
+        responses=serializers.ParcelImportSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def discard(self, request, pk=None):
+        record = _run(imports.discard, self._get(), by=request.user)
+        return Response(_import_payload(record))

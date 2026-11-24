@@ -844,6 +844,221 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedOrganizationList'
           description: ''
+  /api/v1/parcel-imports/:
+    get:
+      operationId: parcel_imports_list
+      description: Historique des imports (fichier, date, statut, parcelles créées).
+      summary: Imports de parcelles de l'organisation
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParcelImportList'
+          description: ''
+    post:
+      operationId: parcel_imports_create
+      description: 'Lit le fichier et renvoie l''**aperçu** ligne par ligne (`ok`,
+        `flagged`, `refused` et leurs motifs), avec les colonnes devinées pour le
+        nom et l''exploitant. **Rien n''est créé** avant `/commit/`. Formats : KML,
+        KMZ, Shapefile (.zip), GeoJSON, CSV. Permission : `parcels.manage`.'
+      summary: Déposer un fichier de parcelles (aperçu)
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelImport'
+          description: ''
+        '400':
+          description: Fichier refusé.
+  /api/v1/parcel-imports/{id}/:
+    get:
+      operationId: parcel_imports_retrieve
+      description: 'Import en aperçu : avec les lignes (`rows`) recalculées. Import
+        confirmé : bilan ligne par ligne (`report`) avec les AgroID attribués.'
+      summary: Import de parcelles
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) import de parcelles.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelImport'
+          description: ''
+  /api/v1/parcel-imports/{id}/commit/:
+    post:
+      operationId: parcel_imports_commit_create
+      description: Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune
+        avec son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne
+        sont jamais créées.
+      summary: Confirmer l'import
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) import de parcelles.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportCommitRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportCommitRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelImport'
+          description: ''
+  /api/v1/parcel-imports/{id}/discard/:
+    post:
+      operationId: parcel_imports_discard_create
+      description: L'aperçu est abandonné ; rien n'est créé.
+      summary: Abandonner l'import
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) import de parcelles.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelImport'
+          description: ''
+  /api/v1/parcel-imports/{id}/preview/:
+    post:
+      operationId: parcel_imports_preview_create
+      description: 'Colonne du nom de parcelle, colonne de l''exploitant et sa nature
+        (`membership_number` : n° d''adhérent, `phone` : téléphone). L''aperçu est
+        recalculé.'
+      summary: Changer les colonnes de l'aperçu
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) import de parcelles.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelImport'
+          description: ''
   /api/v1/parcels/:
     get:
       operationId: parcels_list
@@ -2346,6 +2561,8 @@ components:
       - manual_drawing
       - import_geojson
       - import_kml
+      - import_shapefile
+      - import_csv
       type: string
       description: |-
         * `gps_walk` - Contour marché au GPS
@@ -2353,6 +2570,8 @@ components:
         * `manual_drawing` - Tracé sur la carte
         * `import_geojson` - Import GeoJSON
         * `import_kml` - Import KML
+        * `import_shapefile` - Import Shapefile
+        * `import_csv` - Import CSV
     ContactTypeEnum:
       enum:
       - phone
@@ -2546,6 +2765,160 @@ components:
       - valid_to
       - validation
       - version
+    ImportCommitRequest:
+      type: object
+      properties:
+        include_flagged:
+          type: boolean
+          default: false
+          description: Créer aussi les lignes signalées (à vérifier).
+    ImportLineStatusEnum:
+      enum:
+      - ok
+      - flagged
+      - refused
+      type: string
+      description: |-
+        * `ok` - ok
+        * `flagged` - flagged
+        * `refused` - refused
+    ImportMapping:
+      type: object
+      properties:
+        name_column:
+          type: string
+          nullable: true
+        operator_column:
+          type: string
+          nullable: true
+        operator_key:
+          allOf:
+          - $ref: '#/components/schemas/OperatorKeyEnum'
+          default: none
+    ImportMappingRequest:
+      type: object
+      properties:
+        name_column:
+          type: string
+          nullable: true
+        operator_column:
+          type: string
+          nullable: true
+        operator_key:
+          allOf:
+          - $ref: '#/components/schemas/OperatorKeyEnum'
+          default: none
+    ImportReportLine:
+      type: object
+      properties:
+        index:
+          type: integer
+        label:
+          type: string
+        status:
+          $ref: '#/components/schemas/ImportLineStatusEnum'
+        messages:
+          type: array
+          items:
+            type: string
+        operator:
+          type: string
+          nullable: true
+          description: Exploitant reconnu.
+        agroid:
+          type: string
+          nullable: true
+          description: 'AgroID attribué ; vide : non créée.'
+      required:
+      - agroid
+      - index
+      - label
+      - messages
+      - operator
+      - status
+    ImportRow:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Numéro de l'entité dans le fichier (à partir de 1).
+        label:
+          type: string
+          description: Nom retenu pour la parcelle.
+        status:
+          $ref: '#/components/schemas/ImportLineStatusEnum'
+        messages:
+          type: array
+          items:
+            type: string
+        kind:
+          $ref: '#/components/schemas/ImportRowKindEnum'
+        area_m2:
+          type: string
+          nullable: true
+        operator:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        geometry:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          description: GeoJSON (WGS 84).
+      required:
+      - area_m2
+      - geometry
+      - index
+      - kind
+      - label
+      - messages
+      - operator
+      - status
+    ImportRowKindEnum:
+      enum:
+      - polygon
+      - point
+      - none
+      type: string
+      description: |-
+        * `polygon` - polygon
+        * `point` - point
+        * `none` - none
+    ImportSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        ok:
+          type: integer
+        flagged:
+          type: integer
+        refused:
+          type: integer
+        without_contour:
+          type: integer
+        with_operator:
+          type: integer
+        created:
+          type: integer
+      required:
+      - flagged
+      - ok
+      - refused
+      - total
+      - with_operator
+      - without_contour
+    ImportUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+          description: KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON
+            ou CSV (colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1
+            000 parcelles au plus.
+      required:
+      - file
     InvitationResult:
       type: object
       description: Adhésion créée, avec le code d'activation à transmettre (affiché
@@ -2626,14 +2999,6 @@ components:
             $ref: '#/components/schemas/RolesEnum'
       required:
       - phone_number
-    KindEnum:
-      enum:
-      - organization
-      - personal
-      type: string
-      description: |-
-        * `organization` - organization
-        * `personal` - personal
     LinkRequestRequest:
       type: object
       properties:
@@ -2954,6 +3319,16 @@ components:
       - operator_role
       - producer
       - start_date
+    OperatorKeyEnum:
+      enum:
+      - membership_number
+      - phone
+      - none
+      type: string
+      description: |-
+        * `membership_number` - membership_number
+        * `phone` - phone
+        * `none` - none
     OperatorRoleEnum:
       enum:
       - primary
@@ -3244,6 +3619,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Organization'
+    PaginatedParcelImportList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelImport'
     PaginatedParcelListList:
       type: object
       required:
@@ -3461,6 +3859,69 @@ components:
       - geometries
       - operators
       - owners
+    ParcelImport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        file_format:
+          type: string
+        file_size:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ParcelImportStatusEnum'
+        columns:
+          type: array
+          items:
+            type: string
+        mapping:
+          $ref: '#/components/schemas/ImportMapping'
+        summary:
+          $ref: '#/components/schemas/ImportSummary'
+        parcels_created:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        committed_at:
+          type: string
+          format: date-time
+          nullable: true
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
+          description: Aperçu (import non confirmé).
+        report:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportReportLine'
+          description: Bilan ligne par ligne (import confirmé).
+      required:
+      - columns
+      - committed_at
+      - created_at
+      - file_format
+      - file_name
+      - file_size
+      - id
+      - mapping
+      - parcels_created
+      - status
+      - summary
+    ParcelImportStatusEnum:
+      enum:
+      - previewed
+      - committed
+      - discarded
+      type: string
+      description: |-
+        * `previewed` - Aperçu (rien n'est encore créé)
+        * `committed` - Importé
+        * `discarded` - Abandonné
     ParcelList:
       type: object
       description: 'Ligne de liste (sans contour : voir /parcels/map/ pour la carte).'
@@ -4352,7 +4813,7 @@ components:
       type: object
       properties:
         kind:
-          $ref: '#/components/schemas/KindEnum'
+          $ref: '#/components/schemas/WorkspaceContextKindEnum'
         organization_id:
           type: string
           format: uuid
@@ -4379,6 +4840,14 @@ components:
       - permissions
       - producer_id
       - roles
+    WorkspaceContextKindEnum:
+      enum:
+      - organization
+      - personal
+      type: string
+      description: |-
+        * `organization` - organization
+        * `personal` - personal
   securitySchemes:
     jwtAuth:
       type: http

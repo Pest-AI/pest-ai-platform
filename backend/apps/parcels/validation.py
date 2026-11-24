@@ -73,6 +73,43 @@ def _overlaps(version) -> list[dict]:
     return sorted(found, key=lambda o: -o["percent"])
 
 
+def overlaps_with_existing(geom, area_m2: float, visible_ids: set[str] | None = None) -> list[dict]:
+    """Chevauchements d'un contour (pas encore enregistré) avec les parcelles existantes.
+
+    Utilisé par l'aperçu d'import. `visible_ids` : parcelles de l'espace ; les autres sont
+    signalées sans identifiant.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT other.parcel_id, p.agroid,
+                   ST_Area(ST_Intersection(other.geometry, me.g)::geography)
+            FROM (SELECT ST_GeomFromEWKB(%s) AS g) AS me
+            JOIN parcels_parcel_geometry AS other
+              ON other.is_current
+             AND other.validation_status <> 'rejected'
+             AND other.geometry && me.g
+             AND ST_Intersects(other.geometry, me.g)
+            JOIN parcels_parcel AS p ON p.id = other.parcel_id AND p.status <> 'retired'
+            """,
+            [bytes(geom.ewkb)],
+        )
+        rows = cursor.fetchall()
+    found = []
+    for parcel_id, agroid, shared in rows:
+        if not shared or shared <= 0:
+            continue
+        visible = visible_ids is not None and str(parcel_id) in visible_ids
+        found.append(
+            {
+                "agroid": agroid if visible else None,
+                "overlap_m2": round(shared, 2),
+                "percent": round(100 * shared / area_m2, 2),
+            }
+        )
+    return sorted(found, key=lambda o: -o["percent"])
+
+
 def evaluate(version) -> tuple[str, dict]:
     """Calcule le statut (`valid` ou `flagged`) et le rapport d'une version de contour."""
     limits = rules()

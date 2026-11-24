@@ -524,6 +524,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parcel-imports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Imports de parcelles de l'organisation
+         * @description Historique des imports (fichier, date, statut, parcelles créées).
+         */
+        get: operations["parcel_imports_list"];
+        put?: never;
+        /**
+         * Déposer un fichier de parcelles (aperçu)
+         * @description Lit le fichier et renvoie l'**aperçu** ligne par ligne (`ok`, `flagged`, `refused` et leurs motifs), avec les colonnes devinées pour le nom et l'exploitant. **Rien n'est créé** avant `/commit/`. Formats : KML, KMZ, Shapefile (.zip), GeoJSON, CSV. Permission : `parcels.manage`.
+         */
+        post: operations["parcel_imports_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcel-imports/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Import de parcelles
+         * @description Import en aperçu : avec les lignes (`rows`) recalculées. Import confirmé : bilan ligne par ligne (`report`) avec les AgroID attribués.
+         */
+        get: operations["parcel_imports_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcel-imports/{id}/commit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmer l'import
+         * @description Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune avec son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne sont jamais créées.
+         */
+        post: operations["parcel_imports_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcel-imports/{id}/discard/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandonner l'import
+         * @description L'aperçu est abandonné ; rien n'est créé.
+         */
+        post: operations["parcel_imports_discard_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcel-imports/{id}/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer les colonnes de l'aperçu
+         * @description Colonne du nom de parcelle, colonne de l'exploitant et sa nature (`membership_number` : n° d'adhérent, `phone` : téléphone). L'aperçu est recalculé.
+         */
+        post: operations["parcel_imports_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parcels/": {
         parameters: {
             query?: never;
@@ -1116,9 +1220,11 @@ export interface components {
          *     * `manual_drawing` - Tracé sur la carte
          *     * `import_geojson` - Import GeoJSON
          *     * `import_kml` - Import KML
+         *     * `import_shapefile` - Import Shapefile
+         *     * `import_csv` - Import CSV
          * @enum {string}
          */
-        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "import_geojson" | "import_kml";
+        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv";
         /**
          * @description * `phone` - Téléphone
          *     * `whatsapp` - WhatsApp
@@ -1204,6 +1310,82 @@ export interface components {
             readonly valid_to: string | null;
             readonly validation: components["schemas"]["ValidationSummary"];
         };
+        ImportCommitRequest: {
+            /**
+             * @description Créer aussi les lignes signalées (à vérifier).
+             * @default false
+             */
+            include_flagged: boolean;
+        };
+        /**
+         * @description * `ok` - ok
+         *     * `flagged` - flagged
+         *     * `refused` - refused
+         * @enum {string}
+         */
+        ImportLineStatusEnum: "ok" | "flagged" | "refused";
+        ImportMapping: {
+            name_column?: string | null;
+            operator_column?: string | null;
+            /** @default none */
+            operator_key: components["schemas"]["OperatorKeyEnum"];
+        };
+        ImportMappingRequest: {
+            name_column?: string | null;
+            operator_column?: string | null;
+            /** @default none */
+            operator_key: components["schemas"]["OperatorKeyEnum"];
+        };
+        ImportReportLine: {
+            index: number;
+            label: string;
+            status: components["schemas"]["ImportLineStatusEnum"];
+            messages: string[];
+            /** @description Exploitant reconnu. */
+            operator: string | null;
+            /** @description AgroID attribué ; vide : non créée. */
+            agroid: string | null;
+        };
+        ImportRow: {
+            /** @description Numéro de l'entité dans le fichier (à partir de 1). */
+            index: number;
+            /** @description Nom retenu pour la parcelle. */
+            label: string;
+            status: components["schemas"]["ImportLineStatusEnum"];
+            messages: string[];
+            kind: components["schemas"]["ImportRowKindEnum"];
+            area_m2: string | null;
+            operator: {
+                [key: string]: unknown;
+            } | null;
+            /** @description GeoJSON (WGS 84). */
+            geometry: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * @description * `polygon` - polygon
+         *     * `point` - point
+         *     * `none` - none
+         * @enum {string}
+         */
+        ImportRowKindEnum: "polygon" | "point" | "none";
+        ImportSummary: {
+            total: number;
+            ok: number;
+            flagged: number;
+            refused: number;
+            without_contour: number;
+            with_operator: number;
+            created?: number;
+        };
+        ImportUploadRequest: {
+            /**
+             * Format: binary
+             * @description KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON ou CSV (colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1 000 parcelles au plus.
+             */
+            file: string;
+        };
         /** @description Adhésion créée, avec le code d'activation à transmettre (affiché une seule fois). */
         InvitationResult: {
             /** Format: uuid */
@@ -1231,12 +1413,6 @@ export interface components {
             last_name: string;
             roles?: components["schemas"]["RolesEnum"][];
         };
-        /**
-         * @description * `organization` - organization
-         *     * `personal` - personal
-         * @enum {string}
-         */
-        KindEnum: "organization" | "personal";
         LinkRequestRequest: {
             /** @description AgroID communiqué par le producteur. */
             agroid: string;
@@ -1369,6 +1545,13 @@ export interface components {
             /** @default false */
             replace_primary: boolean;
         };
+        /**
+         * @description * `membership_number` - membership_number
+         *     * `phone` - phone
+         *     * `none` - none
+         * @enum {string}
+         */
+        OperatorKeyEnum: "membership_number" | "phone" | "none";
         /**
          * @description * `primary` - Exploitant principal
          *     * `co_operator` - Co-exploitant
@@ -1512,6 +1695,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Organization"][];
         };
+        PaginatedParcelImportList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ParcelImport"][];
+        };
         PaginatedParcelListList: {
             /** @example 123 */
             count: number;
@@ -1604,6 +1802,33 @@ export interface components {
             owners: components["schemas"]["Ownership"][];
             operators: components["schemas"]["Operator"][];
         };
+        ParcelImport: {
+            /** Format: uuid */
+            id: string;
+            file_name: string;
+            file_format: string;
+            file_size: number;
+            status: components["schemas"]["ParcelImportStatusEnum"];
+            columns: string[];
+            mapping: components["schemas"]["ImportMapping"];
+            summary: components["schemas"]["ImportSummary"];
+            parcels_created: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            committed_at: string | null;
+            /** @description Aperçu (import non confirmé). */
+            rows?: components["schemas"]["ImportRow"][];
+            /** @description Bilan ligne par ligne (import confirmé). */
+            report?: components["schemas"]["ImportReportLine"][];
+        };
+        /**
+         * @description * `previewed` - Aperçu (rien n'est encore créé)
+         *     * `committed` - Importé
+         *     * `discarded` - Abandonné
+         * @enum {string}
+         */
+        ParcelImportStatusEnum: "previewed" | "committed" | "discarded";
         /** @description Ligne de liste (sans contour : voir /parcels/map/ pour la carte). */
         ParcelList: {
             /** Format: uuid */
@@ -1979,7 +2204,7 @@ export interface components {
             password: string;
         };
         WorkspaceContext: {
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["WorkspaceContextKindEnum"];
             /** Format: uuid */
             organization_id: string | null;
             /**
@@ -1991,6 +2216,12 @@ export interface components {
             permissions: string[];
             is_platform_access: boolean;
         };
+        /**
+         * @description * `organization` - organization
+         *     * `personal` - personal
+         * @enum {string}
+         */
+        WorkspaceContextKindEnum: "organization" | "personal";
     };
     responses: never;
     parameters: never;
@@ -2722,6 +2953,174 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedOrganizationList"];
+                };
+            };
+        };
+    };
+    parcel_imports_list: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedParcelImportList"];
+                };
+            };
+        };
+    };
+    parcel_imports_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelImport"];
+                };
+            };
+            /** @description Fichier refusé. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    parcel_imports_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) import de parcelles. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelImport"];
+                };
+            };
+        };
+    };
+    parcel_imports_commit_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) import de parcelles. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportCommitRequest"];
+                "application/json": components["schemas"]["ImportCommitRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelImport"];
+                };
+            };
+        };
+    };
+    parcel_imports_discard_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) import de parcelles. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelImport"];
+                };
+            };
+        };
+    };
+    parcel_imports_preview_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) import de parcelles. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportMappingRequest"];
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelImport"];
                 };
             };
         };

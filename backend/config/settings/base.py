@@ -209,6 +209,8 @@ SPECTACULAR_SETTINGS = {
         "OwnershipVerificationEnum": "apps.parcels.models.OwnershipVerification",
         "OperatorVerificationEnum": "apps.parcels.models.OperatorVerification",
         "CultivationUnitStatusEnum": "apps.parcels.models.CultivationUnitStatus",
+        "ParcelImportStatusEnum": "apps.parcels.models.ImportStatus",
+        "ImportLineStatusEnum": ["ok", "flagged", "refused"],
     },
     "TAGS": [
         {"name": "auth", "description": "Connexion, jetons JWT, déconnexion."},

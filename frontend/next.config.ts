@@ -40,6 +40,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Import de parcelles : le fichier (10 Mo au plus côté API) transite par une action serveur.
+  experimental: { serverActions: { bodySizeLimit: "11mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

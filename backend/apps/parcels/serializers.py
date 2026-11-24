@@ -17,6 +17,7 @@ from apps.parcels.models import (
     ArrangementType,
     CaptureMethod,
     CultivationUnit,
+    ImportStatus,
     OperatorRole,
     OwnershipVerification,
     Parcel,
@@ -384,3 +385,77 @@ class PendingLinkSerializer(serializers.Serializer):
     agroid = serializers.CharField()
     local_name = serializers.CharField()
     requested_at = serializers.DateField()
+
+
+# ── Import de fichiers (J15b) ────────────────────────────────────────────
+
+
+class ImportMappingSerializer(serializers.Serializer):
+    name_column = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    operator_column = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    operator_key = serializers.ChoiceField(
+        choices=["membership_number", "phone", "none"], default="none"
+    )
+
+
+class ImportRowSerializer(serializers.Serializer):
+    index = serializers.IntegerField(
+        help_text="Numéro de l'entité dans le fichier (à partir de 1)."
+    )
+    label = serializers.CharField(help_text="Nom retenu pour la parcelle.")
+    status = serializers.ChoiceField(choices=["ok", "flagged", "refused"])
+    messages = serializers.ListField(child=serializers.CharField())
+    kind = serializers.ChoiceField(choices=["polygon", "point", "none"])
+    area_m2 = serializers.CharField(allow_null=True)
+    operator = serializers.DictField(allow_null=True)
+    geometry = serializers.DictField(allow_null=True, help_text="GeoJSON (WGS 84).")
+
+
+class ImportSummarySerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    ok = serializers.IntegerField()
+    flagged = serializers.IntegerField()
+    refused = serializers.IntegerField()
+    without_contour = serializers.IntegerField()
+    with_operator = serializers.IntegerField()
+    created = serializers.IntegerField(required=False)
+
+
+class ImportReportLineSerializer(serializers.Serializer):
+    index = serializers.IntegerField()
+    label = serializers.CharField()
+    status = serializers.ChoiceField(choices=["ok", "flagged", "refused"])
+    messages = serializers.ListField(child=serializers.CharField())
+    operator = serializers.CharField(allow_null=True, help_text="Exploitant reconnu.")
+    agroid = serializers.CharField(allow_null=True, help_text="AgroID attribué ; vide : non créée.")
+
+
+class ParcelImportSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    file_name = serializers.CharField()
+    file_format = serializers.CharField()
+    file_size = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=ImportStatus.choices)
+    columns = serializers.ListField(child=serializers.CharField())
+    mapping = ImportMappingSerializer()
+    summary = ImportSummarySerializer()
+    parcels_created = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    committed_at = serializers.DateTimeField(allow_null=True)
+    rows = ImportRowSerializer(many=True, required=False, help_text="Aperçu (import non confirmé).")
+    report = ImportReportLineSerializer(
+        many=True, required=False, help_text="Bilan ligne par ligne (import confirmé)."
+    )
+
+
+class ImportUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(
+        help_text="KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON ou CSV "
+        "(colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1 000 parcelles au plus."
+    )
+
+
+class ImportCommitSerializer(serializers.Serializer):
+    include_flagged = serializers.BooleanField(
+        default=False, help_text="Créer aussi les lignes signalées (à vérifier)."
+    )

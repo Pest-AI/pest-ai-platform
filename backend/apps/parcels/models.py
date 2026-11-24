@@ -79,6 +79,15 @@ class Parcel(BaseModel, ArchivableModel, SyncModel):
     # Dénormalisés depuis la géométrie courante (lecture rapide, filtres de carte).
     current_area_m2 = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     centroid = models.PointField(srid=4326, null=True, blank=True)
+    import_batch = models.ForeignKey(
+        "parcels.ParcelImport",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="parcels",
+        editable=False,
+        help_text="Import de fichier qui a créé la parcelle (J15b), le cas échéant.",
+    )
 
     class Meta:
         db_table = "parcels_parcel"
@@ -157,6 +166,8 @@ class CaptureMethod(models.TextChoices):
     MANUAL_DRAWING = "manual_drawing", "Tracé sur la carte"
     IMPORT_GEOJSON = "import_geojson", "Import GeoJSON"
     IMPORT_KML = "import_kml", "Import KML"
+    IMPORT_SHAPEFILE = "import_shapefile", "Import Shapefile"
+    IMPORT_CSV = "import_csv", "Import CSV"
 
 
 class GeometryValidationStatus(models.TextChoices):
@@ -690,3 +701,75 @@ class CultivationUnit(BaseModel, ArchivableModel, SyncModel):
 
     def __str__(self) -> str:
         return f"{self.parcel} · {self.code}"
+
+
+# ── Import de parcelles par fichier (J15b) ───────────────────────────────
+
+
+class ImportFormat(models.TextChoices):
+    KML = "kml", "KML"
+    KMZ = "kmz", "KMZ"
+    SHAPEFILE = "shapefile", "Shapefile (.zip)"
+    GEOJSON = "geojson", "GeoJSON"
+    CSV = "csv", "CSV"
+
+
+class ImportStatus(models.TextChoices):
+    PREVIEWED = "previewed", "Aperçu (rien n'est encore créé)"
+    COMMITTED = "committed", "Importé"
+    DISCARDED = "discarded", "Abandonné"
+
+
+class ParcelImport(BaseModel):
+    """Import d'un fichier de parcelles (BASE) : aperçu d'abord, création à la confirmation.
+
+    Le fichier n'est pas conservé (seulement son nom, sa taille et son empreinte SHA-256) ;
+    les entités lues sont gardées le temps de l'aperçu. Jamais supprimé : trace de qui a
+    importé quoi, et quelles parcelles en sont issues (`parcels`).
+    """
+
+    Format = ImportFormat
+    Status = ImportStatus
+
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.PROTECT, related_name="parcel_imports"
+    )
+    file_name = models.CharField(max_length=255)
+    file_format = models.CharField(max_length=16, choices=ImportFormat.choices)
+    file_size = models.PositiveIntegerField()
+    file_sha256 = models.CharField(max_length=64)
+    status = models.CharField(
+        max_length=16, choices=ImportStatus.choices, default=ImportStatus.PREVIEWED
+    )
+    columns = models.JSONField(default=list, help_text="Attributs trouvés dans le fichier.")
+    mapping = models.JSONField(default=dict, help_text="Colonnes retenues (nom, exploitant).")
+    features = models.JSONField(
+        default=list, help_text="Entités lues (géométrie EWKT et attributs), le temps de l'aperçu."
+    )
+    summary = models.JSONField(default=dict)
+    committed_at = models.DateTimeField(null=True, blank=True)
+    committed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    parcels_created = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "parcels_import"
+        verbose_name = "import de parcelles"
+        verbose_name_plural = "imports de parcelles"
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(file_format__in=ImportFormat.values), name="parcel_import_format"
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=ImportStatus.values), name="parcel_import_status"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.file_name} ({self.get_status_display()})"

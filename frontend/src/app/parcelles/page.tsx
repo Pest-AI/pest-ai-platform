@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Fingerprint, Map as MapIcon, Ruler, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileUp, Fingerprint, Map as MapIcon, Ruler, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
+import { canImportParcels } from "@/lib/parcel-imports";
 import { PARCEL_STATUS_FILTER, formatArea, hectares, parcelStatus } from "@/lib/parcels";
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 
@@ -58,6 +59,7 @@ export default async function ParcelsPage({
   const count = listResult.data?.count ?? 0;
   const summary = summaryResult.data;
   const total = summary?.count ?? 0;
+  const canImport = canView && canImportParcels(roles);
 
   const query = (extra: Record<string, string | number | undefined>) => {
     const merged: Record<string, string | number | undefined> = { q: q || undefined, statut: status, ...extra };
@@ -85,13 +87,25 @@ export default async function ParcelsPage({
         title="Parcelles & AgroID"
         description="Chaque parcelle suivie, son identité AgroID, son contour et son exploitant."
         actions={
-          total > 0 ? (
-            <Button asChild variant="secondary" className="h-10 rounded-xl">
-              <Link href="/tableau-de-bord">
-                <MapIcon aria-hidden />
-                Voir sur la carte
-              </Link>
-            </Button>
+          total > 0 || canImport ? (
+            <div className="flex flex-wrap gap-2">
+              {total > 0 ? (
+                <Button asChild variant="secondary" className="h-10 rounded-xl">
+                  <Link href="/tableau-de-bord">
+                    <MapIcon aria-hidden />
+                    Voir sur la carte
+                  </Link>
+                </Button>
+              ) : null}
+              {canImport ? (
+                <Button asChild className="h-10 rounded-xl">
+                  <Link href="/parcelles/import">
+                    <FileUp aria-hidden />
+                    Importer un fichier
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           ) : undefined
         }
       />
@@ -163,6 +177,11 @@ export default async function ParcelsPage({
                   ? "Vérifiez l'AgroID saisi ou effacez les filtres."
                   : "Les agents de terrain relèvent les contours avec l'app terrain ; chaque parcelle reçoit aussitôt son AgroID."}
               </p>
+              {!filtered && canImport ? (
+                <Link href="/parcelles/import" className="mt-3 inline-block text-[14px] font-medium text-brand-700 hover:underline">
+                  Ou importez vos parcelles depuis un fichier KML, Shapefile ou CSV
+                </Link>
+              ) : null}
               {filtered ? (
                 <Link href="/parcelles" className="mt-3 inline-block text-[14px] font-medium text-brand-700 hover:underline">
                   Effacer les filtres
