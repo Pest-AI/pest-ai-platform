@@ -120,12 +120,15 @@ Enregistre plusieurs parcelles à la fois. Espace d'organisation seulement, perm
 
 | Format | Contenu attendu |
 |---|---|
+| **Excel (.xlsx)**, Google Sheets (téléchargé en .xlsx) | Le **modèle « Coopérative »** (`GET /api/v1/parcel-imports/template/`), ou un simple tableau de parcelles (premier onglet). |
+| JSON | GeoJSON, ou liste d'objets (une parcelle par objet, champs comme un tableau). |
+| GPX | Tour du champ enregistré au GPS : un tracé qui revient à moins de 25 m de son départ devient un contour ; un point de passage devient une position. |
 | KML, KMZ | Polygones (Google Earth, application GPS). Le nom du polygone devient le nom de la parcelle. |
 | Shapefile | Archive `.zip` avec `.shp`, `.shx`, `.dbf` **et `.prj`** (sans projection : refusé). Toute projection est convertie en WGS 84. |
 | GeoJSON | `FeatureCollection` de polygones ou de points. |
-| CSV | Colonne `wkt` (contour), ou `latitude` et `longitude` (point : contour à relever). Séparateur `,` ou `;`, virgule décimale acceptée. |
+| CSV | Colonne contour (`wkt`, `contour`, ou relevé **KoboToolbox / ODK** `lat lon alt précision; …`), ou `latitude` et `longitude` (y compris `…_latitude` / `…_longitude` des exports Kobo) : point, contour à relever. Séparateur `,` ou `;`, virgule décimale acceptée. |
 
-Limites : 10 Mo, 1 000 parcelles par fichier. KML déclarant des entités XML refusé ; dans une archive, chemins sortants ignorés, 40 fichiers et 60 Mo décompressés au plus.
+Limites : 10 Mo, 1 000 lignes par fichier (par onglet pour Excel). KML déclarant des entités XML refusé ; dans une archive, chemins sortants ignorés, 40 fichiers et 60 Mo décompressés au plus.
 
 **Rien n'est créé avant la confirmation.**
 
@@ -134,4 +137,14 @@ Limites : 10 Mo, 1 000 parcelles par fichier. KML déclarant des entités XML re
 3. `POST …/{id}/commit/` : crée les lignes `ok` (et `flagged` si `include_flagged: true`) en une seule fois, chacune avec son AgroID ; l'exploitant reconnu devient exploitant principal. Le bilan ligne par ligne (`report`, avec les AgroID) reste consultable ; les contours du fichier ne sont plus conservés.
 4. `POST …/{id}/discard/` : abandonne l'aperçu.
 
-Les contours importés sont « à confirmer par un relevé terrain ». Un import n'est jamais supprimé. Le Web OS propose un **rapport CSV** (séparateur `;`, ouvrable dans Excel) avant et après confirmation.
+Les contours importés sont « à confirmer par un relevé terrain ». ### Modèle « Coopérative »
+
+Classeur généré par l'API : onglet **Producteurs** (prénom, nom, sexe, année de naissance, village, téléphone, n° d'adhérent, type de rattachement, langue) et onglet **Parcelles** (nom, n° d'adhérent de l'exploitant, latitude et longitude ou contour), reliés par le n° d'adhérent. Aucune ligne d'exemple dans les onglets de données ; les exemples sont dans « Lisez-moi ».
+
+- Chaque producteur suit les règles de la saisie : prénom et nom obligatoires, téléphone au format international (9 chiffres lus en +221), n° d'adhérent unique.
+- Déjà dans le registre de l'organisation (même n° d'adhérent ou même téléphone) : pas de nouvelle fiche.
+- Doublon probable ailleurs (D-28 : même téléphone, ou même nom dans la même localité) : ligne **à vérifier** ; une nouvelle fiche n'est créée que si `include_flagged`.
+- La confirmation crée d'abord les producteurs, puis les parcelles avec leur exploitant, en une seule fois. Elle exige aussi `producers.create`.
+- L'aperçu et le bilan listent les lignes de l'onglet dans `producers`.
+
+Un import n'est jamais supprimé. Le Web OS propose un **rapport CSV** (séparateur `;`, ouvrable dans Excel) avant et après confirmation.

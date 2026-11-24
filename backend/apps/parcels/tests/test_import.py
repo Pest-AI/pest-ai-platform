@@ -13,12 +13,18 @@ from rest_framework.test import APIClient
 
 from apps.actors import services as actor_services
 from apps.parcels import imports, selectors, services
-from apps.parcels.importers import ImportFileError, read_file
+from apps.parcels.importers import ImportFileError
+from apps.parcels.importers import read_file as _read_file
 from apps.parcels.models import CaptureMethod, ImportStatus, Parcel, ParcelImport
 from apps.parcels.tests.test_parcels import D_LAT, D_LON, LAT, LON, square
 
 pytestmark = pytest.mark.django_db
 URL = "/api/v1/parcel-imports/"
+
+
+def read_file(name, data):
+    content = _read_file(name, data)
+    return content.file_format, content.features
 
 
 # ── Fichiers d'exemple ───────────────────────────────────────────────────
@@ -189,7 +195,7 @@ def test_chemin_sortant_ignore(tmp_path):
 
 def test_format_inconnu_et_fichier_vide():
     with pytest.raises(ImportFileError, match="Format non reconnu"):
-        read_file("champs.xlsx", b"x")
+        read_file("champs.docx", b"x")
     with pytest.raises(ImportFileError, match="vide"):
         read_file("champs.kml", b"")
 
@@ -227,7 +233,8 @@ def producer(org, user):
 
 
 def start(org, user, name, data):
-    return imports.start_import(organization=org, by=user, file_name=name, data=data)
+    record, rows, _ = imports.start_import(organization=org, by=user, file_name=name, data=data)
+    return record, rows
 
 
 def test_apercu_ne_cree_rien(org, user):
@@ -271,7 +278,7 @@ def test_exploitant_par_numero_ou_telephone(org, user, producer):
     }
     assert rows[0]["operator"]["id"] == str(producer.pk)
     assert rows[1]["status"] == "flagged" and "X-999" in rows[1]["messages"][0]
-    rows = imports.preview(
+    rows, _ = imports.preview(
         record,
         mapping={"name_column": "nom", "operator_column": "tel", "operator_key": "phone"},
         by=user,
@@ -316,7 +323,7 @@ def test_confirmation_cree_les_parcelles(org, user, producer):
 def test_confirmation_avec_lignes_signalees(org, user):
     data = geojson([({"nom": "A", "adherent": "X"}, square())])
     record, _ = start(org, user, "champs.geojson", data)
-    with pytest.raises(ValidationError, match="Aucune parcelle"):
+    with pytest.raises(ValidationError, match="Rien à importer"):
         imports.commit(record, by=user)
     record = imports.commit(record, by=user, include_flagged=True)
     assert record.parcels_created == 1

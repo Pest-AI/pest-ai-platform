@@ -8,3 +8,5 @@ psycopg[binary]==3.3.9
 django-cors-headers==4.9.0
 django-filter==26.2
 drf-spectacular==0.30.0
+# Import de parcelles et de producteurs depuis Excel / Google Sheets (J15d) : lecture seule.
+openpyxl==3.1.5

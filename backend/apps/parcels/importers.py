@@ -1,4 +1,6 @@
-"""Lecture des fichiers de parcelles (J15b) : KML, KMZ, Shapefile (.zip), GeoJSON, CSV.
+"""Lecture des fichiers de parcelles (J15b, J15d) : Excel (.xlsx, Google Sheets), CSV, JSON
+(GeoJSON ou liste d'enregistrements), KML, KMZ, Shapefile (.zip), GPX ; contours au format
+KoboToolbox / ODK reconnus dans les tableaux.
 
 Les fichiers viennent de l'extérieur (Google Earth, logiciels SIG, tableurs) : ils sont lus
 avec prudence.
@@ -18,9 +20,11 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
 import os
 import re
 import tempfile
+import unicodedata
 import zipfile
 from dataclasses import asdict, dataclass, field
 
@@ -36,9 +40,6 @@ MAX_ZIP_UNCOMPRESSED = 60 * 1024 * 1024
 MAX_PROPERTY_LENGTH = 200
 
 WGS84 = SpatialReference(4326)
-WKT_COLUMNS = ("wkt", "geometry", "geometrie", "géométrie", "geom", "the_geom", "contour")
-LAT_COLUMNS = ("latitude", "lat", "y")
-LON_COLUMNS = ("longitude", "lon", "lng", "long", "x")
 
 
 class ImportFileError(Exception):
@@ -68,11 +69,14 @@ def detect_format(file_name: str) -> str:
         (".json", ImportFormat.GEOJSON),
         (".csv", ImportFormat.CSV),
         (".txt", ImportFormat.CSV),
+        (".xlsx", ImportFormat.XLSX),
+        (".gpx", ImportFormat.GPX),
     ):
         if name.endswith(suffix):
             return fmt
     raise ImportFileError(
-        "Format non reconnu. Formats acceptés : KML, KMZ, Shapefile (.zip), GeoJSON, CSV."
+        "Format non reconnu. Formats acceptés : Excel (.xlsx), CSV, JSON, GeoJSON, KML, KMZ, "
+        "Shapefile (.zip), GPX."
     )
 
 
@@ -272,11 +276,121 @@ def _read_geojson(data: bytes) -> list[RawFeature]:
     return features
 
 
-# ── CSV ──────────────────────────────────────────────────────────────────
+# ── Tableaux : CSV, Excel, JSON d'enregistrements ────────────────────────
+#
+# Une ligne = une parcelle. La géométrie vient d'une colonne contour (WKT ou format
+# KoboToolbox / ODK « lat lon alt précision;… »), ou de deux colonnes latitude / longitude
+# (y compris les colonnes « …_latitude » / « …_longitude » des exports Kobo).
 
 
-def _number(text: str) -> float:
-    return float(text.strip().replace(",", ".").replace(" ", ""))
+def normalize_header(value) -> str:
+    """En-tête comparable : sans accents, minuscules, « _ » entre les mots."""
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(c for c in text if not unicodedata.combining(c)).lower()
+    return re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+
+
+SHAPE_COLUMNS = {
+    "wkt",
+    "geometry",
+    "geometrie",
+    "geom",
+    "the_geom",
+    "contour",
+    "contour_facultatif",
+    "geoshape",
+    "geotrace",
+    "geopoint",
+    "gps",
+    "coordonnees_gps",
+}
+LAT_NAMES = {"latitude", "lat", "y"}
+LON_NAMES = {"longitude", "lon", "lng", "long", "x"}
+ODK_POINT = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:\s+-?\d+(?:\.\d+)?){0,2}\s*$")
+
+
+def _geometry_columns(headers: list[str]) -> tuple[str | None, str | None, str | None]:
+    norm = {h: normalize_header(h) for h in headers}
+    shape = next(
+        (
+            h
+            for h, n in norm.items()
+            if n in SHAPE_COLUMNS or n.endswith(("_geoshape", "_geotrace", "_geopoint", "_wkt"))
+        ),
+        None,
+    )
+    lat = next((h for h, n in norm.items() if n in LAT_NAMES or n.endswith("_latitude")), None)
+    lon = next((h for h, n in norm.items() if n in LON_NAMES or n.endswith("_longitude")), None)
+    return shape, lat, lon
+
+
+def _number(value) -> float:
+    if isinstance(value, int | float):
+        return float(value)
+    return float(str(value).strip().replace(",", ".").replace(" ", ""))
+
+
+def _parse_odk(text: str) -> GEOSGeometry | None:
+    """Format KoboToolbox / ODK : « lat lon alt précision » séparés par « ; »."""
+    parts = [p for p in text.split(";") if p.strip()]
+    coords = []
+    for part in parts:
+        match = ODK_POINT.match(part)
+        if not match:
+            return None
+        lat, lon = float(match.group(1)), float(match.group(2))
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError
+        coords.append((lon, lat))
+    if len(coords) == 1:
+        return Point(*coords[0], srid=4326)
+    if len(coords) >= 3:
+        if coords[0] != coords[-1]:
+            coords.append(coords[0])
+        return Polygon(coords, srid=4326)
+    return None
+
+
+def _shape_from_text(text: str) -> GEOSGeometry:
+    odk = _parse_odk(text)
+    if odk is not None:
+        return odk
+    return GEOSGeometry(text, srid=4326)
+
+
+def read_rows(rows: list[dict], *, source: str) -> list[RawFeature]:
+    """Lignes d'un tableau (dictionnaires) → entités. `source` sert aux messages d'erreur."""
+    headers = list(dict.fromkeys(k for row in rows for k in row if k))
+    shape_col, lat_col, lon_col = _geometry_columns(headers)
+    if not shape_col and not (lat_col and lon_col):
+        raise ImportFileError(
+            f"{source} sans géométrie : ajoutez une colonne « contour » (WKT ou relevé "
+            "KoboToolbox) ou deux colonnes « latitude » et « longitude » (point, contour à "
+            "relever)."
+        )
+    geometry_cols = {shape_col, lat_col, lon_col}
+    features = []
+    for i, row in enumerate(rows, start=1):
+        if i > MAX_FEATURES:
+            raise ImportFileError(f"Plus de {MAX_FEATURES} parcelles : découpez le fichier.")
+        props = {str(k).strip(): _clean(v) for k, v in row.items() if k and k not in geometry_cols}
+        raw = RawFeature(index=i, label="", properties=props)
+        shape = _clean(row.get(shape_col)) if shape_col else ""
+        lat = row.get(lat_col) if lat_col else None
+        try:
+            if shape:
+                raw.kind, raw.ewkt, raw.error = _classify(_shape_from_text(shape))
+            elif lat not in (None, "") and str(lat).strip():
+                lat_v, lon_v = _number(lat), _number(row.get(lon_col))
+                if not (-90 <= lat_v <= 90 and -180 <= lon_v <= 180):
+                    raise ValueError
+                raw.kind, raw.ewkt = "point", Point(lon_v, lat_v, srid=4326).ewkt
+            else:
+                raw.error = "Ligne sans géométrie."
+        except (GEOSException, GDALException, ValueError, TypeError):
+            raw.error = "Géométrie illisible (contour, ou latitude / longitude)."
+        features.append(raw)
+    return features
 
 
 def _read_csv(data: bytes) -> list[RawFeature]:
@@ -290,56 +404,200 @@ def _read_csv(data: bytes) -> list[RawFeature]:
         dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
     except csv.Error:
         dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
-    headers = {h.strip().lower(): h for h in (reader.fieldnames or []) if h}
-    wkt_col = next((headers[c] for c in WKT_COLUMNS if c in headers), None)
-    lat_col = next((headers[c] for c in LAT_COLUMNS if c in headers), None)
-    lon_col = next((headers[c] for c in LON_COLUMNS if c in headers), None)
-    if not wkt_col and not (lat_col and lon_col):
-        raise ImportFileError(
-            "CSV sans géométrie : ajoutez une colonne « wkt » (contour) ou deux colonnes "
-            "« latitude » et « longitude » (point, contour à relever)."
+    rows = [
+        r
+        for r in csv.DictReader(io.StringIO(text), dialect=dialect)
+        if any((v or "").strip() for v in r.values() if isinstance(v, str))
+    ]
+    return read_rows(rows, source="CSV")
+
+
+def _sheet_rows(sheet) -> list[dict]:
+    """Onglet Excel → lignes : la première ligne non vide donne les en-têtes."""
+    rows: list[dict] = []
+    headers: list[str] | None = None
+    for values in sheet.iter_rows(values_only=True):
+        if values is None or all(v is None or str(v).strip() == "" for v in values):
+            continue
+        if headers is None:
+            headers = [str(v).strip() if v is not None else "" for v in values]
+            continue
+        if len(rows) >= MAX_FEATURES:
+            raise ImportFileError(
+                f"Plus de {MAX_FEATURES} lignes dans un onglet : découpez le fichier."
+            )
+        rows.append({h: v for h, v in zip(headers, values, strict=False) if h})
+    return rows
+
+
+def _read_xlsx(data: bytes) -> tuple[list[RawFeature], list[dict] | None]:
+    """Classeur Excel ou Google Sheets (.xlsx). Modèle « Coopérative » : onglets Producteurs
+    et Parcelles ; sinon, le premier onglet non vide contient les parcelles."""
+    from openpyxl import load_workbook
+
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(data))
+        entries = archive.infolist()
+    except zipfile.BadZipFile as exc:
+        raise ImportFileError("Classeur Excel illisible (enregistrez-le au format .xlsx).") from exc
+    if len(entries) > 500 or sum(e.file_size for e in entries) > MAX_ZIP_UNCOMPRESSED:
+        raise ImportFileError("Classeur trop volumineux une fois décompressé.")
+    try:
+        book = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 - openpyxl lève des erreurs variées sur un fichier abîmé
+        raise ImportFileError("Classeur Excel illisible (enregistrez-le au format .xlsx).") from exc
+    try:
+        sheets = {normalize_header(ws.title): ws for ws in book.worksheets}
+        if "parcelles" in sheets and "producteurs" in sheets:
+            producers = _sheet_rows(sheets["producteurs"])
+            parcel_rows = _sheet_rows(sheets["parcelles"])
+            features = read_rows(parcel_rows, source="Onglet Parcelles") if parcel_rows else []
+            return features, producers
+        for ws in book.worksheets:
+            rows = _sheet_rows(ws)
+            if rows:
+                return read_rows(rows, source="Classeur"), None
+        return [], None
+    finally:
+        book.close()
+
+
+def _read_json(data: bytes) -> tuple[str, list[RawFeature]]:
+    """GeoJSON, ou liste d'enregistrements (export d'application, KoboToolbox)."""
+    try:
+        doc = json.loads(data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ImportFileError("JSON illisible.") from exc
+    if isinstance(doc, dict) and doc.get("type") in (
+        "FeatureCollection",
+        "Feature",
+        "Polygon",
+        "MultiPolygon",
+        "Point",
+        "LineString",
+        "GeometryCollection",
+    ):
+        return ImportFormat.GEOJSON, _read_geojson(data)
+    records = doc
+    if isinstance(doc, dict):
+        records = next(
+            (
+                doc[k]
+                for k in ("results", "data", "records", "items", "parcelles")
+                if isinstance(doc.get(k), list)
+            ),
+            None,
         )
-    features = []
-    for i, row in enumerate(reader, start=1):
-        if i > MAX_FEATURES:
-            raise ImportFileError(f"Plus de {MAX_FEATURES} parcelles : découpez le fichier.")
-        props = {
-            k.strip(): _clean(v)
-            for k, v in row.items()
-            if k and k not in (wkt_col, lat_col, lon_col)
-        }
-        raw = RawFeature(index=i, label="", properties=props)
+    if not isinstance(records, list) or not all(isinstance(r, dict) for r in records):
+        raise ImportFileError(
+            "JSON non reconnu : GeoJSON, ou liste d'objets (une parcelle par objet)."
+        )
+    if len(records) > MAX_FEATURES:
+        raise ImportFileError(f"Plus de {MAX_FEATURES} parcelles : découpez le fichier.")
+    flat = [{k: v for k, v in r.items() if not isinstance(v, dict | list)} for r in records]
+    return ImportFormat.JSON, read_rows(flat, source="JSON")
+
+
+# ── GPX (GPS de poche, applications de randonnée) ───────────────────────
+
+GPX_LAYERS = ("tracks", "routes", "waypoints")
+GPX_FIELDS = ("name", "desc", "cmt", "type")
+GPX_MAX_GAP_M = 25.0
+
+
+def _gap_m(a, b) -> float:
+    """Distance approchée en mètres entre deux points (lon, lat)."""
+    lat = math.radians((a[1] + b[1]) / 2)
+    dx = (b[0] - a[0]) * 111_320 * math.cos(lat)
+    dy = (b[1] - a[1]) * 110_540
+    return math.hypot(dx, dy)
+
+
+def _read_gpx(data: bytes) -> list[RawFeature]:
+    _check_kml(data)  # même refus des entités XML
+    with tempfile.TemporaryDirectory(prefix="pestai-import-") as tmp:
+        path = os.path.join(tmp, "import.gpx")
+        with open(path, "wb") as fh:
+            fh.write(data)
         try:
-            if wkt_col and (row.get(wkt_col) or "").strip():
-                geos = GEOSGeometry((row[wkt_col] or "").strip(), srid=4326)
-                raw.kind, raw.ewkt, raw.error = _classify(geos)
-            elif lat_col and lon_col and (row.get(lat_col) or "").strip():
-                lat, lon = _number(row[lat_col]), _number(row[lon_col])
-                if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                    raise ValueError
-                raw.kind, raw.ewkt = "point", Point(lon, lat, srid=4326).ewkt
-            else:
-                raw.error = "Ligne sans géométrie."
-        except (GEOSException, ValueError, TypeError):
-            raw.error = "Géométrie illisible (WKT ou latitude / longitude)."
-        features.append(raw)
-    return features
+            source = DataSource(path)
+        except GDALException as exc:
+            raise ImportFileError("Fichier GPX illisible.") from exc
+        features: list[RawFeature] = []
+        for layer in source:
+            if layer.name not in GPX_LAYERS:
+                continue
+            for feat in layer:
+                if len(features) >= MAX_FEATURES:
+                    raise ImportFileError(
+                        f"Plus de {MAX_FEATURES} parcelles : découpez le fichier."
+                    )
+                props = {}
+                for name in GPX_FIELDS:
+                    if name in layer.fields:
+                        value = _clean(feat.get(name))
+                        if value:
+                            props[name] = value
+                raw = RawFeature(index=len(features) + 1, label="", properties=props)
+                try:
+                    geom = feat.geom
+                except GDALException:
+                    geom = None
+                if geom is None or geom.empty:
+                    raw.error = "Aucune géométrie."
+                elif layer.name == "waypoints":
+                    raw.kind, raw.ewkt, raw.error = _from_ogr(geom)
+                else:
+                    coords = []
+                    for line in (
+                        geom.geos if geom.geom_name.upper().startswith("MULTI") else [geom.geos]
+                    ):
+                        coords.extend((c[0], c[1]) for c in line.coords)
+                    if len(coords) < 3:
+                        raw.error = "Tracé trop court pour former un contour."
+                    elif _gap_m(coords[0], coords[-1]) > GPX_MAX_GAP_M:
+                        raw.error = (
+                            "Tracé non refermé : le relevé doit revenir à son point de départ "
+                            f"(écart de {_gap_m(coords[0], coords[-1]):.0f} m)."
+                        )
+                    else:
+                        if coords[0] != coords[-1]:
+                            coords.append(coords[0])
+                        try:
+                            raw.kind, raw.ewkt, raw.error = _classify(Polygon(coords, srid=4326))
+                        except (GEOSException, ValueError):
+                            raw.error = "Tracé illisible."
+                features.append(raw)
+        return features
 
 
-def read_file(file_name: str, data: bytes) -> tuple[str, list[RawFeature]]:
-    """Lit un fichier de parcelles ; renvoie (format, entités). Lève ImportFileError."""
+@dataclass
+class ImportContent:
+    file_format: str
+    features: list[RawFeature]
+    producers: list[dict] | None = None  # modèle « Coopérative » : onglet Producteurs
+
+
+def read_file(file_name: str, data: bytes) -> ImportContent:
+    """Lit un fichier de parcelles (et, pour le modèle Excel, de producteurs)."""
     if len(data) > MAX_BYTES:
         raise ImportFileError(f"Fichier trop lourd (plus de {MAX_BYTES // (1024 * 1024)} Mo).")
     if not data:
         raise ImportFileError("Fichier vide.")
     fmt = detect_format(file_name)
+    producers = None
     if fmt == ImportFormat.GEOJSON:
-        features = _read_geojson(data)
+        fmt, features = _read_json(data)
     elif fmt == ImportFormat.CSV:
         features = _read_csv(data)
+    elif fmt == ImportFormat.XLSX:
+        features, producers = _read_xlsx(data)
+    elif fmt == ImportFormat.GPX:
+        features = _read_gpx(data)
     else:
         features = _read_gdal(data, fmt)
-    if not features:
+    if not features and not producers:
         raise ImportFileError("Aucune parcelle trouvée dans le fichier.")
-    return fmt, features
+    return ImportContent(fmt, features, producers)

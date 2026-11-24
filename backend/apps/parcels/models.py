@@ -169,6 +169,9 @@ class CaptureMethod(models.TextChoices):
     IMPORT_KML = "import_kml", "Import KML"
     IMPORT_SHAPEFILE = "import_shapefile", "Import Shapefile"
     IMPORT_CSV = "import_csv", "Import CSV"
+    IMPORT_XLSX = "import_xlsx", "Import Excel"
+    IMPORT_JSON = "import_json", "Import JSON"
+    IMPORT_GPX = "import_gpx", "Import GPX"
 
 
 class GeometryValidationStatus(models.TextChoices):
@@ -713,6 +716,9 @@ class ImportFormat(models.TextChoices):
     SHAPEFILE = "shapefile", "Shapefile (.zip)"
     GEOJSON = "geojson", "GeoJSON"
     CSV = "csv", "CSV"
+    XLSX = "xlsx", "Excel (.xlsx)"
+    JSON = "json", "JSON"
+    GPX = "gpx", "GPX"
 
 
 class ImportStatus(models.TextChoices):
@@ -747,6 +753,11 @@ class ParcelImport(BaseModel):
     features = models.JSONField(
         default=list, help_text="Entités lues (géométrie EWKT et attributs), le temps de l'aperçu."
     )
+    producer_rows = models.JSONField(
+        default=list,
+        help_text="Modèle « Coopérative » (J15d) : lignes de l'onglet Producteurs, le temps de "
+        "l'aperçu.",
+    )
     summary = models.JSONField(default=dict)
     committed_at = models.DateTimeField(null=True, blank=True)
     committed_by = models.ForeignKey(
@@ -757,6 +768,7 @@ class ParcelImport(BaseModel):
         related_name="+",
     )
     parcels_created = models.PositiveIntegerField(default=0)
+    producers_created = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "parcels_import"

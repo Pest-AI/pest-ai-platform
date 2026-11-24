@@ -1,4 +1,4 @@
-import { ArrowLeft, FileSpreadsheet, FolderArchive, Globe2, History } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, FolderArchive, Globe2, History, Route } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { StatusPill } from "@/components/list-toolbar";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
@@ -18,6 +19,11 @@ export const metadata: Metadata = { title: "Importer des parcelles" };
 
 const FORMATS = [
   {
+    icon: FileSpreadsheet,
+    title: "Excel ou Google Sheets",
+    text: "Le modèle « Coopérative » enregistre producteurs et parcelles en une fois. Un simple tableau de parcelles marche aussi.",
+  },
+  {
     icon: Globe2,
     title: "KML ou KMZ",
     text: "Export de Google Earth ou d'une application GPS. Le nom de chaque polygone devient le nom de la parcelle.",
@@ -28,9 +34,9 @@ const FORMATS = [
     text: "Archive .zip avec les fichiers .shp, .shx, .dbf et .prj (projection). Toute projection est convertie.",
   },
   {
-    icon: FileSpreadsheet,
-    title: "CSV ou GeoJSON",
-    text: "CSV : une colonne « wkt » (contour), ou « latitude » et « longitude » (point, contour à relever).",
+    icon: Route,
+    title: "GPX, CSV, JSON, KoboToolbox",
+    text: "Tour du champ au GPS (GPX), exports KoboToolbox / ODK, ou tableau avec latitude et longitude.",
   },
 ];
 
@@ -69,7 +75,17 @@ export default async function ParcelImportPage() {
       <PageHeader
         context={`${org.name} · ${typeLabel}`}
         title="Importer des parcelles"
-        description="Enregistrez plusieurs parcelles à la fois depuis un fichier. Vous vérifiez l'aperçu avant toute création ; chaque parcelle créée reçoit son AgroID."
+        description="Enregistrez plusieurs parcelles, et leurs producteurs, à la fois depuis un fichier. Vous vérifiez l'aperçu avant toute création ; chaque parcelle créée reçoit son AgroID."
+        actions={
+          allowed ? (
+            <Button asChild variant="secondary" className="h-10 rounded-xl">
+              <a href="/parcelles/import/modele" download>
+                <Download aria-hidden />
+                Modèle Excel « Coopérative »
+              </a>
+            </Button>
+          ) : undefined
+        }
       />
 
       {!allowed ? (
@@ -97,8 +113,8 @@ export default async function ParcelImportPage() {
               ))}
             </ul>
             <p className="mt-4 border-t border-line pt-3 text-[12px] leading-5 text-muted">
-              Une colonne « n° d’adhérent » ou « téléphone » relie chaque parcelle à son exploitant. 1 000 parcelles au
-              plus par fichier.
+              Une colonne « n° d’adhérent » ou « téléphone » relie chaque parcelle à son exploitant. 1 000 lignes au
+              plus par fichier ; contours importés à confirmer par un relevé terrain.
             </p>
           </Card>
         </div>
@@ -124,7 +140,7 @@ export default async function ParcelImportPage() {
                       <span className="text-[13px] text-muted max-sm:hidden">{IMPORT_FORMATS[item.file_format] ?? item.file_format}</span>
                       <span className="tabular text-[13px] text-muted max-sm:hidden">
                         {item.status === "committed"
-                          ? `${item.parcels_created} parcelle${item.parcels_created > 1 ? "s" : ""} créée${item.parcels_created > 1 ? "s" : ""}`
+                          ? `${item.parcels_created} parcelle${item.parcels_created > 1 ? "s" : ""}${item.producers_created ? ` · ${item.producers_created} producteur${item.producers_created > 1 ? "s" : ""}` : ""}`
                           : `${item.summary.total} ligne${item.summary.total > 1 ? "s" : ""}`}
                       </span>
                       <span>

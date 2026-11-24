@@ -43,7 +43,7 @@ def test_nouveau_releve_gps_confirme_la_parcelle(org, user):
 
 
 def test_import_a_confirmer(org, user):
-    record, rows = imports.start_import(
+    record, rows, _ = imports.start_import(
         organization=org, by=user, file_name="c.kml", data=kml([("A", ring())])
     )
     assert rows[0]["status"] == "ok"  # la ligne reste importable sans case à cocher
@@ -55,7 +55,7 @@ def test_import_a_confirmer(org, user):
 
 def test_point_sans_contour_reste_actif(org, user):
     data = geojson([({"nom": "P"}, {"type": "Point", "coordinates": [LON, 16.6]})])
-    record, _ = imports.start_import(organization=org, by=user, file_name="p.geojson", data=data)
+    record, _, _ = imports.start_import(organization=org, by=user, file_name="p.geojson", data=data)
     imports.commit(record, by=user)
     assert record.parcels.get().status == "active"
 

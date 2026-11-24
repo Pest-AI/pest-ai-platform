@@ -1,4 +1,4 @@
-# Sprint 3 — Parcelles et AgroID (J11 → J15c)
+# Sprint 3 — Parcelles et AgroID (J11 → J15d)
 
 Jalon JAL-04 « AgroID ». Revue préparée le 24/11/2026 (sprint planifié du 07 au 11/12/2026 : environ deux semaines d'avance).
 
@@ -13,6 +13,7 @@ Jalon JAL-04 « AgroID ». Revue préparée le 24/11/2026 (sprint planifié du 0
 | J15 | Parcelles dans l'app terrain, consultables hors ligne | Parcelles consultables hors ligne après un premier chargement | Test navigateur en mode avion (liste, carte, fiche), effacement à la déconnexion |
 | J15b | Import de parcelles par fichier (KML, KMZ, Shapefile, GeoJSON, CSV) avec aperçu | Aucune parcelle créée avant confirmation ; rapport CSV avec les AgroID | 26 tests (formats, sécurité des fichiers, aperçu, confirmation, droits) ; parcours navigateur complet |
 | J15c | Saisie d'une parcelle dans le Web OS (tracé, coordonnées, position, sans localisation) ; règle « à confirmer par un relevé terrain » (option A) | Le terrain reste la référence : tout contour saisi à la main ou importé est à confirmer | Tests API et règle A ; parcours navigateur des quatre modes |
+| J15d | Modèle Excel « Coopérative » (producteurs + parcelles), Google Sheets, JSON, KoboToolbox/ODK, GPX | Un registre de coopérative entier en une fois, avec les mêmes règles que la saisie (doublons D-28) | 13 tests (modèle, producteurs, formats) ; parcours navigateur : modèle téléchargé, rempli, importé ; GPX |
 
 Tests au 24/11 : backend 322, Web OS 31 + 14 de bout en bout, app terrain 24.
 

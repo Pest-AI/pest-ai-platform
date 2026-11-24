@@ -946,9 +946,10 @@ paths:
   /api/v1/parcel-imports/{id}/commit/:
     post:
       operationId: parcel_imports_commit_create
-      description: Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune
-        avec son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne
-        sont jamais créées.
+      description: Crée les producteurs de l'onglet Producteurs (modèle « Coopérative
+        », permission `producers.create` en plus), puis les parcelles `ok` (et `flagged`
+        si `include_flagged`), chacune avec son AgroID, en une seule fois (tout ou
+        rien). Les lignes refusées ne sont jamais créées.
       summary: Confirmer l'import
       parameters:
       - in: header
@@ -1058,6 +1059,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ParcelImport'
+          description: ''
+  /api/v1/parcel-imports/template/:
+    get:
+      operationId: parcel_imports_template_retrieve
+      description: 'Classeur .xlsx à remplir : onglets Producteurs et Parcelles, reliés
+        par le n° d''adhérent, et une page d''explications. À déposer ensuite sur
+        `POST /`.'
+      summary: Modèle Excel « Coopérative »
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/parcels/:
     get:
@@ -2467,6 +2496,14 @@ components:
       - code
       - new_password
       - phone_number
+    ActionEnum:
+      enum:
+      - create
+      - existing
+      type: string
+      description: |-
+        * `create` - create
+        * `existing` - existing
     ActivationCode:
       type: object
       properties:
@@ -2567,6 +2604,9 @@ components:
       - import_kml
       - import_shapefile
       - import_csv
+      - import_xlsx
+      - import_json
+      - import_gpx
       type: string
       description: |-
         * `gps_walk` - Contour marché au GPS
@@ -2577,6 +2617,9 @@ components:
         * `import_kml` - Import KML
         * `import_shapefile` - Import Shapefile
         * `import_csv` - Import CSV
+        * `import_xlsx` - Import Excel
+        * `import_json` - Import JSON
+        * `import_gpx` - Import GPX
     ContactTypeEnum:
       enum:
       - phone
@@ -2813,6 +2856,68 @@ components:
           allOf:
           - $ref: '#/components/schemas/OperatorKeyEnum'
           default: none
+    ImportProducerLine:
+      type: object
+      properties:
+        index:
+          type: integer
+          description: Ligne de l'onglet Producteurs (à partir de 1).
+        name:
+          type: string
+        phone:
+          type: string
+          description: Téléphone au format international, ou vide.
+        membership_number:
+          type: string
+        locality:
+          type: string
+        status:
+          $ref: '#/components/schemas/ImportLineStatusEnum'
+        action:
+          nullable: true
+          description: |-
+            `create` : nouvelle fiche ; `existing` : déjà dans le registre.
+
+            * `create` - create
+            * `existing` - existing
+          oneOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        messages:
+          type: array
+          items:
+            type: string
+        created:
+          type: boolean
+          description: 'Import confirmé : fiche créée.'
+      required:
+      - action
+      - index
+      - locality
+      - membership_number
+      - messages
+      - name
+      - phone
+      - status
+    ImportProducerSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        create:
+          type: integer
+        existing:
+          type: integer
+        flagged:
+          type: integer
+        refused:
+          type: integer
+      required:
+      - create
+      - existing
+      - flagged
+      - refused
+      - total
     ImportReportLine:
       type: object
       properties:
@@ -2906,6 +3011,12 @@ components:
           type: integer
         created:
           type: integer
+        producers_created:
+          type: integer
+        producers:
+          allOf:
+          - $ref: '#/components/schemas/ImportProducerSummary'
+          description: 'Modèle « Coopérative » : onglet Producteurs.'
       required:
       - flagged
       - ok
@@ -2919,9 +3030,10 @@ components:
         file:
           type: string
           format: binary
-          description: KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON
-            ou CSV (colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1
-            000 parcelles au plus.
+          description: 'Excel (.xlsx, dont le modèle « Coopérative »), CSV, JSON,
+            GeoJSON, KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj) ou GPX.
+            Tableaux : colonne « contour » (WKT ou relevé KoboToolbox / ODK), ou «
+            latitude » et « longitude ». 10 Mo et 1 000 lignes au plus.'
       required:
       - file
     InvitationResult:
@@ -3254,6 +3366,9 @@ components:
           nullable: true
       required:
       - geometry
+    NullEnum:
+      enum:
+      - null
     Operator:
       type: object
       properties:
@@ -3904,6 +4019,8 @@ components:
           $ref: '#/components/schemas/ImportSummary'
         parcels_created:
           type: integer
+        producers_created:
+          type: integer
         created_at:
           type: string
           format: date-time
@@ -3921,6 +4038,12 @@ components:
           items:
             $ref: '#/components/schemas/ImportReportLine'
           description: Bilan ligne par ligne (import confirmé).
+        producers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportProducerLine'
+          description: 'Modèle « Coopérative » : onglet Producteurs (aperçu, ou bilan
+            après import).'
       required:
       - columns
       - committed_at
@@ -3931,6 +4054,7 @@ components:
       - id
       - mapping
       - parcels_created
+      - producers_created
       - status
       - summary
     ParcelImportStatusEnum:

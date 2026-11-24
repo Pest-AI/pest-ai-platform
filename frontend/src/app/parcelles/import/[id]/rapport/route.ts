@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 
 import { currentWorkspace, getApi } from "@/lib/api/client";
-import { type ReportLine, reportCsv } from "@/lib/parcel-imports";
+import { type ProducerLine, type ReportLine, reportCsv } from "@/lib/parcel-imports";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,7 +31,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         operator: (r.operator as { name?: string } | null)?.name ?? null,
       }));
   const base = data.file_name.replace(/\.[^.]+$/, "").replace(/[^\p{L}\p{N}_-]+/gu, "-").slice(0, 60) || "import";
-  return new NextResponse(reportCsv(lines, committed), {
+  const producers = (data.producers ?? []) as ProducerLine[];
+  return new NextResponse(reportCsv(lines, committed, producers), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="rapport-${encodeURIComponent(base)}.csv"`,

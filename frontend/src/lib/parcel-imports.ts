@@ -5,9 +5,12 @@
 import type { Tone } from "@/lib/parcels";
 
 export const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
-export const IMPORT_ACCEPT = ".kml,.kmz,.zip,.geojson,.json,.csv,.txt";
+export const IMPORT_ACCEPT = ".xlsx,.csv,.txt,.json,.geojson,.kml,.kmz,.zip,.gpx";
 
 export const IMPORT_FORMATS: Record<string, string> = {
+  xlsx: "Excel",
+  json: "JSON",
+  gpx: "GPX",
   kml: "KML",
   kmz: "KMZ",
   shapefile: "Shapefile",
@@ -51,7 +54,7 @@ export function checkFile(file: { name: string; size: number } | null): string |
   if (file.size > IMPORT_MAX_BYTES) return "Fichier trop lourd : 10 Mo au plus. Découpez-le.";
   const ext = file.name.toLowerCase().split(".").pop() ?? "";
   if (!IMPORT_ACCEPT.split(",").includes(`.${ext}`)) {
-    return "Format non reconnu. Formats acceptés : KML, KMZ, Shapefile (.zip), GeoJSON, CSV.";
+    return "Format non reconnu. Formats acceptés : Excel (.xlsx), CSV, JSON, GeoJSON, KML, KMZ, Shapefile (.zip), GPX.";
   }
   return null;
 }
@@ -66,8 +69,28 @@ export type ReportLine = {
   area_m2?: string | null;
 };
 
+export type ProducerLine = {
+  index: number;
+  name: string;
+  phone: string;
+  membership_number: string;
+  locality: string;
+  status: LineStatus;
+  action: "create" | "existing" | null;
+  messages: string[];
+  created?: boolean;
+};
+
+/** Ce que l'import fera (ou a fait) d'une ligne de l'onglet Producteurs. */
+export function producerOutcome(line: ProducerLine, committed: boolean): string {
+  if (line.status === "refused") return "Refusé";
+  if (line.action === "existing") return "Déjà dans le registre";
+  if (committed) return line.created ? "Créé" : "Non créé";
+  return line.status === "flagged" ? "Doublon probable" : "Nouvelle fiche";
+}
+
 /** Rapport CSV (séparateur « ; », BOM UTF-8) : s'ouvre directement dans Excel en français. */
-export function reportCsv(lines: ReportLine[], committed: boolean): string {
+export function reportCsv(lines: ReportLine[], committed: boolean, producers: ProducerLine[] = []): string {
   const cell = (v: unknown) => {
     const text = v === null || v === undefined ? "" : String(v);
     // Neutralise les formules (=, +, -, @) : le fichier vient d'un tiers.
@@ -87,5 +110,17 @@ export function reportCsv(lines: ReportLine[], committed: boolean): string {
       .map(cell)
       .join(";"),
   );
-  return `﻿${[header.join(";"), ...rows].join("\r\n")}\r\n`;
+  const blocks = [[header.join(";"), ...rows]];
+  if (producers.length) {
+    blocks.unshift([
+      ["Producteur (ligne)", "Nom", "Résultat", "Téléphone", "N° d'adhérent", "Motifs"].join(";"),
+      ...producers.map((p) =>
+        [p.index, p.name, producerOutcome(p, committed), p.phone, p.membership_number, p.messages.join(" | ")]
+          .map(cell)
+          .join(";"),
+      ),
+      "",
+    ]);
+  }
+  return `\uFEFF${blocks.flat().join("\r\n")}\r\n`;
 }

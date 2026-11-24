@@ -15,6 +15,7 @@ from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Prefetch, Q
+from django.http import HttpResponse
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
@@ -50,6 +51,7 @@ from apps.parcels.models import (
     ParcelOrganizationLink,
     ParcelRegistrationChannel,
 )
+from apps.parcels.template import build_template
 
 MAP_LIMIT = 1000  # parcelles par réponse de carte ; au-delà, zoomer
 
@@ -975,8 +977,14 @@ class MyParcelLinkDecisionView(APIView):
 # ── Import de parcelles par fichier (J15b) ───────────────────────────────
 
 
-def _import_payload(record, rows=None, *, with_report: bool = False) -> dict:
-    summary = {k: v for k, v in (record.summary or {}).items() if k != "report"}
+def _public_producer(line: dict) -> dict:
+    return {k: v for k, v in line.items() if k not in ("fields", "producer_id")}
+
+
+def _import_payload(record, rows=None, producers=None, *, with_report: bool = False) -> dict:
+    summary = {
+        k: v for k, v in (record.summary or {}).items() if k not in ("report", "producer_report")
+    }
     data = {
         "id": record.pk,
         "file_name": record.file_name,
@@ -987,13 +995,18 @@ def _import_payload(record, rows=None, *, with_report: bool = False) -> dict:
         "mapping": record.mapping,
         "summary": summary,
         "parcels_created": record.parcels_created,
+        "producers_created": record.producers_created,
         "created_at": record.created_at,
         "committed_at": record.committed_at,
     }
     if rows is not None:
         data["rows"] = rows
+    if producers:
+        data["producers"] = [_public_producer(p) for p in producers]
     if with_report and "report" in (record.summary or {}):
         data["report"] = record.summary["report"]
+        if record.summary.get("producer_report"):
+            data["producers"] = record.summary["producer_report"]
     return data
 
 
@@ -1024,6 +1037,7 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
         "preview": "parcels.manage",
         "commit": "parcels.manage",
         "discard": "parcels.manage",
+        "template": "parcels.manage",
     }
     queryset = None
     serializer_class = serializers.ParcelImportSerializer
@@ -1045,8 +1059,10 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
 
     def retrieve(self, request, pk=None):
         record = self._get()
-        rows = imports.evaluate(record, record.mapping)[0] if record.status == "previewed" else None
-        return Response(_import_payload(record, rows, with_report=True))
+        rows = producers = None
+        if record.status == "previewed":
+            rows, _, producers = imports.evaluate(record, record.mapping)
+        return Response(_import_payload(record, rows, producers, with_report=True))
 
     @extend_schema(
         tags=["parcels"],
@@ -1070,7 +1086,7 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
                 {"file": f"Fichier trop lourd (plus de {MAX_BYTES // (1024 * 1024)} Mo)."}
             )
         try:
-            record, rows = imports.start_import(
+            record, rows, producers = imports.start_import(
                 organization=request.workspace.organization,
                 by=request.user,
                 file_name=upload.name,
@@ -1078,7 +1094,7 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
             )
         except ImportFileError as exc:
             raise ValidationError({"file": [str(exc)]}) from exc
-        return Response(_import_payload(record, rows), status=status.HTTP_201_CREATED)
+        return Response(_import_payload(record, rows, producers), status=status.HTTP_201_CREATED)
 
     @extend_schema(
         tags=["parcels"],
@@ -1093,15 +1109,19 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
         serializer = serializers.ImportMappingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         record = self._get()
-        rows = _run(imports.preview, record, mapping=serializer.validated_data, by=request.user)
+        rows, producers = _run(
+            imports.preview, record, mapping=serializer.validated_data, by=request.user
+        )
         record.refresh_from_db()
-        return Response(_import_payload(record, rows))
+        return Response(_import_payload(record, rows, producers))
 
     @extend_schema(
         tags=["parcels"],
         summary="Confirmer l'import",
-        description="Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune avec "
-        "son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne sont jamais créées.",
+        description="Crée les producteurs de l'onglet Producteurs (modèle « Coopérative », "
+        "permission `producers.create` en plus), puis les parcelles `ok` (et `flagged` si "
+        "`include_flagged`), chacune avec son AgroID, en une seule fois (tout ou rien). Les "
+        "lignes refusées ne sont jamais créées.",
         request=serializers.ImportCommitSerializer,
         responses=serializers.ParcelImportSerializer,
     )
@@ -1109,13 +1129,37 @@ class ParcelImportViewSet(viewsets.GenericViewSet):
     def commit(self, request, pk=None):
         serializer = serializers.ImportCommitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        record = self._get()
+        if record.producer_rows and not request.workspace.has_permission("producers.create"):
+            raise PermissionDenied("Votre rôle ne permet pas d'enregistrer des producteurs.")
         record = _run(
             imports.commit,
-            self._get(),
+            record,
             by=request.user,
             include_flagged=serializer.validated_data["include_flagged"],
         )
         return Response(_import_payload(record, with_report=True))
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Modèle Excel « Coopérative »",
+        description="Classeur .xlsx à remplir : onglets Producteurs et Parcelles, reliés par le "
+        "n° d'adhérent, et une page d'explications. À déposer ensuite sur `POST /`.",
+        responses={
+            (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): (
+                OpenApiTypes.BINARY
+            )
+        },
+    )
+    @action(detail=False, methods=["get"])
+    def template(self, request):
+        response = HttpResponse(
+            build_template(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="modele-cooperative-pestai.xlsx"'
+        response["Cache-Control"] = "no-store"
+        return response
 
     @extend_schema(
         tags=["parcels"],

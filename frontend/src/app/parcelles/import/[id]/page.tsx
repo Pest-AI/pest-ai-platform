@@ -12,7 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
-import { IMPORT_FORMATS, LINE_STATUS, importStatus, type LineStatus, formatBytes } from "@/lib/parcel-imports";
+import {
+  IMPORT_FORMATS,
+  LINE_STATUS,
+  type LineStatus,
+  type ProducerLine,
+  formatBytes,
+  importStatus,
+  producerOutcome,
+} from "@/lib/parcel-imports";
 import { formatArea } from "@/lib/parcels";
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
@@ -62,6 +70,9 @@ export default async function ParcelImportPreviewPage({
   const rows = record.rows ?? [];
   const report = record.report ?? [];
   const lines = previewed ? rows : report;
+  const producers = (record.producers ?? []) as ProducerLine[];
+  const producerSummary = summary.producers;
+  const producersCreated = record.producers_created ?? 0;
   const shown = FILTERS.some(([v]) => v === filter) && filter ? lines.filter((l) => l.status === filter) : lines;
 
   return (
@@ -110,6 +121,9 @@ export default async function ParcelImportPreviewPage({
             <div>
               <p className="font-display text-[18px] font-semibold">
                 {record.parcels_created} parcelle{record.parcels_created > 1 ? "s" : ""} créée{record.parcels_created > 1 ? "s" : ""}
+                {producersCreated > 0
+                  ? ` · ${producersCreated} producteur${producersCreated > 1 ? "s" : ""} enregistré${producersCreated > 1 ? "s" : ""}`
+                  : ""}
               </p>
               <p className="text-[13px] text-muted">Chacune a reçu son AgroID. Les lignes non créées restent dans le rapport.</p>
             </div>
@@ -129,7 +143,7 @@ export default async function ParcelImportPreviewPage({
       ) : null}
 
       <StatRow>
-        <Stat label="Lignes lues" icon={MapPinned} value={String(summary.total)} hint={`${summary.without_contour} sans contour`} />
+        <Stat label="Parcelles lues" icon={MapPinned} value={String(summary.total)} hint={`${summary.without_contour} sans contour`} />
         <Stat
           label="Prêtes"
           icon={CircleCheck}
@@ -175,19 +189,82 @@ export default async function ParcelImportPreviewPage({
                 <p className="rounded-xl bg-surface px-4 py-3 text-[13px] text-muted">Le fichier n’a pas de colonnes d’attributs.</p>
               )}
             </Card>
-            <ImportMap rows={rows as ImportMapRow[]} />
+            {rows.length > 0 ? <ImportMap rows={rows as ImportMapRow[]} /> : null}
           </div>
           <Card className="h-fit rounded-2xl p-5 lg:sticky lg:top-5">
             <h2 className="text-[15px] font-semibold">Confirmer l’import</h2>
             <p className="mt-1 mb-4 text-[13px] text-muted">
               Les lignes refusées ne sont jamais créées. Corrigez le fichier et réimportez-les si besoin.
             </p>
-            <CommitForm importId={record.id} ok={summary.ok} flagged={summary.flagged} />
+            <CommitForm
+              importId={record.id}
+              ok={summary.ok}
+              flagged={summary.flagged}
+              producersNew={producerSummary?.create ?? 0}
+              producersFlagged={producerSummary?.flagged ?? 0}
+            />
             <div className="mt-3 border-t border-line pt-3">
               <DiscardButton importId={record.id} />
             </div>
           </Card>
         </div>
+      ) : null}
+
+      {producers.length > 0 ? (
+        <section className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-[16px] font-semibold">
+              <Users className="size-4 text-leaf" aria-hidden />
+              Onglet Producteurs
+            </h2>
+            {producerSummary ? (
+              <p className="text-[13px] text-muted">
+                {producerSummary.create} nouvelle{producerSummary.create > 1 ? "s" : ""} fiche{producerSummary.create > 1 ? "s" : ""} ·{" "}
+                {producerSummary.existing} déjà dans le registre · {producerSummary.flagged} doublon
+                {producerSummary.flagged > 1 ? "s" : ""} probable{producerSummary.flagged > 1 ? "s" : ""} · {producerSummary.refused} refusé
+                {producerSummary.refused > 1 ? "s" : ""}
+              </p>
+            ) : null}
+          </div>
+          <Card className="mt-3 overflow-hidden rounded-2xl">
+            <ul aria-label="Lignes de l'onglet Producteurs">
+              {producers.map((p) => {
+                const outcome = producerOutcome(p, !previewed);
+                const tone =
+                  p.status === "refused"
+                    ? "danger"
+                    : p.status === "flagged"
+                      ? "warning"
+                      : p.action === "existing" || (!previewed && !p.created)
+                        ? "neutral"
+                        : "success";
+                return (
+                  <li
+                    key={p.index}
+                    className="grid grid-cols-[48px_minmax(0,1fr)] items-start gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-0 sm:px-5 lg:grid-cols-[56px_minmax(0,1.2fr)_minmax(0,1fr)_170px_minmax(0,1.6fr)] lg:gap-4"
+                  >
+                    <span className="tabular font-mono text-[13px] text-muted">#{p.index}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold">
+                        {p.name || <span className="font-normal text-muted">Sans nom</span>}
+                      </span>
+                      {p.locality ? <span className="text-[12px] text-muted">{p.locality}</span> : null}
+                    </span>
+                    <span className="tabular truncate font-mono text-[12px] text-muted max-lg:col-start-2">
+                      {[p.membership_number && `N° ${p.membership_number}`, p.phone].filter(Boolean).join(" · ") || "—"}
+                    </span>
+                    <span className="max-lg:col-start-2">
+                      <StatusPill tone={tone}>{outcome}</StatusPill>
+                    </span>
+                    <span className="text-[13px] leading-5 text-muted max-lg:col-start-2">
+                      {p.messages.length ? p.messages.join(" ") : "—"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </section>
       ) : null}
 
       {lines.length > 0 ? (

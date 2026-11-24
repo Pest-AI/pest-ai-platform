@@ -579,7 +579,7 @@ export interface paths {
         put?: never;
         /**
          * Confirmer l'import
-         * @description Crée les parcelles `ok` (et `flagged` si `include_flagged`), chacune avec son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne sont jamais créées.
+         * @description Crée les producteurs de l'onglet Producteurs (modèle « Coopérative », permission `producers.create` en plus), puis les parcelles `ok` (et `flagged` si `include_flagged`), chacune avec son AgroID, en une seule fois (tout ou rien). Les lignes refusées ne sont jamais créées.
          */
         post: operations["parcel_imports_commit_create"];
         delete?: never;
@@ -622,6 +622,26 @@ export interface paths {
          * @description Colonne du nom de parcelle, colonne de l'exploitant et sa nature (`membership_number` : n° d'adhérent, `phone` : téléphone). L'aperçu est recalculé.
          */
         post: operations["parcel_imports_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcel-imports/template/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Modèle Excel « Coopérative »
+         * @description Classeur .xlsx à remplir : onglets Producteurs et Parcelles, reliés par le n° d'adhérent, et une page d'explications. À déposer ensuite sur `POST /`.
+         */
+        get: operations["parcel_imports_template_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1175,6 +1195,12 @@ export interface components {
             code: string;
             new_password: string;
         };
+        /**
+         * @description * `create` - create
+         *     * `existing` - existing
+         * @enum {string}
+         */
+        ActionEnum: "create" | "existing";
         ActivationCode: {
             readonly activation_code: string;
             /** Format: date-time */
@@ -1223,9 +1249,12 @@ export interface components {
          *     * `import_kml` - Import KML
          *     * `import_shapefile` - Import Shapefile
          *     * `import_csv` - Import CSV
+         *     * `import_xlsx` - Import Excel
+         *     * `import_json` - Import JSON
+         *     * `import_gpx` - Import GPX
          * @enum {string}
          */
-        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "manual_coordinates" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv";
+        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "manual_coordinates" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv" | "import_xlsx" | "import_json" | "import_gpx";
         /**
          * @description * `phone` - Téléphone
          *     * `whatsapp` - WhatsApp
@@ -1337,6 +1366,33 @@ export interface components {
             /** @default none */
             operator_key: components["schemas"]["OperatorKeyEnum"];
         };
+        ImportProducerLine: {
+            /** @description Ligne de l'onglet Producteurs (à partir de 1). */
+            index: number;
+            name: string;
+            /** @description Téléphone au format international, ou vide. */
+            phone: string;
+            membership_number: string;
+            locality: string;
+            status: components["schemas"]["ImportLineStatusEnum"];
+            /**
+             * @description `create` : nouvelle fiche ; `existing` : déjà dans le registre.
+             *
+             *     * `create` - create
+             *     * `existing` - existing
+             */
+            action: (components["schemas"]["ActionEnum"] | components["schemas"]["NullEnum"]) | null;
+            messages: string[];
+            /** @description Import confirmé : fiche créée. */
+            created?: boolean;
+        };
+        ImportProducerSummary: {
+            total: number;
+            create: number;
+            existing: number;
+            flagged: number;
+            refused: number;
+        };
         ImportReportLine: {
             index: number;
             label: string;
@@ -1379,11 +1435,14 @@ export interface components {
             without_contour: number;
             with_operator: number;
             created?: number;
+            producers_created?: number;
+            /** @description Modèle « Coopérative » : onglet Producteurs. */
+            producers?: components["schemas"]["ImportProducerSummary"];
         };
         ImportUploadRequest: {
             /**
              * Format: binary
-             * @description KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON ou CSV (colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1 000 parcelles au plus.
+             * @description Excel (.xlsx, dont le modèle « Coopérative »), CSV, JSON, GeoJSON, KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj) ou GPX. Tableaux : colonne « contour » (WKT ou relevé KoboToolbox / ODK), ou « latitude » et « longitude ». 10 Mo et 1 000 lignes au plus.
              */
             file: string;
         };
@@ -1520,6 +1579,8 @@ export interface components {
             /** Format: date-time */
             captured_at?: string | null;
         };
+        /** @enum {unknown} */
+        NullEnum: null;
         Operator: {
             /** Format: uuid */
             readonly id: string;
@@ -1821,6 +1882,7 @@ export interface components {
             mapping: components["schemas"]["ImportMapping"];
             summary: components["schemas"]["ImportSummary"];
             parcels_created: number;
+            producers_created: number;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -1829,6 +1891,8 @@ export interface components {
             rows?: components["schemas"]["ImportRow"][];
             /** @description Bilan ligne par ligne (import confirmé). */
             report?: components["schemas"]["ImportReportLine"][];
+            /** @description Modèle « Coopérative » : onglet Producteurs (aperçu, ou bilan après import). */
+            producers?: components["schemas"]["ImportProducerLine"][];
         };
         /**
          * @description * `previewed` - Aperçu (rien n'est encore créé)
@@ -3129,6 +3193,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParcelImport"];
+                };
+            };
+        };
+    };
+    parcel_imports_template_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                 };
             };
         };

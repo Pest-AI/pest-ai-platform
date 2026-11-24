@@ -440,6 +440,30 @@ class ImportRowSerializer(serializers.Serializer):
     geometry = serializers.DictField(allow_null=True, help_text="GeoJSON (WGS 84).")
 
 
+class ImportProducerLineSerializer(serializers.Serializer):
+    index = serializers.IntegerField(help_text="Ligne de l'onglet Producteurs (à partir de 1).")
+    name = serializers.CharField()
+    phone = serializers.CharField(help_text="Téléphone au format international, ou vide.")
+    membership_number = serializers.CharField()
+    locality = serializers.CharField()
+    status = serializers.ChoiceField(choices=["ok", "flagged", "refused"])
+    action = serializers.ChoiceField(
+        choices=["create", "existing"],
+        allow_null=True,
+        help_text="`create` : nouvelle fiche ; `existing` : déjà dans le registre.",
+    )
+    messages = serializers.ListField(child=serializers.CharField())
+    created = serializers.BooleanField(required=False, help_text="Import confirmé : fiche créée.")
+
+
+class ImportProducerSummarySerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    create = serializers.IntegerField()
+    existing = serializers.IntegerField()
+    flagged = serializers.IntegerField()
+    refused = serializers.IntegerField()
+
+
 class ImportSummarySerializer(serializers.Serializer):
     total = serializers.IntegerField()
     ok = serializers.IntegerField()
@@ -448,6 +472,10 @@ class ImportSummarySerializer(serializers.Serializer):
     without_contour = serializers.IntegerField()
     with_operator = serializers.IntegerField()
     created = serializers.IntegerField(required=False)
+    producers_created = serializers.IntegerField(required=False)
+    producers = ImportProducerSummarySerializer(
+        required=False, help_text="Modèle « Coopérative » : onglet Producteurs."
+    )
 
 
 class ImportReportLineSerializer(serializers.Serializer):
@@ -469,18 +497,26 @@ class ParcelImportSerializer(serializers.Serializer):
     mapping = ImportMappingSerializer()
     summary = ImportSummarySerializer()
     parcels_created = serializers.IntegerField()
+    producers_created = serializers.IntegerField()
     created_at = serializers.DateTimeField()
     committed_at = serializers.DateTimeField(allow_null=True)
     rows = ImportRowSerializer(many=True, required=False, help_text="Aperçu (import non confirmé).")
     report = ImportReportLineSerializer(
         many=True, required=False, help_text="Bilan ligne par ligne (import confirmé)."
     )
+    producers = ImportProducerLineSerializer(
+        many=True,
+        required=False,
+        help_text="Modèle « Coopérative » : onglet Producteurs (aperçu, ou bilan après import).",
+    )
 
 
 class ImportUploadSerializer(serializers.Serializer):
     file = serializers.FileField(
-        help_text="KML, KMZ, Shapefile (.zip avec .shp, .shx, .dbf, .prj), GeoJSON ou CSV "
-        "(colonne « wkt », ou « latitude » et « longitude »). 10 Mo et 1 000 parcelles au plus."
+        help_text="Excel (.xlsx, dont le modèle « Coopérative »), CSV, JSON, GeoJSON, KML, KMZ, "
+        "Shapefile (.zip avec .shp, .shx, .dbf, .prj) ou GPX. Tableaux : colonne « contour » "
+        "(WKT ou relevé KoboToolbox / ODK), ou « latitude » et « longitude ». 10 Mo et 1 000 "
+        "lignes au plus."
     )
 
 

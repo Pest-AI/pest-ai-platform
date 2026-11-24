@@ -89,15 +89,35 @@ export function MappingForm({
 }
 
 /** Confirmation : crée les lignes prêtes (et, sur demande, celles à vérifier). */
-export function CommitForm({ importId, ok, flagged }: { importId: string; ok: number; flagged: number }) {
+export function CommitForm({
+  importId,
+  ok,
+  flagged,
+  producersNew = 0,
+  producersFlagged = 0,
+}: {
+  importId: string;
+  ok: number;
+  flagged: number;
+  producersNew?: number;
+  producersFlagged?: number;
+}) {
   const [state, action, pending] = useActionState<ImportState, FormData>(commitImport, { status: "idle" });
   const [withFlagged, setWithFlagged] = useState(false);
   const count = ok + (withFlagged ? flagged : 0);
+  const people = producersNew + (withFlagged ? producersFlagged : 0);
+  const toCheck = flagged + producersFlagged;
+  const label = [
+    people ? `${people} producteur${people > 1 ? "s" : ""}` : "",
+    count ? `${count} parcelle${count > 1 ? "s" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" et ");
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="import_id" value={importId} />
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
-      {flagged > 0 ? (
+      {toCheck > 0 ? (
         <label className="flex items-start gap-2.5 text-[13px] leading-5">
           <input
             type="checkbox"
@@ -107,16 +127,16 @@ export function CommitForm({ importId, ok, flagged }: { importId: string; ok: nu
             className="mt-0.5 size-4 accent-[var(--color-leaf)]"
           />
           <span>
-            Créer aussi les {flagged} ligne{flagged > 1 ? "s" : ""} à vérifier
-            <span className="block text-muted">Les contours signalés restent « à vérifier » sur leur fiche.</span>
+            {toCheck > 1 ? `Créer aussi les ${toCheck} lignes à vérifier` : "Créer aussi la ligne à vérifier"}
+            <span className="block text-muted">
+              Doublons probables : une nouvelle fiche est créée. Contours signalés : « à vérifier » sur leur fiche.
+            </span>
           </span>
         </label>
       ) : null}
-      <Button type="submit" disabled={pending || count === 0} className="h-10 w-full rounded-xl">
+      <Button type="submit" disabled={pending || (count === 0 && people === 0)} className="h-10 w-full rounded-xl">
         {pending ? <LoaderCircle className="animate-spin" aria-hidden /> : <Check aria-hidden />}
-        {count === 0
-          ? "Aucune parcelle à créer"
-          : `Créer ${count} parcelle${count > 1 ? "s" : ""} avec AgroID`}
+        {label ? `Créer ${label}` : "Rien à créer"}
       </Button>
       <p className="text-[12px] leading-5 text-muted">
         Les contours importés seront « à confirmer par un relevé terrain ». Une parcelle créée garde son AgroID pour
