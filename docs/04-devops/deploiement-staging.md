@@ -35,6 +35,17 @@ Toute l'infrastructure Render est décrite dans [`render.yaml`](../../render.yam
 
 Chaque push sur `main` qui touche `docs-site/` redéploie le site.
 
+## 2 bis. App terrain (PWA) sur Vercel
+
+L'app terrain (`mobile/`) est publiée comme site web installable sur `terrain.pestai.africa` ([ADR-0009](../01-architecture/adr/0009-app-terrain-pwa-d-abord.md)).
+
+1. Vercel : **Add New → Project**, importer de nouveau `Pest-AI/pest-ai-platform`.
+2. Nom du projet : `pestai-terrain`. **Root Directory : `mobile`**. Le reste est lu dans [`mobile/vercel.json`](../../mobile/vercel.json) : installation `npm ci`, build `expo export --platform web`, dossier `dist`, relais de `/api/…` vers l'API de staging, en-têtes de sécurité. Aucune variable d'environnement à saisir. Cliquer **Deploy**.
+3. Render : vérifier que la variable `WEB_SESSION_ALLOWED_ORIGINS` du service API vaut `https://terrain.pestai.africa` (ajoutée au Blueprint ; sinon **Environment → Add**), puis redéployer l'API.
+4. Domaine : projet `pestai-terrain` → **Settings → Domains → Add** `terrain.pestai.africa`, et le CNAME chez GoDaddy (tableau ci-dessous).
+
+Contrôle après déploiement : ouvrir `https://terrain.pestai.africa` sur un téléphone, se connecter, recharger la page (la session doit rester ouverte), puis se déconnecter.
+
 ## 3. Sous-domaines pestai.africa
 
 Chez le gestionnaire DNS de `pestai.africa` (voir `dig NS pestai.africa +short`), ajouter :
@@ -43,6 +54,7 @@ Chez le gestionnaire DNS de `pestai.africa` (voir `dig NS pestai.africa +short`)
 |---|---|---|
 | CNAME | `api-staging` | `pestai-api-staging.onrender.com` (valeur exacte affichée par Render) |
 | CNAME | `docs` | valeur affichée par Vercel (en général `cname.vercel-dns.com`) |
+| CNAME | `terrain` | valeur affichée par Vercel pour le projet `pestai-terrain` |
 
 Puis déclarer chaque domaine côté hébergeur :
 
@@ -70,4 +82,5 @@ curl https://api-staging.pestai.africa/api/v1/health/
 | `PEST_AI_ENVIRONMENT` | `render.yaml` | `staging` (affiché par `/api/v1/health/`) |
 | `DJANGO_ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` | `render.yaml` | Domaine personnalisé (le domaine `….onrender.com` est ajouté automatiquement) |
 | `CORS_ALLOWED_ORIGINS` | `render.yaml` | Origines autorisées à appeler l'API depuis un navigateur |
+| `WEB_SESSION_ALLOWED_ORIGINS` | `render.yaml` | Origines de l'app terrain autorisées à ouvrir une session par cookie |
 | `INITIAL_ADMIN_*` | Tableau de bord Render | Compte d'administration initial |

@@ -1,6 +1,6 @@
 # 0005 — Application mobile React Native (Expo) à la place de la PWA
 
-- **Statut :** Accepté — remplace la décision DEC-14 (PWA)
+- **Statut :** Accepté — remplace la décision DEC-14 (PWA) ; distribution complétée par l'[ADR-0009](0009-app-terrain-pwa-d-abord.md) (PWA d'abord, même code)
 - **Date :** 22/11/2026
 - **Décideurs :** Thierno Bocar Dieng (CEO)
 

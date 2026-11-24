@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { InstallCard } from "@/components/install-card";
 import { Alert, Button, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
@@ -144,6 +145,8 @@ export default function WorkspacesScreen() {
             </T>
           </View>
         ) : null}
+
+        <InstallCard />
 
         {me?.is_platform_admin ? (
           <T style={[styles.meta, { textAlign: "center", marginTop: 8 }]}>La Console d&apos;administration est disponible sur le Web OS.</T>

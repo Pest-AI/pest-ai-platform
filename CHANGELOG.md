@@ -22,6 +22,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Web OS : page Producteurs (liste, recherche, fiche, création avec gestion des doublons, modification, retrait) ; indicateur et étape « producteurs » sur la vue d'ensemble.
 
 - **App mobile (J10)** : projet Expo dans `mobile/` (connexion, choix de l'espace, registre des producteurs avec recherche et appel direct, fiche producteur) ; jetons dans le trousseau du téléphone, renouvellement unique en cas d'expiration, délai réseau de 20 s, bandeau hors ligne, déconnexion avec confirmation ; icônes aux couleurs PEST AI ; CI « Mobile » (types de l'API, TypeScript, tests).
+- **App terrain en PWA (J10b)** : même code que l'app mobile, publié sur `terrain.pestai.africa` (Vercel, relais `/api/` vers l'API) ; installable (manifeste, icônes, service worker, proposition d'installation Android et iPhone) ; s'ouvre hors ligne ; session navigateur par cookie httpOnly via `POST /api/v1/auth/web/{token,refresh,logout}/` (jeton d'accès en mémoire, contrôle d'origine) ; ADR-0009.
 - **Tests de bout en bout (J10)** : Playwright dans `frontend/e2e` (sécurité, parcours connecté, déconnexion ; création de données uniquement sur demande) ; workflow manuel « E2E staging ».
 - **Sécurité (J10)** : en-têtes HTTP du Web OS (CSP, anti-iframe, HSTS…), refus des routes de session appelées depuis un autre site, `check --deploy` en CI, limite de 10 tentatives de connexion par minute et par numéro (429 + message clair), revue documentée dans `docs/05-security/revue-securite-j10.md`.
 

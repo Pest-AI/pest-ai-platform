@@ -47,6 +47,9 @@ services:
         value: https://api-staging.pestai.africa
       - key: CORS_ALLOWED_ORIGINS
         value: https://docs.pestai.africa
+      # App terrain (PWA) : origine autorisée à ouvrir une session par cookie (ADR-0009).
+      - key: WEB_SESSION_ALLOWED_ORIGINS
+        value: https://terrain.pestai.africa
       # Compte d'administration initial : valeurs saisies dans le tableau de bord Render
       # au moment de l'application du Blueprint (jamais dans le dépôt).
       - key: INITIAL_ADMIN_PHONE

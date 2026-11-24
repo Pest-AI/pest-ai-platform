@@ -164,6 +164,13 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
+# ── Session web de l'app terrain (PWA) ────────────────────
+# Jeton de renouvellement en cookie httpOnly (voir apps/accounts/web_session.py).
+# Origines autorisées : l'adresse de l'app terrain, ex. https://terrain.pestai.africa
+WEB_SESSION_ALLOWED_ORIGINS = env.list("WEB_SESSION_ALLOWED_ORIGINS", default=[])
+WEB_SESSION_COOKIE_NAME = "pestai_terrain_refresh"
+WEB_SESSION_COOKIE_SECURE = env.bool("WEB_SESSION_COOKIE_SECURE", default=True)
+
 # ── Documentation de l'API (OpenAPI 3) ────────────────────
 SPECTACULAR_SETTINGS = {
     "TITLE": "PEST AI OS — API",

@@ -8,12 +8,16 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { OfflineBanner } from "@/components/offline-banner";
+import { registerServiceWorker } from "@/lib/pwa";
 import { SessionProvider } from "@/lib/session";
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded] = useFonts({ Questrial_400Regular, JetBrainsMono_500Medium });
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
   useEffect(() => {
     if (loaded) void SplashScreen.hideAsync();
   }, [loaded]);

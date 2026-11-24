@@ -54,6 +54,18 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/logout/ \
   -d '{"refresh": "<refresh>"}'
 ```
 
+## App terrain dans un navigateur (PWA)
+
+L'app terrain publiée sur `terrain.pestai.africa` utilise trois routes dédiées, où le jeton de renouvellement n'est jamais exposé à la page :
+
+| Route | Effet |
+|---|---|
+| `POST /api/v1/auth/web/token/` | Connexion : renvoie `{"access"}` et pose le cookie `httpOnly` de renouvellement |
+| `POST /api/v1/auth/web/refresh/` | Nouveau `access` à partir du cookie (rotation, l'ancien jeton est révoqué) |
+| `POST /api/v1/auth/web/logout/` | Révoque le jeton du cookie et efface le cookie (`204`) |
+
+Ces routes n'acceptent que les origines déclarées (`WEB_SESSION_ALLOWED_ORIGINS`) : `403` sinon. Elles sont réservées à l'app terrain ; une intégration serveur ou une app native utilise les routes classiques ci-dessus.
+
 ## Profil et mot de passe
 
 | Requête | Corps | Réponse |

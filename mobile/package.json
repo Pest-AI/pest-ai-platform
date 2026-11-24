@@ -40,7 +40,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "gen:api": "npx -y -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript ../docs-site/static/openapi.yaml -o src/lib/schema.d.ts",
-    "check:api": "npx -y -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript ../docs-site/static/openapi.yaml -o /tmp/pestai-mobile-schema.d.ts && diff -q /tmp/pestai-mobile-schema.d.ts src/lib/schema.d.ts"
+    "check:api": "npx -y -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript ../docs-site/static/openapi.yaml -o /tmp/pestai-mobile-schema.d.ts && diff -q /tmp/pestai-mobile-schema.d.ts src/lib/schema.d.ts",
+    "web:build": "expo export --platform web",
+    "web:preview": "node scripts/preview-web.mjs dist"
   },
   "private": true,
   "jest": {

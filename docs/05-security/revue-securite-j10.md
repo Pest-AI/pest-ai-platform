@@ -12,6 +12,7 @@ Périmètre : API Django, Web OS Next.js, app mobile Expo. Revue faite le 24/11/
 | Jetons | JWT : accès 15 min, renouvellement 7 j avec rotation et liste noire |
 | Web OS | Jetons en cookies `httpOnly`, `Secure` en production, `SameSite=Lax` ; jamais lisibles par le JavaScript de la page |
 | Mobile | Jetons dans le trousseau du téléphone (`expo-secure-store`) ; sauvegarde Android désactivée |
+| App terrain dans le navigateur (PWA) | Jeton de renouvellement en cookie `httpOnly`, `Secure`, `SameSite=Strict`, limité à `/api/v1/auth/web/` ; jeton d'accès en mémoire seulement ; contrôle de l'origine sur chaque route de session ; CSP sans script en ligne ; le service worker ne met jamais en cache `/api/` (J10b) |
 | Déconnexion | Jeton de renouvellement révoqué côté serveur ; confirmation demandée à l'utilisateur |
 | Activation | Code à usage unique, haché, 7 jours, 5 essais ; 20 tentatives par heure et par numéro |
 | Tentatives de connexion | **Ajouté au J10** : 10 par minute et par numéro (`THROTTLE_AUTH_LOGIN`) ; l'activation passe aussi d'une limite par adresse IP (20 par heure pour tout le Web OS) à une limite par numéro, puis 429 avec `Retry-After` et message clair sur le Web OS et le mobile. Limite par numéro et non par adresse IP, car tout le Web OS passe par les mêmes serveurs Vercel |

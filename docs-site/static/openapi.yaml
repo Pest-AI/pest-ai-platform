@@ -116,6 +116,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenRefresh'
           description: ''
+  /api/v1/auth/web/logout/:
+    post:
+      operationId: auth_web_logout_create
+      description: 'POST /api/v1/auth/web/logout/ : révoque le jeton du cookie et
+        efface le cookie.'
+      summary: Se déconnecter (app terrain, navigateur)
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '204':
+          description: Session fermée.
+        '403':
+          description: Origine non autorisée.
+  /api/v1/auth/web/refresh/:
+    post:
+      operationId: auth_web_refresh_create
+      description: 'Lit le cookie de session, renvoie un nouveau `access` et remplace
+        le cookie (l''ancien jeton est mis sur liste noire). Sans cookie valide :
+        401 et cookie effacé.'
+      summary: Renouveler le jeton d'accès (app terrain, navigateur)
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAccessToken'
+          description: ''
+        '401':
+          description: Pas de session valide.
+        '403':
+          description: Origine non autorisée.
+  /api/v1/auth/web/token/:
+    post:
+      operationId: auth_web_token_create
+      description: Comme `POST /api/v1/auth/token/`, mais le jeton de renouvellement
+        est posé dans un cookie httpOnly et seul `access` est renvoyé. Réservé aux
+        origines autorisées.
+      summary: Se connecter (app terrain, navigateur)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebLoginRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WebLoginRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WebLoginRequestRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAccessToken'
+          description: ''
+        '401':
+          description: Identifiants incorrects.
+        '403':
+          description: Origine non autorisée.
+        '429':
+          description: Trop de tentatives pour ce numéro.
   /api/v1/me/:
     get:
       operationId: me_retrieve
@@ -2439,6 +2512,25 @@ components:
           minLength: 1
       required:
       - refresh
+    WebAccessToken:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    WebLoginRequestRequest:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+      - phone_number
     WorkspaceContext:
       type: object
       properties:

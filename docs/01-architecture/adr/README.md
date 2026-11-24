@@ -12,6 +12,7 @@ Un ADR (*Architecture Decision Record*) documente une décision structurante : l
 | [0006](0006-documentation-api.md) | Documentation API : OpenAPI + Docusaurus + Scalar | Accepté | 22/11/2026 |
 | [0007](0007-environnement-local.md) | Environnement local : Postgres.app, bibliothèques GDAL configurables | Accepté | 22/11/2026 |
 | [0008](0008-session-web-cookies-httponly.md) | Session du Web OS : jetons en cookies httpOnly via le serveur Next.js | Accepté | 23/11/2026 |
+| [0009](0009-app-terrain-pwa-d-abord.md) | App terrain publiée d'abord en PWA (`terrain.pestai.africa`), puis sur les stores, même code | Accepté | 24/11/2026 |
 
 ## Créer un ADR
 

@@ -1,4 +1,4 @@
-# Intégration continue de l'app mobile (Expo) : types de l'API à jour, types TypeScript, tests.
+# Intégration continue de l'app terrain (Expo) : types de l'API à jour, types TypeScript, tests, build de la PWA.
 name: Mobile
 
 on:
@@ -28,7 +28,7 @@ defaults:
 
 jobs:
   check:
-    name: Types, tests
+    name: Types, tests, PWA
     runs-on: ubuntu-24.04
     env:
       EXPO_NO_TELEMETRY: "1"
@@ -49,3 +49,5 @@ jobs:
         run: npm run typecheck
       - name: Tests
         run: npm test -- --ci
+      - name: Construire la PWA
+        run: npm run web:build

@@ -20,6 +20,7 @@ SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 # Le contrôle de santé de Render interroge le service directement : pas de redirection HTTPS.
 SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]
 SESSION_COOKIE_SECURE = True
+WEB_SESSION_COOKIE_SECURE = True  # Cookie de l'app terrain : HTTPS uniquement.
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=60)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

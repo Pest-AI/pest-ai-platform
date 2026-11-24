@@ -84,6 +84,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/web/logout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Se déconnecter (app terrain, navigateur)
+         * @description POST /api/v1/auth/web/logout/ : révoque le jeton du cookie et efface le cookie.
+         */
+        post: operations["auth_web_logout_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/web/refresh/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renouveler le jeton d'accès (app terrain, navigateur)
+         * @description Lit le cookie de session, renvoie un nouveau `access` et remplace le cookie (l'ancien jeton est mis sur liste noire). Sans cookie valide : 401 et cookie effacé.
+         */
+        post: operations["auth_web_refresh_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/web/token/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Se connecter (app terrain, navigateur)
+         * @description Comme `POST /api/v1/auth/token/`, mais le jeton de renouvellement est posé dans un cookie httpOnly et seul `access` est renvoyé. Réservé aux origines autorisées.
+         */
+        post: operations["auth_web_token_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/": {
         parameters: {
             query?: never;
@@ -1173,6 +1233,13 @@ export interface components {
         TokenRefreshRequest: {
             refresh: string;
         };
+        WebAccessToken: {
+            access: string;
+        };
+        WebLoginRequestRequest: {
+            phone_number: string;
+            password: string;
+        };
         WorkspaceContext: {
             kind: components["schemas"]["KindEnum"];
             /** Format: uuid */
@@ -1304,6 +1371,110 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TokenRefresh"];
                 };
+            };
+        };
+    };
+    auth_web_logout_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session fermée. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Origine non autorisée. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_web_refresh_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAccessToken"];
+                };
+            };
+            /** @description Pas de session valide. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Origine non autorisée. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_web_token_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebLoginRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WebLoginRequestRequest"];
+                "multipart/form-data": components["schemas"]["WebLoginRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAccessToken"];
+                };
+            };
+            /** @description Identifiants incorrects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Origine non autorisée. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Trop de tentatives pour ce numéro. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

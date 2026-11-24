@@ -7,6 +7,12 @@
  *   (le jeton de rafraîchissement est à usage unique : rotation + liste noire côté API) ;
  * - délai maximal par requête : sans réponse, l'erreur est « réseau indisponible » ;
  * - en-tête X-Workspace passé explicitement pour toute route d'espace.
+ *
+ * Deux modes de session :
+ * - « native » (téléphone) : jetons d'accès et de renouvellement dans le coffre sécurisé ;
+ * - « cookie » (navigateur, PWA) : le jeton de renouvellement est un cookie httpOnly posé par
+ *   l'API sur `/api/v1/auth/web/`, illisible par la page ; seul le jeton d'accès (15 min) est
+ *   gardé, en mémoire. Au rechargement de la page, il est redemandé avec le cookie.
  */
 import { apiErrorMessage } from "./errors";
 import { KEYS, type KeyValueStore } from "./storage";
@@ -47,25 +53,40 @@ type Options = {
 };
 
 export type ApiClient = ReturnType<typeof createApiClient>;
+export type SessionMode = "native" | "cookie";
+
+const ROUTES = {
+  native: { login: "/api/v1/auth/token/", refresh: "/api/v1/auth/token/refresh/", logout: "/api/v1/auth/logout/" },
+  cookie: { login: "/api/v1/auth/web/token/", refresh: "/api/v1/auth/web/refresh/", logout: "/api/v1/auth/web/logout/" },
+} as const;
 
 export function createApiClient({
   baseUrl,
   store,
   fetchImpl = fetch,
   timeoutMs = 20_000,
+  mode = "native",
 }: {
   baseUrl: string;
   store: KeyValueStore;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  mode?: SessionMode;
 }) {
   let refreshing: Promise<boolean> | null = null;
+  const routes = ROUTES[mode];
+  const cookie = mode === "cookie";
 
   async function send(path: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetchImpl(`${baseUrl}${path}`, { ...init, signal: controller.signal });
+      return await fetchImpl(`${baseUrl}${path}`, {
+        ...init,
+        // Mode cookie : le navigateur joint le cookie de session (même origine uniquement).
+        ...(cookie ? { credentials: "same-origin" as const } : null),
+        signal: controller.signal,
+      });
     } catch {
       throw new NetworkError();
     } finally {
@@ -87,18 +108,23 @@ export function createApiClient({
   function refreshTokens(): Promise<boolean> {
     if (!refreshing) {
       refreshing = (async () => {
-        const refresh = await store.get(KEYS.refresh);
-        if (!refresh) return false;
-        const response = await send("/api/v1/auth/token/refresh/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({ refresh }),
-        });
+        let response: Response;
+        if (cookie) {
+          response = await send(routes.refresh, { method: "POST", headers: { Accept: "application/json" } });
+        } else {
+          const refresh = await store.get(KEYS.refresh);
+          if (!refresh) return false;
+          response = await send(routes.refresh, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({ refresh }),
+          });
+        }
         if (!response.ok) return false;
         const tokens = (await readJson(response)) as { access?: string; refresh?: string } | null;
         if (!tokens?.access) return false;
         await store.set(KEYS.access, tokens.access);
-        if (tokens.refresh) await store.set(KEYS.refresh, tokens.refresh);
+        if (tokens.refresh && !cookie) await store.set(KEYS.refresh, tokens.refresh);
         return true;
       })().finally(() => {
         refreshing = null;
@@ -117,7 +143,9 @@ export function createApiClient({
     if (body !== undefined) headers["Content-Type"] = "application/json";
     if (workspace) headers["X-Workspace"] = workspace;
     if (auth) {
-      const access = await store.get(KEYS.access);
+      let access = await store.get(KEYS.access);
+      // Mode cookie, page rechargée : le jeton d'accès (en mémoire) est redemandé avec le cookie.
+      if (!access && cookie && !retried && (await refreshTokens())) access = await store.get(KEYS.access);
       if (!access) throw new SessionExpiredError();
       headers.Authorization = `Bearer ${access}`;
     }
@@ -151,13 +179,13 @@ export function createApiClient({
     /** Connexion par numéro E.164 et mot de passe ; les jetons vont dans le stockage sécurisé. */
     async login(phoneNumber: string, password: string) {
       try {
-        const tokens = await request<{ access: string; refresh: string }>("/api/v1/auth/token/", {
+        const tokens = await request<{ access: string; refresh?: string }>(routes.login, {
           method: "POST",
           auth: false,
           body: { phone_number: phoneNumber, password },
         });
         await store.set(KEYS.access, tokens.access);
-        await store.set(KEYS.refresh, tokens.refresh);
+        if (tokens.refresh && !cookie) await store.set(KEYS.refresh, tokens.refresh);
       } catch (error) {
         if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
           throw new ApiError(error.status, { detail: "Numéro de téléphone ou mot de passe incorrect." });
@@ -171,19 +199,22 @@ export function createApiClient({
 
     /** Déconnexion : le jeton de rafraîchissement est invalidé côté API (si le réseau le permet). */
     async logout() {
-      const refresh = await store.get(KEYS.refresh);
-      if (refresh) {
-        try {
-          await request("/api/v1/auth/logout/", { method: "POST", auth: false, body: { refresh } });
-        } catch {
-          // Hors ligne : le jeton expirera de lui-même ; la session locale est effacée dans tous les cas.
+      try {
+        if (cookie) {
+          await request(routes.logout, { method: "POST", auth: false });
+        } else {
+          const refresh = await store.get(KEYS.refresh);
+          if (refresh) await request(routes.logout, { method: "POST", auth: false, body: { refresh } });
         }
+      } catch {
+        // Hors ligne : le jeton expirera de lui-même ; la session locale est effacée dans tous les cas.
       }
       await clearSession();
     },
 
+    /** Mode cookie : la page ne peut pas voir le cookie, c'est la première requête qui tranche. */
     async hasSession() {
-      return Boolean(await store.get(KEYS.refresh));
+      return cookie ? true : Boolean(await store.get(KEYS.refresh));
     },
 
     getWorkspace: () => store.get(KEYS.workspace),

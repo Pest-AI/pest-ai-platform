@@ -10,6 +10,13 @@ CORS_ALLOWED_ORIGINS = env.list(
     default=["http://localhost:3000", "http://127.0.0.1:3000"],
 )
 
+# App terrain en local : serveur Expo (8081) et aperçu de la version publiée (4173), en HTTP.
+WEB_SESSION_ALLOWED_ORIGINS = env.list(
+    "WEB_SESSION_ALLOWED_ORIGINS",
+    default=["http://localhost:8081", "http://localhost:4173", "http://127.0.0.1:4173"],
+)
+WEB_SESSION_COOKIE_SECURE = env.bool("WEB_SESSION_COOKIE_SECURE", default=False)
+
 # GDAL < 3.9 (Postgres.app, Ubuntu 24.04) : avertissement de sécurité gis.W001.
 # Toléré en local et en test uniquement. La production (Docker) utilise GDAL >= 3.9
 # et ne masque pas cet avertissement. Voir ADR-0007.
