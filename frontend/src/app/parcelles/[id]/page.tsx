@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, History, Ruler, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, History, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -23,6 +23,8 @@ import {
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 
 import { ReviewForm } from "../review-form";
+import { type CycleRow } from "@/components/cycle-table";
+import { CYCLE_STATUS } from "@/lib/agriculture";
 
 export const metadata: Metadata = { title: "Fiche parcelle" };
 
@@ -58,12 +60,13 @@ export default async function ParcelPage({
   if (!workspace) redirect("/espaces");
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult] = await Promise.all([
+  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult, cyclesResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/parcels/{id}/", { params: { header, path: { id } } }),
     api.GET("/api/v1/parcels/{id}/history/", { params: { header, path: { id } } }),
     api.GET("/api/v1/workspace/", { headers: header }),
+    api.GET("/api/v1/crop-cycles/", { params: { header, query: { parcel: id } } }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -73,7 +76,11 @@ export default async function ParcelPage({
   const history = historyResult.data;
   const roles = me.memberships.find((m) => m.workspace === workspace)?.roles ?? [];
   const typeLabel = ORGANIZATION_TYPE_LABELS[org.organization_type] ?? org.organization_type;
-  const canReview = (contextResult.data?.permissions ?? []).includes("parcels.validate_geometry");
+  const permissions = contextResult.data?.permissions ?? [];
+  const canReview = permissions.includes("parcels.validate_geometry");
+  // null : cycles non accessibles avec ce rôle (section masquée).
+  const cycles = cyclesResult.data ? (cyclesResult.data.results as CycleRow[]) : null;
+  const canStartCycle = permissions.includes("crop_cycles.manage") && p.status !== "retired";
   const st = parcelStatus(p.status);
   const current = p.current_geometry;
   const validation = current ? VALIDATION_STATUS[current.validation.status] : null;
@@ -251,6 +258,36 @@ export default async function ParcelPage({
             )}
             <p className="mt-3 text-[12px] text-muted">La propriété et l&apos;exploitation sont tenues séparément.</p>
           </Section>
+
+          {cycles ? (
+            <Section title="Cycles de culture" icon={Sprout}>
+              {cycles.length ? (
+                <ul className="divide-y divide-line">
+                  {cycles.slice(0, 6).map((c) => {
+                    const cst = CYCLE_STATUS[c.status] ?? { label: c.status, tone: "neutral" as const };
+                    return (
+                      <li key={c.id}>
+                        <Link href={`/cycles/${c.id}`} className="flex items-center gap-3 py-2 hover:opacity-80">
+                          <span className="min-w-0 flex-1 truncate text-[13px]">
+                            <span className="font-semibold">{c.crop.name_fr}</span>
+                            <span className="text-muted"> · {c.campaign?.name ?? "hors campagne"}</span>
+                          </span>
+                          <StatusPill tone={cst.tone}>{cst.label}</StatusPill>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <Empty>Aucun cycle de culture.</Empty>
+              )}
+              {canStartCycle ? (
+                <Link href={`/cycles/nouveau?parcelle=${p.id}`} className="mt-3 inline-block text-[13px] font-semibold text-brand-700 hover:underline">
+                  Démarrer un cycle sur cette parcelle
+                </Link>
+              ) : null}
+            </Section>
+          ) : null}
 
           <Section title="Unités de culture" icon={Ruler}>
             {p.units.length ? (

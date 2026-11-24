@@ -38,7 +38,7 @@ export const COOPERATIVE_NAV: NavSection[] = [
   {
     title: "Production",
     items: [
-      { label: "Campagnes", icon: "calendar" }, // J16
+      { label: "Campagnes", icon: "calendar", href: "/campagnes" }, // J16 → J17
       { label: "Observations terrain", icon: "eye" }, // J17 → J19
       { label: "Diagnostics", icon: "leaf" }, // J21 → J23
     ],

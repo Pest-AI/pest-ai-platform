@@ -465,3 +465,10 @@ def test_exploitant_hors_organisation_rien_n_est_cree(admin, orgs, make_member):
     before = Parcel.objects.count()
     res = admin.post(URL, {"position": [LON, LAT], "operator": str(stranger.pk)}, format="json")
     assert res.status_code == 400 and Parcel.objects.count() == before
+
+
+def test_recherche_par_morceau_d_agroid(admin, created):
+    part = created["agroid"][:9]  # « PAI-SN-XX »
+    assert admin.get(f"{URL}?q={part}").json()["count"] == 1
+    assert admin.get(f"{URL}?q={created['agroid'][-4:].lower()}").json()["count"] == 1
+    assert admin.get(f"{URL}?q=fleuve").json()["count"] == 1

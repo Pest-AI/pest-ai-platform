@@ -11,6 +11,7 @@ pas révélée).
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from django.contrib.gis.geos import Point
@@ -272,8 +273,12 @@ class ParcelViewSet(
         q = (params.get("q") or "").strip()
         if q:
             canonical = agroid_format.normalize(q)
+            # AgroID complet (saisie tolérée), sinon morceau d'AgroID ou du nom local.
+            compact = re.sub(r"[^0-9A-Za-z-]", "", q).upper()
             queryset = queryset.filter(
-                Q(agroid=canonical) if canonical else Q(local_name__icontains=q)
+                Q(agroid=canonical)
+                if canonical
+                else Q(local_name__icontains=q) | Q(agroid__icontains=compact or q)
             )
         if params.get("status") in Parcel.Status.values:
             queryset = queryset.filter(status=params["status"])
