@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * Carte des parcelles (vue d'ensemble, maquette AI Studio).
  *
  * - Fond satellite ou plan ; contours chargés pour la zone affichée (`/parcelles/carte`),
- *   à chaque déplacement, avec les filtres de la page (statut, exploitant).
+ *   à chaque déplacement, avec les filtres de la page (statut, exploitant, campagne, culture).
  * - Couleur selon le statut ; clic sur une parcelle : carte d'identité et lien vers sa fiche.
  * - Recherche par AgroID (saisie tolérée) ou par nom : la carte se centre sur la parcelle.
  */
@@ -27,7 +27,7 @@ const PLAN = "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.p
 const EMPTY = { type: "FeatureCollection" as const, features: [] };
 
 export type MapView = { center: [number, number]; zoom: number };
-export type MapFilters = { status?: string; producer?: string };
+export type MapFilters = { status?: string; producer?: string; campaign?: string; crop?: string };
 
 type Props = {
   view: MapView;
@@ -131,6 +131,8 @@ export function ParcelMap({ view, fitBbox, filters, total, emptyLabel, heightCla
       const f = filtersRef.current;
       if (f?.status) params.set("statut", f.status);
       if (f?.producer) params.set("producteur", f.producer);
+      if (f?.campaign) params.set("campagne", f.campaign);
+      if (f?.crop) params.set("culture", f.crop);
       request.current?.abort();
       const controller = new AbortController();
       request.current = controller;
@@ -252,10 +254,12 @@ export function ParcelMap({ view, fitBbox, filters, total, emptyLabel, heightCla
   // Nouveaux filtres (URL) : recharger la zone affichée.
   const status = filters?.status;
   const producer = filters?.producer;
+  const campaign = filters?.campaign;
+  const crop = filters?.crop;
   useEffect(() => {
-    filtersRef.current = { status, producer };
+    filtersRef.current = { status, producer, campaign, crop };
     if (map.current?.loaded()) load();
-  }, [status, producer, load]);
+  }, [status, producer, campaign, crop, load]);
 
   const switchBase = (next: "satellite" | "plan") => {
     setBase(next);
@@ -294,7 +298,9 @@ export function ParcelMap({ view, fitBbox, filters, total, emptyLabel, heightCla
       : failed
         ? "Impossible de charger les parcelles. Réessayez en déplaçant la carte."
         : shown && shown.count === 0 && !loading
-          ? "Aucune parcelle dans cette zone"
+          ? status || producer || campaign || crop
+            ? "Aucune parcelle ne correspond aux filtres dans cette zone"
+            : "Aucune parcelle dans cette zone"
           : null;
 
   return (

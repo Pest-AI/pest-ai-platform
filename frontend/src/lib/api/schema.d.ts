@@ -144,6 +144,247 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/campaigns/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campagnes de l'espace
+         * @description Campagnes de l'organisation active, ou de l'espace personnel. Permission : `campaigns.view` ou `personal.crop_cycles.manage`.
+         */
+        get: operations["campaigns_list"];
+        put?: never;
+        /**
+         * Créer une campagne
+         * @description Saison (D-18) : rainy (hivernage), cold_dry (contre-saison froide), hot_dry (contre-saison chaude), other. Nom unique dans l'espace.
+         */
+        post: operations["campaigns_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campagne
+         * @description Choisit le jeu de permissions selon l'espace et fournit le contexte vérifié.
+         */
+        get: operations["campaigns_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Modifier une campagne
+         * @description Statut : planned → active → closed. Une campagne clôturée ne se modifie plus et n'accepte plus de nouveau cycle.
+         */
+        patch: operations["campaigns_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{id}/archive/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archiver une campagne
+         * @description Jamais supprimée : archivée avec un motif.
+         */
+        post: operations["campaigns_archive_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cycles de culture de l'espace
+         * @description Permission : `crop_cycles.view` ou `personal.crop_cycles.manage`.
+         */
+        get: operations["crop_cycles_list"];
+        put?: never;
+        /**
+         * Démarrer un cycle de culture
+         * @description Sur une parcelle de l'espace (lien actif, ou accès personnel), éventuellement une de ses unités, dans une campagne du même espace. L'exploitant par défaut est l'exploitant principal de la parcelle. Un chevauchement avec un autre cycle est accepté et signalé dans `overlaps` (D-17).
+         */
+        post: operations["crop_cycles_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cycle de culture
+         * @description Avec opérations, récoltes et chevauchements signalés (D-17).
+         */
+        get: operations["crop_cycles_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Modifier un cycle
+         * @description Dates, surface, variété, campagne, statut (planned → in_progress → harvested ; abandoned tant qu'il n'est pas récolté). La parcelle ne change jamais.
+         */
+        patch: operations["crop_cycles_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/{id}/archive/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archiver un cycle
+         * @description Un cycle n'est jamais supprimé (garanti en base).
+         */
+        post: operations["crop_cycles_archive_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/{id}/confirm-crop/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmer la culture
+         * @description Culture vérifiée par une personne habilitée (`crop_cycles.confirm`, agronome). La culture déclarée reste conservée.
+         */
+        post: operations["crop_cycles_confirm_crop_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/{id}/harvests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Récoltes d'un cycle
+         * @description GET : liste. POST : enregistrer une récolte (quantité normalisée en kg, unité d'origine facultative, méthode de mesure). POST exige `crop_cycles.manage`.
+         */
+        get: operations["crop_cycles_harvests_list"];
+        put?: never;
+        /**
+         * Récoltes d'un cycle
+         * @description GET : liste. POST : enregistrer une récolte (quantité normalisée en kg, unité d'origine facultative, méthode de mesure). POST exige `crop_cycles.manage`.
+         */
+        post: operations["crop_cycles_harvests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crop-cycles/{id}/operations/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Opérations d'un cycle
+         * @description GET : liste. POST : enregistrer une opération (préparation du sol, semis, irrigation, fertilisation, traitement…), réalisée ou prévue. POST exige `crop_cycles.manage`.
+         */
+        get: operations["crop_cycles_operations_list"];
+        put?: never;
+        /**
+         * Opérations d'un cycle
+         * @description GET : liste. POST : enregistrer une opération (préparation du sol, semis, irrigation, fertilisation, traitement…), réalisée ou prévue. POST exige `crop_cycles.manage`.
+         */
+        post: operations["crop_cycles_operations_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crops/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cultures
+         * @description Référentiel des cultures actives et de leurs variétés. MVP : riz, oignon, tomate, maïs, piment (`is_ai_supported`).
+         */
+        get: operations["crops_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crops/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Culture */
+        get: operations["crops_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/": {
         parameters: {
             query?: never;
@@ -956,7 +1197,7 @@ export interface paths {
         };
         /**
          * Parcelles pour la carte (GeoJSON)
-         * @description `FeatureCollection` des contours courants dans l'emprise `bbox` (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez. Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres `status` et `producer` comme la liste.
+         * @description `FeatureCollection` des contours courants dans l'emprise `bbox` (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez. Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres `status`, `producer`, `campaign` et `crop` comme la liste.
          */
         get: operations["parcels_map_retrieve"];
         put?: never;
@@ -1206,6 +1447,10 @@ export interface components {
             /** Format: date-time */
             readonly expires_at: string;
         };
+        AgricultureArchiveRequest: {
+            /** @description Motif de l'archivage. */
+            reason: string;
+        };
         ArchiveRequest: {
             reason: string;
         };
@@ -1240,6 +1485,47 @@ export interface components {
         };
         /** @enum {unknown} */
         BlankEnum: "";
+        Campaign: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly season_type: components["schemas"]["SeasonTypeEnum"];
+            readonly year: number;
+            /** Format: date */
+            readonly start_date: string;
+            /** Format: date */
+            readonly end_date: string | null;
+            readonly status: components["schemas"]["CampaignStatusEnum"];
+            /** @default 0 */
+            readonly cycle_count: number;
+            readonly is_archived: boolean;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        CampaignRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        /**
+         * @description * `planned` - Prévue
+         *     * `active` - En cours
+         *     * `closed` - Clôturée
+         * @enum {string}
+         */
+        CampaignStatusEnum: "planned" | "active" | "closed";
+        CampaignWriteRequest: {
+            name: string;
+            season_type: components["schemas"]["SeasonTypeEnum"];
+            year: number;
+            /** Format: date */
+            start_date: string;
+            /** Format: date */
+            end_date?: string | null;
+            status?: components["schemas"]["CampaignStatusEnum"];
+        };
         /**
          * @description * `gps_walk` - Contour marché au GPS
          *     * `gps_points` - Points GPS
@@ -1255,6 +1541,10 @@ export interface components {
          * @enum {string}
          */
         CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "manual_coordinates" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv" | "import_xlsx" | "import_json" | "import_gpx";
+        ConfirmCropRequest: {
+            /** @description rice, onion, tomato, maize, chili… */
+            crop: string;
+        };
         /**
          * @description * `phone` - Téléphone
          *     * `whatsapp` - WhatsApp
@@ -1263,6 +1553,155 @@ export interface components {
          * @enum {string}
          */
         ContactTypeEnum: "phone" | "whatsapp" | "email" | "relay_person";
+        Crop: {
+            /** Format: uuid */
+            readonly id: string;
+            /** @description rice, onion, tomato, maize, chili… */
+            code: string;
+            name_fr: string;
+            /** @description Nom en wolof. */
+            name_wo?: string;
+            /** @description Nom en pulaar. */
+            name_ff?: string;
+            scientific_name?: string;
+            /** @description Vrai pour les 5 cultures du diagnostic MVP. */
+            is_ai_supported?: boolean;
+            readonly varieties: components["schemas"]["CropVariety"][];
+        };
+        CropCycle: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly parcel: components["schemas"]["ParcelRef"];
+            readonly cultivation_unit: components["schemas"]["UnitRef"] | null;
+            readonly campaign: components["schemas"]["CampaignRef"] | null;
+            readonly operator: components["schemas"]["ProducerRef"] | null;
+            /** @description Culture confirmée, sinon déclarée. */
+            readonly crop: components["schemas"]["CropRef"];
+            readonly declared_crop: components["schemas"]["CropRef"];
+            readonly confirmed_crop: components["schemas"]["CropRef"] | null;
+            /** Format: date-time */
+            readonly confirmed_at: string | null;
+            readonly variety: components["schemas"]["CropVariety"] | null;
+            /** Format: date */
+            readonly planned_sowing_date: string | null;
+            /** Format: date */
+            readonly sowing_date: string | null;
+            /** Format: date */
+            readonly transplanting_date: string | null;
+            /** Format: date */
+            readonly expected_harvest_date: string | null;
+            /** Format: date */
+            readonly harvest_end_date: string | null;
+            /** Format: decimal */
+            readonly declared_area_m2: string | null;
+            readonly status: components["schemas"]["CropCycleStatusEnum"];
+            /** Format: decimal */
+            readonly total_harvest_kg: string | null;
+            readonly is_archived: boolean;
+            readonly row_version: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        CropCycleCreateRequest: {
+            /** Format: uuid */
+            parcel: string;
+            /** Format: uuid */
+            cultivation_unit?: string | null;
+            /** Format: uuid */
+            campaign?: string | null;
+            /** @description Code de la culture (rice…). */
+            declared_crop: string;
+            /** Format: uuid */
+            variety?: string | null;
+            /**
+             * Format: uuid
+             * @description Exploitant du cycle ; par défaut, l'exploitant principal de la parcelle.
+             */
+            operator?: string | null;
+            /** Format: date */
+            planned_sowing_date?: string | null;
+            /** Format: date */
+            sowing_date?: string | null;
+            /** Format: date */
+            transplanting_date?: string | null;
+            /** Format: date */
+            expected_harvest_date?: string | null;
+            /** Format: date */
+            harvest_end_date?: string | null;
+            /** Format: decimal */
+            declared_area_m2?: string | null;
+            status?: components["schemas"]["CropCycleCreateStatusEnum"];
+        };
+        /**
+         * @description * `planned` - planned
+         *     * `in_progress` - in_progress
+         * @enum {string}
+         */
+        CropCycleCreateStatusEnum: "planned" | "in_progress";
+        CropCycleDetail: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly parcel: components["schemas"]["ParcelRef"];
+            readonly cultivation_unit: components["schemas"]["UnitRef"] | null;
+            readonly campaign: components["schemas"]["CampaignRef"] | null;
+            readonly operator: components["schemas"]["ProducerRef"] | null;
+            /** @description Culture confirmée, sinon déclarée. */
+            readonly crop: components["schemas"]["CropRef"];
+            readonly declared_crop: components["schemas"]["CropRef"];
+            readonly confirmed_crop: components["schemas"]["CropRef"] | null;
+            /** Format: date-time */
+            readonly confirmed_at: string | null;
+            readonly variety: components["schemas"]["CropVariety"] | null;
+            /** Format: date */
+            readonly planned_sowing_date: string | null;
+            /** Format: date */
+            readonly sowing_date: string | null;
+            /** Format: date */
+            readonly transplanting_date: string | null;
+            /** Format: date */
+            readonly expected_harvest_date: string | null;
+            /** Format: date */
+            readonly harvest_end_date: string | null;
+            /** Format: decimal */
+            readonly declared_area_m2: string | null;
+            readonly status: components["schemas"]["CropCycleStatusEnum"];
+            /** Format: decimal */
+            readonly total_harvest_kg: string | null;
+            readonly is_archived: boolean;
+            readonly row_version: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly operations: components["schemas"]["Operation"][];
+            readonly harvests: components["schemas"]["Harvest"][];
+            /** @description D-17 : cycles du même espace qui se chevauchent (signalés, jamais bloqués). */
+            readonly overlaps: components["schemas"]["CycleOverlap"][];
+        };
+        /**
+         * @description * `planned` - Prévu
+         *     * `in_progress` - En cours
+         *     * `harvested` - Récolté
+         *     * `abandoned` - Abandonné
+         * @enum {string}
+         */
+        CropCycleStatusEnum: "planned" | "in_progress" | "harvested" | "abandoned";
+        CropRef: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name_fr: string;
+        };
+        CropVariety: {
+            /** Format: uuid */
+            readonly id: string;
+            name: string;
+            code?: string;
+            cycle_days_min?: number | null;
+            cycle_days_max?: number | null;
+        };
         CultivationUnit: {
             /** Format: uuid */
             readonly id: string;
@@ -1282,6 +1721,12 @@ export interface components {
          * @enum {string}
          */
         CultivationUnitStatusEnum: "active" | "retired";
+        CycleOverlap: {
+            /** Format: uuid */
+            id: string;
+            crop: string;
+            status: string;
+        };
         /**
          * @description * `valid` - valid
          *     * `rejected` - rejected
@@ -1339,6 +1784,40 @@ export interface components {
             /** Format: date-time */
             readonly valid_to: string | null;
             readonly validation: components["schemas"]["ValidationSummary"];
+        };
+        Harvest: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: date */
+            readonly harvest_date: string;
+            /**
+             * Format: decimal
+             * @description Quantité normalisée en kg.
+             */
+            readonly quantity_kg: string;
+            /** Format: decimal */
+            readonly original_quantity: string | null;
+            /** @description Ex. sac de 50 kg. */
+            readonly original_unit: string;
+            /** Format: decimal */
+            readonly harvested_area_m2: string | null;
+            readonly measurement_method: components["schemas"]["MeasurementMethodEnum"];
+            readonly notes: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        HarvestCreateRequest: {
+            /** Format: date */
+            harvest_date: string;
+            /** Format: decimal */
+            quantity_kg: string;
+            /** Format: decimal */
+            original_quantity?: string | null;
+            original_unit?: string;
+            /** Format: decimal */
+            harvested_area_m2?: string | null;
+            measurement_method: components["schemas"]["MeasurementMethodEnum"];
+            notes?: string;
         };
         ImportCommitRequest: {
             /**
@@ -1516,6 +1995,13 @@ export interface components {
             /** @description Vrai si l'utilisateur a un rôle super_admin actif (accès à la Console Admin). */
             readonly is_platform_admin: boolean;
         };
+        /**
+         * @description * `declared` - Déclarée
+         *     * `weighed` - Pesée
+         *     * `estimated` - Estimée
+         * @enum {string}
+         */
+        MeasurementMethodEnum: "declared" | "weighed" | "estimated";
         MemberUser: {
             /** Format: uuid */
             readonly id: string;
@@ -1581,6 +2067,56 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
+        Operation: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly operation_type: components["schemas"]["OperationTypeEnum"];
+            /** Format: date */
+            readonly planned_date: string | null;
+            /** Format: date */
+            readonly performed_date: string | null;
+            readonly source: components["schemas"]["RecordSourceEnum"];
+            /** @description Produit utilisé (texte libre). */
+            readonly product_text: string;
+            /** Format: decimal */
+            readonly quantity: string | null;
+            readonly quantity_unit: string;
+            readonly notes: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        OperationCreateRequest: {
+            operation_type: components["schemas"]["OperationTypeEnum"];
+            /** Format: date */
+            planned_date?: string | null;
+            /** Format: date */
+            performed_date?: string | null;
+            /**
+             * @description Organisation : field_agent par défaut. Espace personnel : producer_declared.
+             *
+             *     * `field_agent` - Agent de terrain
+             *     * `producer_declared` - Déclaré par le producteur
+             *     * `agronomist` - Agronome
+             */
+            source?: components["schemas"]["RecordSourceEnum"];
+            product_text?: string;
+            /** Format: decimal */
+            quantity?: string | null;
+            quantity_unit?: string;
+            notes?: string;
+        };
+        /**
+         * @description * `land_preparation` - Préparation du sol
+         *     * `sowing` - Semis
+         *     * `transplanting` - Repiquage
+         *     * `irrigation` - Irrigation
+         *     * `fertilization` - Fertilisation
+         *     * `weeding` - Désherbage
+         *     * `phytosanitary_treatment` - Traitement phytosanitaire
+         *     * `other` - Autre
+         * @enum {string}
+         */
+        OperationTypeEnum: "land_preparation" | "sowing" | "transplanting" | "irrigation" | "fertilization" | "weeding" | "phytosanitary_treatment" | "other";
         Operator: {
             /** Format: uuid */
             readonly id: string;
@@ -1727,6 +2263,51 @@ export interface components {
          * @enum {string}
          */
         OwnershipVerificationEnum: "declared" | "documented" | "disputed";
+        PaginatedCampaignList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Campaign"][];
+        };
+        PaginatedCropCycleList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["CropCycle"][];
+        };
+        PaginatedHarvestList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Harvest"][];
+        };
         PaginatedMembershipList: {
             /** @example 123 */
             count: number;
@@ -1741,6 +2322,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Membership"][];
+        };
+        PaginatedOperationList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["Operation"][];
         };
         PaginatedOrganizationList: {
             /** @example 123 */
@@ -1920,6 +2516,12 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
+        ParcelRef: {
+            /** Format: uuid */
+            id: string;
+            agroid: string | null;
+            local_name: string;
+        };
         /**
          * @description * `organization` - Enregistrée par une organisation
          *     * `producer_self` - Déclarée par le producteur
@@ -1950,6 +2552,35 @@ export interface components {
         PasswordChangeRequest: {
             current_password: string;
             new_password: string;
+        };
+        PatchedCampaignUpdateRequest: {
+            name?: string;
+            season_type?: components["schemas"]["SeasonTypeEnum"];
+            year?: number;
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string | null;
+            status?: components["schemas"]["CampaignStatusEnum"];
+        };
+        PatchedCropCycleUpdateRequest: {
+            /** Format: uuid */
+            campaign?: string | null;
+            /** Format: uuid */
+            variety?: string | null;
+            /** Format: date */
+            planned_sowing_date?: string | null;
+            /** Format: date */
+            sowing_date?: string | null;
+            /** Format: date */
+            transplanting_date?: string | null;
+            /** Format: date */
+            expected_harvest_date?: string | null;
+            /** Format: date */
+            harvest_end_date?: string | null;
+            /** Format: decimal */
+            declared_area_m2?: string | null;
+            status?: components["schemas"]["CropCycleStatusEnum"];
         };
         /** @description Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici. */
         PatchedMeRequest: {
@@ -2162,6 +2793,11 @@ export interface components {
              */
             confirm_new: boolean;
         };
+        ProducerRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         /**
          * @description * `organization` - Inscrit par une organisation
          *     * `self_signup` - Inscrit par lui-même
@@ -2177,6 +2813,13 @@ export interface components {
         ReasonRequest: {
             reason: string;
         };
+        /**
+         * @description * `field_agent` - Agent de terrain
+         *     * `producer_declared` - Déclaré par le producteur
+         *     * `agronomist` - Agronome
+         * @enum {string}
+         */
+        RecordSourceEnum: "field_agent" | "producer_declared" | "agronomist";
         /**
          * @description * `member` - Membre
          *     * `beneficiary` - Bénéficiaire
@@ -2212,6 +2855,14 @@ export interface components {
          * @enum {string}
          */
         RolesEnum: "organization_admin" | "cooperative_manager" | "field_agent" | "agronomist" | "producer" | "program_manager";
+        /**
+         * @description * `rainy` - Hivernage
+         *     * `cold_dry` - Contre-saison froide
+         *     * `hot_dry` - Contre-saison chaude
+         *     * `other` - Autre
+         * @enum {string}
+         */
+        SeasonTypeEnum: "rainy" | "cold_dry" | "hot_dry" | "other";
         /**
          * @description * `female` - Femme
          *     * `male` - Homme
@@ -2253,6 +2904,11 @@ export interface components {
             name?: string;
             /** Format: decimal */
             area_m2?: string | null;
+        };
+        UnitRef: {
+            /** Format: uuid */
+            id: string;
+            code: string;
         };
         ValidationSummary: {
             /** @description pending, valid, flagged ou rejected. */
@@ -2516,6 +3172,533 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    campaigns_list: {
+        parameters: {
+            query?: {
+                /** @description Inclure les campagnes archivées. */
+                archived?: boolean;
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+                /** @description rainy, cold_dry, hot_dry, other */
+                season_type?: string;
+                /** @description planned, active, closed */
+                status?: string;
+                year?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCampaignList"];
+                };
+            };
+        };
+    };
+    campaigns_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CampaignWriteRequest"];
+                "multipart/form-data": components["schemas"]["CampaignWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+        };
+    };
+    campaigns_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) campagne agricole. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+        };
+    };
+    campaigns_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) campagne agricole. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCampaignUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCampaignUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCampaignUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+        };
+    };
+    campaigns_archive_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) campagne agricole. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgricultureArchiveRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgricultureArchiveRequest"];
+                "multipart/form-data": components["schemas"]["AgricultureArchiveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+        };
+    };
+    crop_cycles_list: {
+        parameters: {
+            query?: {
+                /** @description Inclure les cycles archivés. */
+                archived?: boolean;
+                /** @description UUID de campagne. */
+                campaign?: string;
+                /** @description Code de culture (confirmée, sinon déclarée). */
+                crop?: string;
+                /** @description UUID du producteur exploitant. */
+                operator?: string;
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+                /** @description UUID de parcelle. */
+                parcel?: string;
+                /** @description planned, in_progress, harvested, abandoned */
+                status?: string;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCropCycleList"];
+                };
+            };
+        };
+    };
+    crop_cycles_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CropCycleCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CropCycleCreateRequest"];
+                "multipart/form-data": components["schemas"]["CropCycleCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CropCycleDetail"];
+                };
+            };
+        };
+    };
+    crop_cycles_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CropCycleDetail"];
+                };
+            };
+        };
+    };
+    crop_cycles_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedCropCycleUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCropCycleUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCropCycleUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CropCycleDetail"];
+                };
+            };
+        };
+    };
+    crop_cycles_archive_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgricultureArchiveRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AgricultureArchiveRequest"];
+                "multipart/form-data": components["schemas"]["AgricultureArchiveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CropCycleDetail"];
+                };
+            };
+        };
+    };
+    crop_cycles_confirm_crop_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmCropRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ConfirmCropRequest"];
+                "multipart/form-data": components["schemas"]["ConfirmCropRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CropCycleDetail"];
+                };
+            };
+        };
+    };
+    crop_cycles_harvests_list: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedHarvestList"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Harvest"];
+                };
+            };
+        };
+    };
+    crop_cycles_harvests_create: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HarvestCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["HarvestCreateRequest"];
+                "multipart/form-data": components["schemas"]["HarvestCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedHarvestList"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Harvest"];
+                };
+            };
+        };
+    };
+    crop_cycles_operations_list: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedOperationList"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+        };
+    };
+    crop_cycles_operations_create: {
+        parameters: {
+            query?: {
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) cycle de culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OperationCreateRequest"];
+                "multipart/form-data": components["schemas"]["OperationCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedOperationList"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operation"];
+                };
+            };
+        };
+    };
+    crops_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Crop"][];
+                };
+            };
+        };
+    };
+    crops_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) culture. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Crop"];
+                };
             };
         };
     };
@@ -3224,6 +4407,10 @@ export interface operations {
             query?: {
                 /** @description Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84). Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant la touche. */
                 bbox?: string;
+                /** @description UUID d'une campagne : parcelles portant un de ses cycles. */
+                campaign?: string;
+                /** @description Code de culture (rice…) : parcelles portant un cycle de cette culture (prévu ou en cours ; tout statut si `campaign` est donné). */
+                crop?: string;
                 /** @description Un numéro de page de l'ensemble des résultats. */
                 page?: number;
                 /** @description UUID d'un exploitant en cours. */
@@ -3754,6 +4941,10 @@ export interface operations {
             query?: {
                 /** @description Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84). Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant la touche. */
                 bbox?: string;
+                /** @description UUID d'une campagne : parcelles portant un de ses cycles. */
+                campaign?: string;
+                /** @description Code de culture (rice…) : parcelles portant un cycle de cette culture (prévu ou en cours ; tout statut si `campaign` est donné). */
+                crop?: string;
                 producer?: string;
                 status?: string;
             };

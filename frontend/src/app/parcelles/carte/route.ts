@@ -1,5 +1,6 @@
 /**
- * GET /parcelles/carte?bbox=…&statut=…&producteur=… : contours de la zone affichée (GeoJSON).
+ * GET /parcelles/carte?bbox=…&statut=…&producteur=…&campagne=…&culture=… : contours de la zone
+ * affichée (GeoJSON).
  *
  * Route du Web OS (hors /api/) pour profiter du renouvellement de session du proxy.
  * L'API revérifie la session, l'espace et la permission parcels.view.
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
   if (!bbox) return NextResponse.json({ detail: "Emprise invalide." }, { status: 400 });
   const statut = url.searchParams.get("statut") ?? "";
   const producer = url.searchParams.get("producteur") ?? "";
+  const campaign = url.searchParams.get("campagne") ?? "";
+  const crop = url.searchParams.get("culture") ?? "";
 
   const api = await getApi();
   const { data, response } = await api.GET("/api/v1/parcels/map/", {
@@ -30,6 +33,8 @@ export async function GET(request: Request) {
         bbox: bboxParam(bbox),
         status: STATUSES.includes(statut as Status) ? statut : undefined,
         producer: /^[0-9a-f-]{36}$/.test(producer) ? producer : undefined,
+        campaign: /^[0-9a-f-]{36}$/.test(campaign) ? campaign : undefined,
+        crop: /^[a-z_]{2,32}$/.test(crop) ? crop : undefined,
       },
     },
   });

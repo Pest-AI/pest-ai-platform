@@ -58,6 +58,7 @@ LOCAL_APPS = [
     "apps.organizations",
     "apps.actors",
     "apps.parcels",
+    "apps.agriculture",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -224,6 +225,12 @@ SPECTACULAR_SETTINGS = {
         "CultivationUnitStatusEnum": "apps.parcels.models.CultivationUnitStatus",
         "ParcelImportStatusEnum": "apps.parcels.models.ImportStatus",
         "ImportLineStatusEnum": ["ok", "flagged", "refused"],
+        "SeasonTypeEnum": "apps.agriculture.models.SeasonType",
+        "CampaignStatusEnum": "apps.agriculture.models.CampaignStatus",
+        "CropCycleStatusEnum": "apps.agriculture.models.CropCycleStatus",
+        "OperationTypeEnum": "apps.agriculture.models.OperationType",
+        "RecordSourceEnum": "apps.agriculture.models.RecordSource",
+        "MeasurementMethodEnum": "apps.agriculture.models.MeasurementMethod",
     },
     "TAGS": [
         {"name": "auth", "description": "Connexion, jetons JWT, déconnexion."},

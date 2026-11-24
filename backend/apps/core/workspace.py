@@ -42,6 +42,13 @@ class WorkspaceContext:
     def has_permission(self, code: str) -> bool:
         return code in self.permission_codes
 
+    @property
+    def space_key(self) -> str:
+        """Clé d'espace des données SPACE (même valeur que la colonne `space_key` en base)."""
+        if self.kind == "personal":
+            return f"personal:{self.producer.pk}"
+        return f"org:{self.organization.pk}"
+
 
 def parse_header(raw: str | None) -> tuple[str, uuid.UUID | None]:
     """Valide la forme de l'en-tête et renvoie (type, uuid d'organisation)."""

@@ -125,7 +125,8 @@ def test_effective_permissions_are_union_of_active_roles(make_member, make_org):
     _, membership = make_member(make_org(), "cooperative_manager", "field_agent")
     codes = selectors.permission_codes_for_roles(selectors.active_role_codes(membership))
     # Matrice validée le 23/11/2026 : le gérant gère les membres et les rôles ;
-    # domaine Producteurs ajouté au J9, Parcelles au J13 (union des droits du gérant et de l'agent).
+    # domaine Producteurs ajouté au J9, Parcelles au J13, Agriculture au J16
+    # (union des droits du gérant et de l'agent).
     assert codes == {
         "organization.view",
         "memberships.view",
@@ -139,4 +140,9 @@ def test_effective_permissions_are_union_of_active_roles(make_member, make_org):
         "parcels.manage",
         "parcels.validate_geometry",
         "parcels.grant_personal_access",
+        "campaigns.view",
+        "campaigns.manage",
+        "crop_cycles.view",
+        "crop_cycles.manage",
+        "crop_cycles.confirm",
     }

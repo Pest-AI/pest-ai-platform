@@ -11,6 +11,8 @@ pas révélée).
 
 from __future__ import annotations
 
+import uuid
+
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
@@ -67,6 +69,18 @@ POLYGON_EXAMPLE = {
         ]
     ],
 }
+
+CYCLE_PARAMS = [
+    OpenApiParameter(
+        "campaign", str, description="UUID d'une campagne : parcelles portant un de ses cycles."
+    ),
+    OpenApiParameter(
+        "crop",
+        str,
+        description="Code de culture (rice…) : parcelles portant un cycle de cette culture "
+        "(prévu ou en cours ; tout statut si `campaign` est donné).",
+    ),
+]
 
 ORG_PERMISSIONS = {
     "list": "parcels.view",
@@ -170,6 +184,7 @@ GEOMETRY_ERROR = OpenApiResponse(
                 "status", str, enum=["draft", "pending_validation", "active", "retired"]
             ),
             OpenApiParameter("producer", str, description="UUID d'un exploitant en cours."),
+            *CYCLE_PARAMS,
             BBOX_PARAM,
         ],
     ),
@@ -266,12 +281,41 @@ class ParcelViewSet(
             queryset = queryset.filter(
                 operators__producer_id=params["producer"], operators__end_date__isnull=True
             )
+        queryset = self._filter_by_cycles(queryset, params)
         bbox = parse_bbox(params.get("bbox"))
         if bbox is not None:
             queryset = queryset.filter(
                 geometries__is_current=True, geometries__geometry__intersects=bbox
             )
         return queryset.distinct().order_by("-created_at")
+
+    def _filter_by_cycles(self, queryset, params):
+        """Filtres Campagne et Culture (J16) : parcelles portant un cycle de l'espace actif.
+
+        Avec une campagne : tout cycle non archivé de cette campagne. Sans campagne, la culture
+        porte sur les cycles prévus ou en cours. Culture retenue : confirmée, sinon déclarée.
+        Seuls les cycles de l'espace du contexte comptent (jamais ceux d'un autre espace).
+        """
+        campaign, crop = params.get("campaign"), (params.get("crop") or "").strip()
+        if not campaign and not crop:
+            return queryset
+        condition = Q(
+            crop_cycles__space_key=self.request.workspace.space_key,
+            crop_cycles__is_archived=False,
+        )
+        if campaign:
+            try:
+                uuid.UUID(str(campaign))
+            except ValueError as exc:
+                raise ValidationError({"campaign": "Identifiant invalide."}) from exc
+            condition &= Q(crop_cycles__campaign_id=campaign)
+        else:
+            condition &= Q(crop_cycles__status__in=["planned", "in_progress"])
+        if crop:
+            condition &= Q(crop_cycles__confirmed_crop__code=crop) | Q(
+                crop_cycles__confirmed_crop__isnull=True, crop_cycles__declared_crop__code=crop
+            )
+        return queryset.filter(condition)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -452,11 +496,12 @@ class ParcelViewSet(
         description="`FeatureCollection` des contours courants dans l'emprise `bbox` "
         f"(obligatoire). Au plus {MAP_LIMIT} parcelles : si `truncated` vaut true, zoomez. "
         "Propriétés : id, agroid, local_name, status, area_m2, validation_status. "
-        "Filtres `status` et `producer` comme la liste.",
+        "Filtres `status`, `producer`, `campaign` et `crop` comme la liste.",
         parameters=[
             BBOX_PARAM,
             OpenApiParameter("status", str),
             OpenApiParameter("producer", str),
+            *CYCLE_PARAMS,
         ],
         responses={
             200: OpenApiResponse(

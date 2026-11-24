@@ -689,6 +689,9 @@ class CultivationUnit(BaseModel, ArchivableModel, SyncModel):
         ordering = ["parcel", "code"]
         constraints = [
             models.UniqueConstraint(fields=["parcel", "code"], name="unit_code_per_parcel"),
+            # Cible de la FK composite CropCycle (cultivation_unit, parcel) : une unité citée
+            # par un cycle appartient forcément à la parcelle du cycle (J16).
+            models.UniqueConstraint(fields=["id", "parcel"], name="unit_id_parcel"),
             models.CheckConstraint(
                 condition=Q(status__in=CultivationUnitStatus.values), name="unit_status_valid"
             ),

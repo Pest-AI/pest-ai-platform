@@ -189,6 +189,725 @@ paths:
           description: Origine non autorisée.
         '429':
           description: Trop de tentatives pour ce numéro.
+  /api/v1/campaigns/:
+    get:
+      operationId: campaigns_list
+      description: 'Campagnes de l''organisation active, ou de l''espace personnel.
+        Permission : `campaigns.view` ou `personal.crop_cycles.manage`.'
+      summary: Campagnes de l'espace
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+        description: Inclure les campagnes archivées.
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - in: query
+        name: season_type
+        schema:
+          type: string
+        description: rainy, cold_dry, hot_dry, other
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: planned, active, closed
+      - in: query
+        name: year
+        schema:
+          type: integer
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCampaignList'
+          description: ''
+    post:
+      operationId: campaigns_create
+      description: 'Saison (D-18) : rainy (hivernage), cold_dry (contre-saison froide),
+        hot_dry (contre-saison chaude), other. Nom unique dans l''espace.'
+      summary: Créer une campagne
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CampaignWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CampaignWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+          description: ''
+  /api/v1/campaigns/{id}/:
+    get:
+      operationId: campaigns_retrieve
+      description: Choisit le jeu de permissions selon l'espace et fournit le contexte
+        vérifié.
+      summary: Campagne
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) campagne agricole.
+        required: true
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+          description: ''
+    patch:
+      operationId: campaigns_partial_update
+      description: 'Statut : planned → active → closed. Une campagne clôturée ne se
+        modifie plus et n''accepte plus de nouveau cycle.'
+      summary: Modifier une campagne
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) campagne agricole.
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+          description: ''
+  /api/v1/campaigns/{id}/archive/:
+    post:
+      operationId: campaigns_archive_create
+      description: 'Jamais supprimée : archivée avec un motif.'
+      summary: Archiver une campagne
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) campagne agricole.
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+          description: ''
+  /api/v1/crop-cycles/:
+    get:
+      operationId: crop_cycles_list
+      description: 'Permission : `crop_cycles.view` ou `personal.crop_cycles.manage`.'
+      summary: Cycles de culture de l'espace
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+        description: Inclure les cycles archivés.
+      - in: query
+        name: campaign
+        schema:
+          type: string
+        description: UUID de campagne.
+      - in: query
+        name: crop
+        schema:
+          type: string
+        description: Code de culture (confirmée, sinon déclarée).
+      - in: query
+        name: operator
+        schema:
+          type: string
+        description: UUID du producteur exploitant.
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - in: query
+        name: parcel
+        schema:
+          type: string
+        description: UUID de parcelle.
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: planned, in_progress, harvested, abandoned
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCropCycleList'
+          description: ''
+    post:
+      operationId: crop_cycles_create
+      description: Sur une parcelle de l'espace (lien actif, ou accès personnel),
+        éventuellement une de ses unités, dans une campagne du même espace. L'exploitant
+        par défaut est l'exploitant principal de la parcelle. Un chevauchement avec
+        un autre cycle est accepté et signalé dans `overlaps` (D-17).
+      summary: Démarrer un cycle de culture
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CropCycleCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CropCycleCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CropCycleCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropCycleDetail'
+          description: ''
+  /api/v1/crop-cycles/{id}/:
+    get:
+      operationId: crop_cycles_retrieve
+      description: Avec opérations, récoltes et chevauchements signalés (D-17).
+      summary: Cycle de culture
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropCycleDetail'
+          description: ''
+    patch:
+      operationId: crop_cycles_partial_update
+      description: Dates, surface, variété, campagne, statut (planned → in_progress
+        → harvested ; abandoned tant qu'il n'est pas récolté). La parcelle ne change
+        jamais.
+      summary: Modifier un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCropCycleUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCropCycleUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCropCycleUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropCycleDetail'
+          description: ''
+  /api/v1/crop-cycles/{id}/archive/:
+    post:
+      operationId: crop_cycles_archive_create
+      description: Un cycle n'est jamais supprimé (garanti en base).
+      summary: Archiver un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgricultureArchiveRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropCycleDetail'
+          description: ''
+  /api/v1/crop-cycles/{id}/confirm-crop/:
+    post:
+      operationId: crop_cycles_confirm_crop_create
+      description: Culture vérifiée par une personne habilitée (`crop_cycles.confirm`,
+        agronome). La culture déclarée reste conservée.
+      summary: Confirmer la culture
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmCropRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmCropRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmCropRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropCycleDetail'
+          description: ''
+  /api/v1/crop-cycles/{id}/harvests/:
+    get:
+      operationId: crop_cycles_harvests_list
+      description: 'GET : liste. POST : enregistrer une récolte (quantité normalisée
+        en kg, unité d''origine facultative, méthode de mesure). POST exige `crop_cycles.manage`.'
+      summary: Récoltes d'un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHarvestList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Harvest'
+          description: ''
+    post:
+      operationId: crop_cycles_harvests_create
+      description: 'GET : liste. POST : enregistrer une récolte (quantité normalisée
+        en kg, unité d''origine facultative, méthode de mesure). POST exige `crop_cycles.manage`.'
+      summary: Récoltes d'un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HarvestCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HarvestCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HarvestCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHarvestList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Harvest'
+          description: ''
+  /api/v1/crop-cycles/{id}/operations/:
+    get:
+      operationId: crop_cycles_operations_list
+      description: 'GET : liste. POST : enregistrer une opération (préparation du
+        sol, semis, irrigation, fertilisation, traitement…), réalisée ou prévue. POST
+        exige `crop_cycles.manage`.'
+      summary: Opérations d'un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOperationList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+          description: ''
+    post:
+      operationId: crop_cycles_operations_create
+      description: 'GET : liste. POST : enregistrer une opération (préparation du
+        sol, semis, irrigation, fertilisation, traitement…), réalisée ou prévue. POST
+        exige `crop_cycles.manage`.'
+      summary: Opérations d'un cycle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) cycle de culture.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - agriculture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperationCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OperationCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OperationCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOperationList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+          description: ''
+  /api/v1/crops/:
+    get:
+      operationId: crops_list
+      description: 'Référentiel des cultures actives et de leurs variétés. MVP : riz,
+        oignon, tomate, maïs, piment (`is_ai_supported`).'
+      summary: Cultures
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Crop'
+          description: ''
+  /api/v1/crops/{id}/:
+    get:
+      operationId: crops_retrieve
+      summary: Culture
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) culture.
+        required: true
+      tags:
+      - agriculture
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crop'
+          description: ''
   /api/v1/me/:
     get:
       operationId: me_retrieve
@@ -1111,6 +1830,17 @@ paths:
         description: 'Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84).
           Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant
           la touche.'
+      - in: query
+        name: campaign
+        schema:
+          type: string
+        description: 'UUID d''une campagne : parcelles portant un de ses cycles.'
+      - in: query
+        name: crop
+        schema:
+          type: string
+        description: 'Code de culture (rice…) : parcelles portant un cycle de cette
+          culture (prévu ou en cours ; tout statut si `campaign` est donné).'
       - name: page
         required: false
         in: query
@@ -1911,7 +2641,7 @@ paths:
       description: '`FeatureCollection` des contours courants dans l''emprise `bbox`
         (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez.
         Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres
-        `status` et `producer` comme la liste.'
+        `status`, `producer`, `campaign` et `crop` comme la liste.'
       summary: Parcelles pour la carte (GeoJSON)
       parameters:
       - in: header
@@ -1929,6 +2659,17 @@ paths:
         description: 'Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84).
           Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant
           la touche.'
+      - in: query
+        name: campaign
+        schema:
+          type: string
+        description: 'UUID d''une campagne : parcelles portant un de ses cycles.'
+      - in: query
+        name: crop
+        schema:
+          type: string
+        description: 'Code de culture (rice…) : parcelles portant un cycle de cette
+          culture (prévu ou en cours ; tout statut si `campaign` est donné).'
       - in: query
         name: producer
         schema:
@@ -2517,6 +3258,16 @@ components:
       required:
       - activation_code
       - expires_at
+    AgricultureArchiveRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          description: Motif de l'archivage.
+          maxLength: 500
+      required:
+      - reason
     ArchiveRequest:
       type: object
       properties:
@@ -2594,6 +3345,111 @@ components:
     BlankEnum:
       enum:
       - ''
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        season_type:
+          allOf:
+          - $ref: '#/components/schemas/SeasonTypeEnum'
+          readOnly: true
+        year:
+          type: integer
+          readOnly: true
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CampaignStatusEnum'
+          readOnly: true
+        cycle_count:
+          type: integer
+          readOnly: true
+          default: 0
+        is_archived:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - cycle_count
+      - end_date
+      - id
+      - is_archived
+      - name
+      - season_type
+      - start_date
+      - status
+      - updated_at
+      - year
+    CampaignRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    CampaignStatusEnum:
+      enum:
+      - planned
+      - active
+      - closed
+      type: string
+      description: |-
+        * `planned` - Prévue
+        * `active` - En cours
+        * `closed` - Clôturée
+    CampaignWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        season_type:
+          $ref: '#/components/schemas/SeasonTypeEnum'
+        year:
+          type: integer
+          maximum: 2100
+          minimum: 2000
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CampaignStatusEnum'
+      required:
+      - name
+      - season_type
+      - start_date
+      - year
     CaptureMethodEnum:
       enum:
       - gps_walk
@@ -2620,6 +3476,15 @@ components:
         * `import_xlsx` - Import Excel
         * `import_json` - Import JSON
         * `import_gpx` - Import GPX
+    ConfirmCropRequest:
+      type: object
+      properties:
+        crop:
+          type: string
+          minLength: 1
+          description: rice, onion, tomato, maize, chili…
+      required:
+      - crop
     ContactTypeEnum:
       enum:
       - phone
@@ -2632,6 +3497,438 @@ components:
         * `whatsapp` - WhatsApp
         * `email` - E-mail
         * `relay_person` - Personne relais
+    Crop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          description: rice, onion, tomato, maize, chili…
+          maxLength: 32
+        name_fr:
+          type: string
+          maxLength: 100
+        name_wo:
+          type: string
+          description: Nom en wolof.
+          maxLength: 100
+        name_ff:
+          type: string
+          description: Nom en pulaar.
+          maxLength: 100
+        scientific_name:
+          type: string
+          maxLength: 150
+        is_ai_supported:
+          type: boolean
+          description: Vrai pour les 5 cultures du diagnostic MVP.
+        varieties:
+          type: array
+          items:
+            $ref: '#/components/schemas/CropVariety'
+          readOnly: true
+      required:
+      - code
+      - id
+      - name_fr
+      - varieties
+    CropCycle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        parcel:
+          allOf:
+          - $ref: '#/components/schemas/ParcelRef'
+          readOnly: true
+        cultivation_unit:
+          allOf:
+          - $ref: '#/components/schemas/UnitRef'
+          nullable: true
+          readOnly: true
+        campaign:
+          allOf:
+          - $ref: '#/components/schemas/CampaignRef'
+          nullable: true
+          readOnly: true
+        operator:
+          allOf:
+          - $ref: '#/components/schemas/ProducerRef'
+          nullable: true
+          readOnly: true
+        crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          description: Culture confirmée, sinon déclarée.
+        declared_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+        confirmed_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        variety:
+          allOf:
+          - $ref: '#/components/schemas/CropVariety'
+          readOnly: true
+          nullable: true
+        planned_sowing_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        sowing_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        transplanting_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        expected_harvest_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        harvest_end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        declared_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CropCycleStatusEnum'
+          readOnly: true
+        total_harvest_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        row_version:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - campaign
+      - confirmed_at
+      - confirmed_crop
+      - created_at
+      - crop
+      - cultivation_unit
+      - declared_area_m2
+      - declared_crop
+      - expected_harvest_date
+      - harvest_end_date
+      - id
+      - is_archived
+      - operator
+      - parcel
+      - planned_sowing_date
+      - row_version
+      - sowing_date
+      - status
+      - total_harvest_kg
+      - transplanting_date
+      - updated_at
+      - variety
+    CropCycleCreateRequest:
+      type: object
+      properties:
+        parcel:
+          type: string
+          format: uuid
+        cultivation_unit:
+          type: string
+          format: uuid
+          nullable: true
+        campaign:
+          type: string
+          format: uuid
+          nullable: true
+        declared_crop:
+          type: string
+          minLength: 1
+          description: Code de la culture (rice…).
+        variety:
+          type: string
+          format: uuid
+          nullable: true
+        operator:
+          type: string
+          format: uuid
+          nullable: true
+          description: Exploitant du cycle ; par défaut, l'exploitant principal de
+            la parcelle.
+        planned_sowing_date:
+          type: string
+          format: date
+          nullable: true
+        sowing_date:
+          type: string
+          format: date
+          nullable: true
+        transplanting_date:
+          type: string
+          format: date
+          nullable: true
+        expected_harvest_date:
+          type: string
+          format: date
+          nullable: true
+        harvest_end_date:
+          type: string
+          format: date
+          nullable: true
+        declared_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CropCycleCreateStatusEnum'
+      required:
+      - declared_crop
+      - parcel
+    CropCycleCreateStatusEnum:
+      enum:
+      - planned
+      - in_progress
+      type: string
+      description: |-
+        * `planned` - planned
+        * `in_progress` - in_progress
+    CropCycleDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        parcel:
+          allOf:
+          - $ref: '#/components/schemas/ParcelRef'
+          readOnly: true
+        cultivation_unit:
+          allOf:
+          - $ref: '#/components/schemas/UnitRef'
+          nullable: true
+          readOnly: true
+        campaign:
+          allOf:
+          - $ref: '#/components/schemas/CampaignRef'
+          nullable: true
+          readOnly: true
+        operator:
+          allOf:
+          - $ref: '#/components/schemas/ProducerRef'
+          nullable: true
+          readOnly: true
+        crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          description: Culture confirmée, sinon déclarée.
+        declared_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+        confirmed_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        variety:
+          allOf:
+          - $ref: '#/components/schemas/CropVariety'
+          readOnly: true
+          nullable: true
+        planned_sowing_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        sowing_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        transplanting_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        expected_harvest_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        harvest_end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        declared_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CropCycleStatusEnum'
+          readOnly: true
+        total_harvest_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        row_version:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
+          readOnly: true
+        harvests:
+          type: array
+          items:
+            $ref: '#/components/schemas/Harvest'
+          readOnly: true
+        overlaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/CycleOverlap'
+          readOnly: true
+          description: 'D-17 : cycles du même espace qui se chevauchent (signalés,
+            jamais bloqués).'
+      required:
+      - campaign
+      - confirmed_at
+      - confirmed_crop
+      - created_at
+      - crop
+      - cultivation_unit
+      - declared_area_m2
+      - declared_crop
+      - expected_harvest_date
+      - harvest_end_date
+      - harvests
+      - id
+      - is_archived
+      - operations
+      - operator
+      - overlaps
+      - parcel
+      - planned_sowing_date
+      - row_version
+      - sowing_date
+      - status
+      - total_harvest_kg
+      - transplanting_date
+      - updated_at
+      - variety
+    CropCycleStatusEnum:
+      enum:
+      - planned
+      - in_progress
+      - harvested
+      - abandoned
+      type: string
+      description: |-
+        * `planned` - Prévu
+        * `in_progress` - En cours
+        * `harvested` - Récolté
+        * `abandoned` - Abandonné
+    CropRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name_fr:
+          type: string
+      required:
+      - code
+      - id
+      - name_fr
+    CropVariety:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 32
+        cycle_days_min:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        cycle_days_max:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+      required:
+      - id
+      - name
     CultivationUnit:
       type: object
       properties:
@@ -2681,6 +3978,20 @@ components:
       description: |-
         * `active` - Active
         * `retired` - Retirée
+    CycleOverlap:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        crop:
+          type: string
+        status:
+          type: string
+      required:
+      - crop
+      - id
+      - status
     DecisionEnum:
       enum:
       - valid
@@ -2813,6 +4124,91 @@ components:
       - valid_to
       - validation
       - version
+    Harvest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        harvest_date:
+          type: string
+          format: date
+          readOnly: true
+        quantity_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Quantité normalisée en kg.
+        original_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        original_unit:
+          type: string
+          readOnly: true
+          description: Ex. sac de 50 kg.
+        harvested_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        measurement_method:
+          allOf:
+          - $ref: '#/components/schemas/MeasurementMethodEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - harvest_date
+      - harvested_area_m2
+      - id
+      - measurement_method
+      - notes
+      - original_quantity
+      - original_unit
+      - quantity_kg
+    HarvestCreateRequest:
+      type: object
+      properties:
+        harvest_date:
+          type: string
+          format: date
+        quantity_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        original_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          nullable: true
+        original_unit:
+          type: string
+          maxLength: 20
+        harvested_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        measurement_method:
+          $ref: '#/components/schemas/MeasurementMethodEnum'
+        notes:
+          type: string
+      required:
+      - harvest_date
+      - measurement_method
+      - quantity_kg
     ImportCommitRequest:
       type: object
       properties:
@@ -3208,6 +4604,16 @@ components:
       - memberships
       - phone_number
       - phone_verified_at
+    MeasurementMethodEnum:
+      enum:
+      - declared
+      - weighed
+      - estimated
+      type: string
+      description: |-
+        * `declared` - Déclarée
+        * `weighed` - Pesée
+        * `estimated` - Estimée
     MemberUser:
       type: object
       properties:
@@ -3369,6 +4775,119 @@ components:
     NullEnum:
       enum:
       - null
+    Operation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        operation_type:
+          allOf:
+          - $ref: '#/components/schemas/OperationTypeEnum'
+          readOnly: true
+        planned_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        performed_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/RecordSourceEnum'
+          readOnly: true
+        product_text:
+          type: string
+          readOnly: true
+          description: Produit utilisé (texte libre).
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        quantity_unit:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - notes
+      - operation_type
+      - performed_date
+      - planned_date
+      - product_text
+      - quantity
+      - quantity_unit
+      - source
+    OperationCreateRequest:
+      type: object
+      properties:
+        operation_type:
+          $ref: '#/components/schemas/OperationTypeEnum'
+        planned_date:
+          type: string
+          format: date
+          nullable: true
+        performed_date:
+          type: string
+          format: date
+          nullable: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/RecordSourceEnum'
+          description: |-
+            Organisation : field_agent par défaut. Espace personnel : producer_declared.
+
+            * `field_agent` - Agent de terrain
+            * `producer_declared` - Déclaré par le producteur
+            * `agronomist` - Agronome
+        product_text:
+          type: string
+          maxLength: 200
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+          nullable: true
+        quantity_unit:
+          type: string
+          maxLength: 20
+        notes:
+          type: string
+      required:
+      - operation_type
+    OperationTypeEnum:
+      enum:
+      - land_preparation
+      - sowing
+      - transplanting
+      - irrigation
+      - fertilization
+      - weeding
+      - phytosanitary_treatment
+      - other
+      type: string
+      description: |-
+        * `land_preparation` - Préparation du sol
+        * `sowing` - Semis
+        * `transplanting` - Repiquage
+        * `irrigation` - Irrigation
+        * `fertilization` - Fertilisation
+        * `weeding` - Désherbage
+        * `phytosanitary_treatment` - Traitement phytosanitaire
+        * `other` - Autre
     Operator:
       type: object
       properties:
@@ -3693,6 +5212,75 @@ components:
         * `declared` - Déclarée
         * `documented` - Justifiée par un document
         * `disputed` - Contestée
+    PaginatedCampaignList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Campaign'
+    PaginatedCropCycleList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CropCycle'
+    PaginatedHarvestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Harvest'
     PaginatedMembershipList:
       type: object
       required:
@@ -3716,6 +5304,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Membership'
+    PaginatedOperationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
     PaginatedOrganizationList:
       type: object
       required:
@@ -4124,6 +5735,21 @@ components:
       - primary_operator
       - registration_channel
       - status
+    ParcelRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agroid:
+          type: string
+          nullable: true
+        local_name:
+          type: string
+      required:
+      - agroid
+      - id
+      - local_name
     ParcelRegistrationChannelEnum:
       enum:
       - organization
@@ -4188,6 +5814,66 @@ components:
       required:
       - current_password
       - new_password
+    PatchedCampaignUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        season_type:
+          $ref: '#/components/schemas/SeasonTypeEnum'
+        year:
+          type: integer
+          maximum: 2100
+          minimum: 2000
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CampaignStatusEnum'
+    PatchedCropCycleUpdateRequest:
+      type: object
+      properties:
+        campaign:
+          type: string
+          format: uuid
+          nullable: true
+        variety:
+          type: string
+          format: uuid
+          nullable: true
+        planned_sowing_date:
+          type: string
+          format: date
+          nullable: true
+        sowing_date:
+          type: string
+          format: date
+          nullable: true
+        transplanting_date:
+          type: string
+          format: date
+          nullable: true
+        expected_harvest_date:
+          type: string
+          format: date
+          nullable: true
+        harvest_end_date:
+          type: string
+          format: date
+          nullable: true
+        declared_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        status:
+          $ref: '#/components/schemas/CropCycleStatusEnum'
     PatchedMeRequest:
       type: object
       description: Profil de l'utilisateur connecté. Le numéro de téléphone n'est
@@ -4717,6 +6403,17 @@ components:
       required:
       - first_name
       - last_name
+    ProducerRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
     ProducerRegistrationChannelEnum:
       enum:
       - organization
@@ -4742,6 +6439,16 @@ components:
           maxLength: 500
       required:
       - reason
+    RecordSourceEnum:
+      enum:
+      - field_agent
+      - producer_declared
+      - agronomist
+      type: string
+      description: |-
+        * `field_agent` - Agent de terrain
+        * `producer_declared` - Déclaré par le producteur
+        * `agronomist` - Agronome
     RelationshipTypeEnum:
       enum:
       - member
@@ -4803,6 +6510,18 @@ components:
         * `agronomist` - agronomist
         * `producer` - producer
         * `program_manager` - program_manager
+    SeasonTypeEnum:
+      enum:
+      - rainy
+      - cold_dry
+      - hot_dry
+      - other
+      type: string
+      description: |-
+        * `rainy` - Hivernage
+        * `cold_dry` - Contre-saison froide
+        * `hot_dry` - Contre-saison chaude
+        * `other` - Autre
     SexEnum:
       enum:
       - female
@@ -4902,6 +6621,17 @@ components:
           nullable: true
       required:
       - code
+    UnitRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+      required:
+      - code
+      - id
     ValidationSummary:
       type: object
       properties:

@@ -35,11 +35,8 @@ export const metadata: Metadata = { title: "Vue d'ensemble" };
 const DEFAULT_VIEW = { center: [-14.96, 16.65] as [number, number], zoom: 10 };
 
 /** Filtres pas encore branchés (modules à venir). */
-const UPCOMING_FILTERS = [
-  ["Campagne", "toutes", "Campagnes (J16)"],
-  ["Culture", "toutes", "Cultures (J16)"],
-  ["Zone", "toutes", "Zones géographiques"],
-] as const;
+const UPCOMING_FILTERS = [["Zone", "toutes", "Zones géographiques"]] as const;
+const CROP_CODE = /^[a-z_]{2,32}$/;
 
 const UUID = /^[0-9a-f-]{36}$/;
 
@@ -131,17 +128,21 @@ export default async function DashboardPage({
   const params = await searchParams;
   const statusFilter = PARCEL_STATUS_FILTER.some(([v]) => v && v === params.statut) ? (params.statut ?? "") : "";
   const producerFilter = UUID.test(params.producteur ?? "") ? (params.producteur ?? "") : "";
+  const campaignFilter = UUID.test(params.campagne ?? "") ? (params.campagne ?? "") : "";
+  const cropFilter = CROP_CODE.test(params.culture ?? "") ? (params.culture ?? "") : "";
   const workspace = await currentWorkspace();
   if (!workspace) redirect("/espaces");
 
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, membersResult, producersResult, summaryResult] = await Promise.all([
+  const [{ data: me }, orgResult, membersResult, producersResult, summaryResult, campaignsResult, cropsResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/memberships/", { params: { header } }),
     api.GET("/api/v1/producers/", { params: { header } }),
     api.GET("/api/v1/parcels/summary/", { params: { header } }),
+    api.GET("/api/v1/campaigns/", { params: { header } }),
+    api.GET("/api/v1/crops/"),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -164,6 +165,15 @@ export default async function DashboardPage({
   const summary = summaryResult.data ?? null;
   const parcelCount = summary?.count ?? 0;
   const fitBbox = summary?.bbox?.length === 4 ? padBbox(summary.bbox as Bbox) : null;
+  // null : campagnes non accessibles avec ce rôle (filtre masqué).
+  const campaignOptions: [string, string][] | null = campaignsResult.data
+    ? [["", "Campagne : toutes"], ...campaignsResult.data.results.map((c): [string, string] => [c.id, c.name])]
+    : null;
+  const cropOptions: [string, string][] = [
+    ["", "Culture : toutes"],
+    ...(cropsResult.data ?? []).map((c): [string, string] => [c.code, c.name_fr]),
+  ];
+  const anyFilter = Boolean(statusFilter || producerFilter || campaignFilter || cropFilter);
   const producerOptions: [string, string][] = [
     ["", "Tous"],
     ...(producersResult.data?.results ?? []).map((p): [string, string] => [p.id, `${p.first_name} ${p.last_name}`]),
@@ -294,9 +304,15 @@ export default async function DashboardPage({
               value={producerFilter}
               options={producerOptions.map(([v, t]) => [v, v ? t : "Producteur : tous"])}
             />
+            {campaignOptions ? (
+              <AutoSubmitSelect name="campagne" label="Campagne" value={campaignFilter} options={campaignOptions} />
+            ) : null}
+            {campaignOptions ? (
+              <AutoSubmitSelect name="culture" label="Culture" value={cropFilter} options={cropOptions} />
+            ) : null}
           </>
         ) : null}
-        {statusFilter || producerFilter ? (
+        {anyFilter ? (
           <Link href="/tableau-de-bord" className="text-[13px] font-semibold text-brand-700 hover:underline">
             Effacer les filtres
           </Link>
@@ -307,7 +323,7 @@ export default async function DashboardPage({
         <ParcelMap
           view={DEFAULT_VIEW}
           fitBbox={fitBbox}
-          filters={{ status: statusFilter, producer: producerFilter }}
+          filters={{ status: statusFilter, producer: producerFilter, campaign: campaignFilter, crop: cropFilter }}
           total={summary ? parcelCount : 0}
           emptyLabel={summary ? "Aucune parcelle cartographiée pour le moment" : "Parcelles non accessibles avec votre rôle"}
         />
