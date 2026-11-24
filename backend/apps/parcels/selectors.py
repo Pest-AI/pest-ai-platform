@@ -58,3 +58,10 @@ def current_owners(parcel):
 
 def current_operators(parcel):
     return parcel.operators.filter(end_date__isnull=True)
+
+
+def current_geometries(parcel_ids):
+    """Contours courants d'un lot de parcelles (une seule requête, pour la carte)."""
+    from apps.parcels.models import ParcelGeometry
+
+    return ParcelGeometry.objects.filter(parcel_id__in=parcel_ids, is_current=True)

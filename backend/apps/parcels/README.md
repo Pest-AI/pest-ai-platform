@@ -68,9 +68,17 @@ Domaine 4 du Database Design v2.2 (« Parcelles, AgroID et géographie »). Iden
 | `grant_personal_access`, `revoke_personal_access` | Accès personnel |
 | `create_cultivation_unit`, `retire_cultivation_unit` | Unités de culture |
 
+## API (J13)
+
+Documentation complète : guide « Parcelles et AgroID » du portail et `/api/docs/`. Vues dans `views.py`.
+
+- Deux espaces : organisation (parcelles suivies, écriture si elle les a enregistrées) et personnel (accès personnel, écriture avec `manage`). Hors périmètre : 404.
+- Permissions : `parcels.view`, `parcels.create`, `parcels.manage`, `parcels.validate_geometry`, `parcels.grant_personal_access` (matrice proposée, à valider) ; côté personnel, `personal.parcels.*`.
+- Carte : `GET /parcels/map/?bbox=minLon,minLat,maxLon,maxLat` → `FeatureCollection` (1 000 parcelles au plus, `truncated`).
+- Les chevauchements avec une parcelle hors périmètre sont montrés sans son AgroID ; dans l'espace personnel, seules les relations foncières du producteur lui-même apparaissent.
+
 ## À venir
 
-- **J13** : API `/api/v1/parcels/` (création, contour, liste GeoJSON par zone, fiche, historique, propriétaires et exploitants) et permissions, dont `parcels.grant_personal_access` (D-02) et `personal.parcels.consent_link` (D-03). Les rapports de chevauchement n'exposeront jamais l'AgroID d'une parcelle que l'organisation ne voit pas.
 - Contour des unités de culture (inclus dans la parcelle à 1 m près, sinon signalé) : avec la saisie sur la carte.
 - Expiration des demandes de suivi sans réponse (30 jours proposés, D-03) et notification au producteur : avec les notifications.
 - **J14** : couche parcelles sur la carte du Web OS ; **J15** : parcelles dans l'app terrain.

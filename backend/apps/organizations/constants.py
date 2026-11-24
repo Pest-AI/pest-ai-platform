@@ -120,6 +120,37 @@ PERMISSIONS = [
         SCOPE_ORGANIZATION,
         "Modifier un producteur, ses contacts et clore son rattachement.",
     ),
+    # Domaine Parcelles (J13)
+    (
+        "parcels.view",
+        "parcels",
+        SCOPE_ORGANIZATION,
+        "Consulter les parcelles suivies par l'organisation.",
+    ),
+    (
+        "parcels.create",
+        "parcels",
+        SCOPE_ORGANIZATION,
+        "Enregistrer une parcelle et relever un nouveau contour.",
+    ),
+    (
+        "parcels.manage",
+        "parcels",
+        SCOPE_ORGANIZATION,
+        "Propriétaires, exploitants, unités de culture, retrait et demandes de suivi.",
+    ),
+    (
+        "parcels.validate_geometry",
+        "parcels",
+        SCOPE_ORGANIZATION,
+        "Confirmer ou refuser un contour signalé (D-19).",
+    ),
+    (
+        "parcels.grant_personal_access",
+        "parcels",
+        SCOPE_ORGANIZATION,
+        "Ouvrir à un producteur l'accès à une parcelle dans son espace personnel (D-02).",
+    ),
     (
         "platform.organizations.view",
         "platform",
@@ -160,6 +191,16 @@ PERMISSIONS += [
 # coopérative invite et gère les rôles comme l'administrateur, sans jamais pouvoir nommer
 # ni modifier un administrateur d'organisation (contrôle dans les vues des adhésions).
 # Le reste de la matrice reste une proposition technique à valider.
+# Parcelles : administrateur et gérant ont tous les droits (D-02 : seuls eux accordent
+# l'accès personnel). Proposition J13, à valider par le fondateur.
+PARCEL_MANAGERS = [
+    "parcels.view",
+    "parcels.create",
+    "parcels.manage",
+    "parcels.validate_geometry",
+    "parcels.grant_personal_access",
+]
+
 ROLE_PERMISSIONS = {
     SUPER_ADMIN: ["platform.organizations.view", "platform.organizations.manage"],
     ORGANIZATION_ADMIN: [
@@ -171,6 +212,7 @@ ROLE_PERMISSIONS = {
         "producers.view",
         "producers.create",
         "producers.manage",
+        *PARCEL_MANAGERS,
     ],
     COOPERATIVE_MANAGER: [
         "organization.view",
@@ -180,10 +222,23 @@ ROLE_PERMISSIONS = {
         "producers.view",
         "producers.create",
         "producers.manage",
+        *PARCEL_MANAGERS,
     ],
-    # L'agent terrain enregistre les producteurs sur le terrain (proposition J9, à valider).
-    FIELD_AGENT: ["organization.view", "producers.view", "producers.create"],
-    AGRONOMIST: ["organization.view", "producers.view"],
+    # L'agent terrain enregistre producteurs et parcelles sur le terrain (proposition, à valider).
+    FIELD_AGENT: [
+        "organization.view",
+        "producers.view",
+        "producers.create",
+        "parcels.view",
+        "parcels.create",
+    ],
+    # L'agronome tranche les contours signalés (proposition J13, à valider).
+    AGRONOMIST: [
+        "organization.view",
+        "producers.view",
+        "parcels.view",
+        "parcels.validate_geometry",
+    ],
     PRODUCER: ["organization.view"],
-    PROGRAM_MANAGER: ["organization.view", "producers.view"],
+    PROGRAM_MANAGER: ["organization.view", "producers.view", "parcels.view"],
 }

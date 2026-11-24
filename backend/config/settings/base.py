@@ -203,6 +203,12 @@ SPECTACULAR_SETTINGS = {
         "SexEnum": "apps.actors.models.Sex",
         "PreferredLanguageEnum": "apps.accounts.models.Language",
         "OrganizationStatusEnum": "apps.organizations.models.OrganizationStatus",
+        "ParcelStatusEnum": "apps.parcels.models.ParcelStatus",
+        "ParcelRegistrationChannelEnum": "apps.parcels.models.ParcelRegistrationChannel",
+        "ProducerRegistrationChannelEnum": "apps.actors.models.RegistrationChannel",
+        "OwnershipVerificationEnum": "apps.parcels.models.OwnershipVerification",
+        "OperatorVerificationEnum": "apps.parcels.models.OperatorVerification",
+        "CultivationUnitStatusEnum": "apps.parcels.models.CultivationUnitStatus",
     },
     "TAGS": [
         {"name": "auth", "description": "Connexion, jetons JWT, déconnexion."},
@@ -210,6 +216,10 @@ SPECTACULAR_SETTINGS = {
         {"name": "organization", "description": "Organisation de l'espace de travail actif."},
         {"name": "memberships", "description": "Membres et rôles de l'organisation active."},
         {"name": "platform", "description": "Administration de la plateforme (super_admin)."},
+        {
+            "name": "parcels",
+            "description": "Parcelles, AgroID, contours GeoJSON, propriété et exploitation.",
+        },
     ],
 }
 

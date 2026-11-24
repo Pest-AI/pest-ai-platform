@@ -259,6 +259,98 @@ paths:
               schema:
                 $ref: '#/components/schemas/MyMembership'
           description: ''
+  /api/v1/me/parcel-links/:
+    get:
+      operationId: me_parcel_links_list
+      description: Organisations qui demandent à suivre une de vos parcelles. Espace
+        `personal` uniquement. Tant que vous n'avez pas accepté, elles ne voient rien.
+      summary: Demandes de suivi en attente
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingLink'
+          description: ''
+  /api/v1/me/parcel-links/{link_id}/accept/:
+    post:
+      operationId: me_parcel_links_accept_create
+      description: '`accept` : l''organisation voit la parcelle (rien de votre espace
+        personnel ne lui est transmis). `decline` : la demande est close, aucun accès.'
+      summary: Répondre à une demande de suivi
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: link_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkRequestStatus'
+          description: ''
+  /api/v1/me/parcel-links/{link_id}/decline/:
+    post:
+      operationId: me_parcel_links_decline_create
+      description: '`accept` : l''organisation voit la parcelle (rien de votre espace
+        personnel ne lui est transmis). `decline` : la demande est close, aucun accès.'
+      summary: Répondre à une demande de suivi
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: link_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkRequestStatus'
+          description: ''
   /api/v1/me/password/:
     post:
       operationId: me_password_create
@@ -751,6 +843,891 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+  /api/v1/parcels/:
+    get:
+      operationId: parcels_list
+      description: 'Organisation : parcelles qu''elle suit (lien actif). Espace personnel
+        : parcelles auxquelles le producteur a accès. Paginé (50). Pour la carte,
+        utilisez `/parcels/map/`.'
+      summary: Parcelles de l'espace actif
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: query
+        name: bbox
+        schema:
+          type: string
+        description: 'Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84).
+          Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant
+          la touche.'
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      - in: query
+        name: producer
+        schema:
+          type: string
+        description: UUID d'un exploitant en cours.
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: AgroID (saisie tolérée) ou nom local.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - draft
+          - pending_validation
+          - retired
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParcelListList'
+          description: ''
+    post:
+      operationId: parcels_create
+      description: 'Crée la parcelle et lui attribue son AgroID. Le contour (facultatif)
+        devient la version 1 et est contrôlé (D-19) : un contour suspect est accepté
+        mais signalé, la parcelle passe alors « en attente de validation ». Organisation
+        : `parcels.create` ; espace personnel : le producteur déclare sa propre parcelle.'
+      summary: Enregistrer une parcelle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParcelCreateRequest'
+            examples:
+              ParcelleRelevéeAuGPS:
+                value:
+                  local_name: Champ du fleuve
+                  geometry:
+                    type: Polygon
+                    coordinates:
+                    - - - -14.96
+                        - 16.65
+                      - - -14.9591
+                        - 16.65
+                      - - -14.9591
+                        - 16.6509
+                      - - -14.96
+                        - 16.6509
+                      - - -14.96
+                        - 16.65
+                  capture_method: gps_walk
+                  gps_accuracy_m: 4.5
+                summary: Parcelle relevée au GPS
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParcelCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParcelCreateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+        '400':
+          description: Contour refusé (côtés qui se croisent, hors limites, GeoJSON
+            illisible…).
+  /api/v1/parcels/{id}/:
+    get:
+      operationId: parcels_retrieve
+      description: AgroID, contour courant et son contrôle, propriétaires et exploitants
+        en cours, unités de culture, droits de l'espace actif (`access`).
+      summary: Fiche parcelle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+    patch:
+      operationId: parcels_partial_update
+      description: Seul le nom local se modifie ici ; le contour passe par `/geometries/`
+        (nouvelle version), les relations par leurs routes dédiées.
+      summary: Renommer une parcelle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedParcelUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedParcelUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedParcelUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+  /api/v1/parcels/{id}/geometries/:
+    post:
+      operationId: parcels_geometries_create
+      description: 'Enregistre une nouvelle version du contour (l''ancienne est conservée)
+        et la contrôle (D-19). Organisation : `parcels.create` (l''agent terrain peut
+        relever à nouveau).'
+      summary: Nouveau contour
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewGeometryRequest'
+            examples:
+              ContourRelevéAuGPS:
+                value:
+                  geometry:
+                    type: Polygon
+                    coordinates:
+                    - - - -14.96
+                        - 16.65
+                      - - -14.9591
+                        - 16.65
+                      - - -14.9591
+                        - 16.6509
+                      - - -14.96
+                        - 16.6509
+                      - - -14.96
+                        - 16.65
+                  capture_method: gps_walk
+                  gps_accuracy_m: 3
+                summary: Contour relevé au GPS
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NewGeometryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NewGeometryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+        '400':
+          description: Contour refusé (côtés qui se croisent, hors limites, GeoJSON
+            illisible…).
+  /api/v1/parcels/{id}/geometries/{geometry_id}/review/:
+    post:
+      operationId: parcels_geometries_review_create
+      description: 'Confirme (`valid`) ou refuse (`rejected`, motif obligatoire) un
+        contour signalé. Permission : `parcels.validate_geometry`. Toute organisation
+        qui suit la parcelle peut trancher ; la décision est inscrite dans le rapport
+        du contour.'
+      summary: Trancher un contour signalé
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: geometry_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+  /api/v1/parcels/{id}/history/:
+    get:
+      operationId: parcels_history_retrieve
+      description: Toutes les versions du contour (la plus récente d'abord), propriétaires
+        et exploitants passés et en cours. Rien n'est jamais effacé.
+      summary: Historique de la parcelle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelHistory'
+          description: ''
+  /api/v1/parcels/{id}/operators/:
+    post:
+      operationId: parcels_operators_create
+      description: 'Un seul exploitant principal à la fois (D-06) : `replace_primary:
+        true` clôt le principal en cours à `start_date`. Organisation : le producteur
+        doit être rattaché à l''organisation ; espace personnel : le producteur se
+        désigne lui-même. N''ouvre aucun accès à la parcelle.'
+      summary: Désigner un exploitant
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OperatorCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OperatorCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operator'
+          description: ''
+  /api/v1/parcels/{id}/operators/{operator_id}/end/:
+    post:
+      operationId: parcels_operators_end_create
+      summary: Clore une exploitation
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      - in: path
+        name: operator_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operator'
+          description: ''
+  /api/v1/parcels/{id}/owners/:
+    post:
+      operationId: parcels_owners_create
+      description: 'Exactement un propriétaire : `owner_producer`, `owner_organization`
+        ou `owner_name` (propriétaire non enregistré, D-07). Un changement de propriétaire
+        = clore l''ancien (`/owners/{id}/end/`) puis en ajouter un nouveau. Dans l''espace
+        personnel, la déclaration reste « déclarée ». N''ouvre aucun accès à la parcelle.'
+      summary: Ajouter un propriétaire
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OwnershipCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OwnershipCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OwnershipCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ownership'
+          description: ''
+  /api/v1/parcels/{id}/owners/{owner_id}/end/:
+    post:
+      operationId: parcels_owners_end_create
+      summary: Clore une propriété
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      - in: path
+        name: owner_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EndRelationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ownership'
+          description: ''
+  /api/v1/parcels/{id}/personal-access/:
+    post:
+      operationId: parcels_personal_access_create
+      description: 'Le producteur (rattaché à l''organisation, avec un compte) voit
+        la parcelle dans son espace personnel, en consultation (D-02). Permission
+        : `parcels.grant_personal_access` (administrateur, gérant).'
+      summary: Ouvrir l'accès personnel à un producteur
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalAccessRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonalAccessRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonalAccessRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/parcels/{id}/personal-access/{access_id}/revoke/:
+    post:
+      operationId: parcels_personal_access_revoke_create
+      description: Seuls les accès accordés par l'organisation de l'espace actif.
+      summary: Retirer l'accès personnel
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: access_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/parcels/{id}/retire/:
+    post:
+      operationId: parcels_retire_create
+      description: 'Parcelle disparue ou fusionnée : statut `retired`, archivée ;
+        son AgroID reste réservé à vie. Motif obligatoire.'
+      summary: Retirer une parcelle
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelDetail'
+          description: ''
+  /api/v1/parcels/{id}/units/:
+    post:
+      operationId: parcels_units_create
+      description: Code unique dans la parcelle (U1, U2…), surface facultative (D-16).
+      summary: Ajouter une unité de culture
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnitCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UnitCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UnitCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CultivationUnit'
+          description: ''
+  /api/v1/parcels/{id}/units/{unit_id}/retire/:
+    post:
+      operationId: parcels_units_retire_create
+      summary: Retirer une unité de culture
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      - in: path
+        name: unit_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CultivationUnit'
+          description: ''
+  /api/v1/parcels/link-requests/:
+    post:
+      operationId: parcels_link_requests_create
+      description: 'Le producteur communique l''AgroID de sa parcelle. Parcelle déclarée
+        par un producteur : la demande attend son accord (D-03) et ne donne aucun
+        accès d''ici là ; parcelle d''une autre organisation : suivi d''accompagnement
+        immédiat. La réponse ne révèle rien d''autre de la parcelle. AgroID inconnu
+        : 404.'
+      summary: Demander à suivre une parcelle (par son AgroID)
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LinkRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LinkRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkRequestStatus'
+          description: ''
+  /api/v1/parcels/map/:
+    get:
+      operationId: parcels_map_retrieve
+      description: '`FeatureCollection` des contours courants dans l''emprise `bbox`
+        (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez.
+        Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres
+        `status` et `producer` comme la liste.'
+      summary: Parcelles pour la carte (GeoJSON)
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: query
+        name: bbox
+        schema:
+          type: string
+        description: 'Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84).
+          Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant
+          la touche.'
+      - in: query
+        name: producer
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                FeatureCollection:
+                  value:
+                    type: FeatureCollection
+                    truncated: false
+                    features:
+                    - type: Feature
+                      id: 3f2a…
+                      geometry:
+                        type: MultiPolygon
+                        coordinates:
+                        - - - - -14.96
+                              - 16.65
+                            - - -14.9591
+                              - 16.65
+                            - - -14.9591
+                              - 16.6509
+                            - - -14.96
+                              - 16.6509
+                            - - -14.96
+                              - 16.65
+                      properties:
+                        agroid: PAI-SN-7K4M9X2Q
+                        local_name: Champ du fleuve
+                        status: active
+                        area_m2: '9987.42'
+                        validation_status: valid
           description: ''
   /api/v1/platform/organizations/:
     get:
@@ -1266,6 +2243,22 @@ components:
           minLength: 3
       required:
       - reason
+    ArrangementTypeEnum:
+      enum:
+      - owner_operated
+      - rental
+      - sharecropping
+      - loan
+      - other
+      - unknown
+      type: string
+      description: |-
+        * `owner_operated` - Exploitée par le propriétaire
+        * `rental` - Location
+        * `sharecropping` - Métayage
+        * `loan` - Prêt
+        * `other` - Autre
+        * `unknown` - Inconnu
     Assignment:
       type: object
       properties:
@@ -1319,6 +2312,20 @@ components:
     BlankEnum:
       enum:
       - ''
+    CaptureMethodEnum:
+      enum:
+      - gps_walk
+      - gps_points
+      - manual_drawing
+      - import_geojson
+      - import_kml
+      type: string
+      description: |-
+        * `gps_walk` - Contour marché au GPS
+        * `gps_points` - Points GPS
+        * `manual_drawing` - Tracé sur la carte
+        * `import_geojson` - Import GeoJSON
+        * `import_kml` - Import KML
     ContactTypeEnum:
       enum:
       - phone
@@ -1331,6 +2338,63 @@ components:
         * `whatsapp` - WhatsApp
         * `email` - E-mail
         * `relay_person` - Personne relais
+    CultivationUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CultivationUnitStatusEnum'
+          readOnly: true
+        valid_from:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        valid_to:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+      required:
+      - area_m2
+      - code
+      - id
+      - name
+      - status
+      - valid_from
+      - valid_to
+    CultivationUnitStatusEnum:
+      enum:
+      - active
+      - retired
+      type: string
+      description: |-
+        * `active` - Active
+        * `retired` - Retirée
+    DecisionEnum:
+      enum:
+      - valid
+      - rejected
+      type: string
+      description: |-
+        * `valid` - valid
+        * `rejected` - rejected
     DetachProducerRequest:
       type: object
       properties:
@@ -1379,6 +2443,82 @@ components:
       required:
       - candidates
       - detail
+    EndRelationRequest:
+      type: object
+      properties:
+        end_date:
+          type: string
+          format: date
+      required:
+      - end_date
+    GeometryVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+        is_current:
+          type: boolean
+          readOnly: true
+        geometry:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        perimeter_m:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        capture_method:
+          allOf:
+          - $ref: '#/components/schemas/CaptureMethodEnum'
+          readOnly: true
+        gps_accuracy_m:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+          readOnly: true
+        valid_from:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        valid_to:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        validation:
+          allOf:
+          - $ref: '#/components/schemas/ValidationSummary'
+          readOnly: true
+      required:
+      - area_m2
+      - capture_method
+      - captured_at
+      - geometry
+      - gps_accuracy_m
+      - id
+      - is_current
+      - perimeter_m
+      - valid_from
+      - valid_to
+      - validation
+      - version
     InvitationResult:
       type: object
       description: Adhésion créée, avec le code d'activation à transmettre (affiché
@@ -1467,6 +2607,33 @@ components:
       description: |-
         * `organization` - organization
         * `personal` - personal
+    LinkRequestRequest:
+      type: object
+      properties:
+        agroid:
+          type: string
+          minLength: 1
+          description: AgroID communiqué par le producteur.
+      required:
+      - agroid
+    LinkRequestStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agroid:
+          type: string
+        status:
+          type: string
+        start_date:
+          type: string
+          format: date
+      required:
+      - agroid
+      - id
+      - start_date
+      - status
     Me:
       type: object
       description: Profil de l'utilisateur connecté. Le numéro de téléphone n'est
@@ -1668,6 +2835,116 @@ components:
       - roles
       - status
       - workspace
+    NewGeometryRequest:
+      type: object
+      properties:
+        geometry:
+          description: 'Contour GeoJSON : Polygon, MultiPolygon ou Feature, coordonnées
+            [longitude, latitude] en WGS 84, anneau fermé (le dernier point répète
+            le premier).'
+        capture_method:
+          allOf:
+          - $ref: '#/components/schemas/CaptureMethodEnum'
+          default: manual_drawing
+        gps_accuracy_m:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - geometry
+    Operator:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        producer:
+          type: string
+          format: uuid
+          readOnly: true
+        producer_name:
+          type: string
+          readOnly: true
+        operator_role:
+          allOf:
+          - $ref: '#/components/schemas/OperatorRoleEnum'
+          readOnly: true
+        arrangement_type:
+          allOf:
+          - $ref: '#/components/schemas/ArrangementTypeEnum'
+          readOnly: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/OperatorVerificationEnum'
+          readOnly: true
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        is_current:
+          type: boolean
+          readOnly: true
+      required:
+      - arrangement_type
+      - end_date
+      - id
+      - is_current
+      - operator_role
+      - producer
+      - producer_name
+      - start_date
+      - verification_status
+    OperatorCreateRequest:
+      type: object
+      properties:
+        producer:
+          type: string
+          format: uuid
+        operator_role:
+          $ref: '#/components/schemas/OperatorRoleEnum'
+        arrangement_type:
+          allOf:
+          - $ref: '#/components/schemas/ArrangementTypeEnum'
+          default: unknown
+        start_date:
+          type: string
+          format: date
+        replace_primary:
+          type: boolean
+          default: false
+      required:
+      - operator_role
+      - producer
+      - start_date
+    OperatorRoleEnum:
+      enum:
+      - primary
+      - co_operator
+      type: string
+      description: |-
+        * `primary` - Exploitant principal
+        * `co_operator` - Co-exploitant
+    OperatorVerificationEnum:
+      enum:
+      - declared
+      - confirmed_by_organization
+      - disputed
+      type: string
+      description: |-
+        * `declared` - Déclarée
+        * `confirmed_by_organization` - Confirmée par l'organisation
+        * `disputed` - Contestée
     Organization:
       type: object
       properties:
@@ -1786,6 +3063,114 @@ components:
         * `institution` - Institution
         * `public_agency` - Agence publique
         * `pest_ai` - PEST AI
+    Ownership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        owner_display:
+          type: string
+          readOnly: true
+        owner_producer:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        owner_organization:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        owner_name:
+          type: string
+          readOnly: true
+        tenure_type:
+          allOf:
+          - $ref: '#/components/schemas/TenureTypeEnum'
+          readOnly: true
+        share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        start_date:
+          type: string
+          format: date
+          readOnly: true
+        end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        is_current:
+          type: boolean
+          readOnly: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/OwnershipVerificationEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+      required:
+      - end_date
+      - id
+      - is_current
+      - notes
+      - owner_display
+      - owner_name
+      - owner_organization
+      - owner_producer
+      - share_percent
+      - start_date
+      - tenure_type
+      - verification_status
+    OwnershipCreateRequest:
+      type: object
+      properties:
+        tenure_type:
+          $ref: '#/components/schemas/TenureTypeEnum'
+        start_date:
+          type: string
+          format: date
+        owner_producer:
+          type: string
+          format: uuid
+          nullable: true
+        owner_organization:
+          type: string
+          format: uuid
+          nullable: true
+        owner_name:
+          type: string
+          maxLength: 200
+        share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/OwnershipVerificationEnum'
+          default: declared
+        notes:
+          type: string
+      required:
+      - start_date
+      - tenure_type
+    OwnershipVerificationEnum:
+      enum:
+      - declared
+      - documented
+      - disputed
+      type: string
+      description: |-
+        * `declared` - Déclarée
+        * `documented` - Justifiée par un document
+        * `disputed` - Contestée
     PaginatedMembershipList:
       type: object
       required:
@@ -1832,6 +3217,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Organization'
+    PaginatedParcelListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelList'
     PaginatedPlatformOrganizationList:
       type: object
       required:
@@ -1878,6 +3286,231 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Producer'
+    ParcelCreateRequest:
+      type: object
+      properties:
+        geometry:
+          nullable: true
+          description: 'Contour GeoJSON : Polygon, MultiPolygon ou Feature, coordonnées
+            [longitude, latitude] en WGS 84, anneau fermé (le dernier point répète
+            le premier).'
+        capture_method:
+          allOf:
+          - $ref: '#/components/schemas/CaptureMethodEnum'
+          default: manual_drawing
+        gps_accuracy_m:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          nullable: true
+        captured_at:
+          type: string
+          format: date-time
+          nullable: true
+        local_name:
+          type: string
+          maxLength: 150
+    ParcelDetail:
+      type: object
+      description: Fiche parcelle dans l'espace actif.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agroid:
+          type: string
+          readOnly: true
+          nullable: true
+          description: PAI-SN-XXXXXXXX. Attribué par le serveur, jamais modifié ni
+            réutilisé.
+        local_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ParcelStatusEnum'
+          readOnly: true
+        registration_channel:
+          allOf:
+          - $ref: '#/components/schemas/ParcelRegistrationChannelEnum'
+          readOnly: true
+        current_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        centroid:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          readOnly: true
+          description: '[longitude, latitude] ou null.'
+        primary_operator:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        agroid_assigned_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        country_code:
+          type: string
+          readOnly: true
+        current_geometry:
+          allOf:
+          - $ref: '#/components/schemas/GeometryVersion'
+          nullable: true
+          readOnly: true
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ownership'
+          readOnly: true
+        operators:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operator'
+          readOnly: true
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/CultivationUnit'
+          readOnly: true
+        access:
+          type: string
+          readOnly: true
+          description: 'Droits de l''espace actif sur cette parcelle : view ou manage.'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        row_version:
+          type: integer
+          readOnly: true
+      required:
+      - access
+      - agroid
+      - agroid_assigned_at
+      - centroid
+      - country_code
+      - created_at
+      - current_area_m2
+      - current_geometry
+      - id
+      - local_name
+      - operators
+      - owners
+      - primary_operator
+      - registration_channel
+      - row_version
+      - status
+      - units
+      - updated_at
+    ParcelHistory:
+      type: object
+      properties:
+        geometries:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeometryVersion'
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ownership'
+        operators:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operator'
+      required:
+      - geometries
+      - operators
+      - owners
+    ParcelList:
+      type: object
+      description: 'Ligne de liste (sans contour : voir /parcels/map/ pour la carte).'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agroid:
+          type: string
+          readOnly: true
+          nullable: true
+          description: PAI-SN-XXXXXXXX. Attribué par le serveur, jamais modifié ni
+            réutilisé.
+        local_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ParcelStatusEnum'
+          readOnly: true
+        registration_channel:
+          allOf:
+          - $ref: '#/components/schemas/ParcelRegistrationChannelEnum'
+          readOnly: true
+        current_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        centroid:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          readOnly: true
+          description: '[longitude, latitude] ou null.'
+        primary_operator:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agroid
+      - centroid
+      - created_at
+      - current_area_m2
+      - id
+      - local_name
+      - primary_operator
+      - registration_channel
+      - status
+    ParcelRegistrationChannelEnum:
+      enum:
+      - organization
+      - producer_self
+      type: string
+      description: |-
+        * `organization` - Enregistrée par une organisation
+        * `producer_self` - Déclarée par le producteur
+    ParcelStatusEnum:
+      enum:
+      - draft
+      - pending_validation
+      - active
+      - retired
+      type: string
+      description: |-
+        * `draft` - Brouillon (hors ligne, sans AgroID)
+        * `pending_validation` - En attente de validation
+        * `active` - Active
+        * `retired` - Retirée (AgroID conservé)
     PasswordChangeRequest:
       type: object
       properties:
@@ -1942,6 +3575,12 @@ components:
             maxLength: 254
           - type: string
             maxLength: 0
+    PatchedParcelUpdateRequest:
+      type: object
+      properties:
+        local_name:
+          type: string
+          maxLength: 150
     PatchedPlatformOrganizationRequest:
       type: object
       description: Création et gestion par le Super Admin (portée plateforme).
@@ -2017,6 +3656,40 @@ components:
         membership_number:
           type: string
           maxLength: 50
+    PendingLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization:
+          type: string
+          description: Nom de l'organisation qui demande.
+        parcel_id:
+          type: string
+          format: uuid
+        agroid:
+          type: string
+        local_name:
+          type: string
+        requested_at:
+          type: string
+          format: date
+      required:
+      - agroid
+      - id
+      - local_name
+      - organization
+      - parcel_id
+      - requested_at
+    PersonalAccessRequest:
+      type: object
+      properties:
+        producer:
+          type: string
+          format: uuid
+      required:
+      - producer
     PersonalProfile:
       type: object
       description: Profil producteur du compte connecté (espace personnel).
@@ -2046,7 +3719,7 @@ components:
           $ref: '#/components/schemas/PreferredLanguageEnum'
         registration_channel:
           allOf:
-          - $ref: '#/components/schemas/RegistrationChannelEnum'
+          - $ref: '#/components/schemas/ProducerRegistrationChannelEnum'
           readOnly: true
         status:
           allOf:
@@ -2246,7 +3919,7 @@ components:
           readOnly: true
         registration_channel:
           allOf:
-          - $ref: '#/components/schemas/RegistrationChannelEnum'
+          - $ref: '#/components/schemas/ProducerRegistrationChannelEnum'
           readOnly: true
         status:
           allOf:
@@ -2381,6 +4054,14 @@ components:
       required:
       - first_name
       - last_name
+    ProducerRegistrationChannelEnum:
+      enum:
+      - organization
+      - self_signup
+      type: string
+      description: |-
+        * `organization` - Inscrit par une organisation
+        * `self_signup` - Inscrit par lui-même
     ProducerStatusEnum:
       enum:
       - active
@@ -2389,14 +4070,15 @@ components:
       description: |-
         * `active` - Actif
         * `inactive` - Inactif
-    RegistrationChannelEnum:
-      enum:
-      - organization
-      - self_signup
-      type: string
-      description: |-
-        * `organization` - Inscrit par une organisation
-        * `self_signup` - Inscrit par lui-même
+    ReasonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - reason
     RelationshipTypeEnum:
       enum:
       - member
@@ -2407,6 +4089,16 @@ components:
         * `member` - Membre
         * `beneficiary` - Bénéficiaire
         * `client` - Client
+    ReviewRequest:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        note:
+          type: string
+          maxLength: 1000
+      required:
+      - decision
     RoleCodeRequest:
       type: object
       properties:
@@ -2458,6 +4150,24 @@ components:
         * `female` - Femme
         * `male` - Homme
         * `unspecified` - Non précisé
+    TenureTypeEnum:
+      enum:
+      - titled_property
+      - customary_right
+      - family_land
+      - lease
+      - communal
+      - other
+      - unknown
+      type: string
+      description: |-
+        * `titled_property` - Titre foncier
+        * `customary_right` - Droit coutumier
+        * `family_land` - Terre familiale
+        * `lease` - Bail
+        * `communal` - Terre communautaire
+        * `other` - Autre
+        * `unknown` - Inconnu
     TokenBlacklistRequest:
       type: object
       properties:
@@ -2512,6 +4222,56 @@ components:
           minLength: 1
       required:
       - refresh
+    UnitCreateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 16
+        name:
+          type: string
+          maxLength: 100
+        area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - code
+    ValidationSummary:
+      type: object
+      properties:
+        status:
+          type: string
+          description: pending, valid, flagged ou rejected.
+        flags:
+          type: array
+          items:
+            type: string
+        labels:
+          type: array
+          items:
+            type: string
+          description: Motifs lisibles.
+        overlaps:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: 'Chevauchements : AgroID seulement si la parcelle voisine est
+            visible dans l''espace actif, sinon « Parcelle hors de votre périmètre
+            ».'
+        review:
+          type: object
+          additionalProperties: {}
+          nullable: true
+      required:
+      - flags
+      - labels
+      - overlaps
+      - review
+      - status
     WebAccessToken:
       type: object
       properties:
@@ -2578,3 +4338,5 @@ tags:
   description: Membres et rôles de l'organisation active.
 - name: platform
   description: Administration de la plateforme (super_admin).
+- name: parcels
+  description: Parcelles, AgroID, contours GeoJSON, propriété et exploitation.

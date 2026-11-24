@@ -190,6 +190,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/parcel-links/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Demandes de suivi en attente
+         * @description Organisations qui demandent à suivre une de vos parcelles. Espace `personal` uniquement. Tant que vous n'avez pas accepté, elles ne voient rien.
+         */
+        get: operations["me_parcel_links_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/parcel-links/{link_id}/accept/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Répondre à une demande de suivi
+         * @description `accept` : l'organisation voit la parcelle (rien de votre espace personnel ne lui est transmis). `decline` : la demande est close, aucun accès.
+         */
+        post: operations["me_parcel_links_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/parcel-links/{link_id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Répondre à une demande de suivi
+         * @description `accept` : l'organisation voit la parcelle (rien de votre espace personnel ne lui est transmis). `decline` : la demande est close, aucun accès.
+         */
+        post: operations["me_parcel_links_decline_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/password/": {
         parameters: {
             query?: never;
@@ -464,6 +524,325 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parcels/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Parcelles de l'espace actif
+         * @description Organisation : parcelles qu'elle suit (lien actif). Espace personnel : parcelles auxquelles le producteur a accès. Paginé (50). Pour la carte, utilisez `/parcels/map/`.
+         */
+        get: operations["parcels_list"];
+        put?: never;
+        /**
+         * Enregistrer une parcelle
+         * @description Crée la parcelle et lui attribue son AgroID. Le contour (facultatif) devient la version 1 et est contrôlé (D-19) : un contour suspect est accepté mais signalé, la parcelle passe alors « en attente de validation ». Organisation : `parcels.create` ; espace personnel : le producteur déclare sa propre parcelle.
+         */
+        post: operations["parcels_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fiche parcelle
+         * @description AgroID, contour courant et son contrôle, propriétaires et exploitants en cours, unités de culture, droits de l'espace actif (`access`).
+         */
+        get: operations["parcels_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Renommer une parcelle
+         * @description Seul le nom local se modifie ici ; le contour passe par `/geometries/` (nouvelle version), les relations par leurs routes dédiées.
+         */
+        patch: operations["parcels_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/geometries/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nouveau contour
+         * @description Enregistre une nouvelle version du contour (l'ancienne est conservée) et la contrôle (D-19). Organisation : `parcels.create` (l'agent terrain peut relever à nouveau).
+         */
+        post: operations["parcels_geometries_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/geometries/{geometry_id}/review/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trancher un contour signalé
+         * @description Confirme (`valid`) ou refuse (`rejected`, motif obligatoire) un contour signalé. Permission : `parcels.validate_geometry`. Toute organisation qui suit la parcelle peut trancher ; la décision est inscrite dans le rapport du contour.
+         */
+        post: operations["parcels_geometries_review_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/history/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historique de la parcelle
+         * @description Toutes les versions du contour (la plus récente d'abord), propriétaires et exploitants passés et en cours. Rien n'est jamais effacé.
+         */
+        get: operations["parcels_history_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/operators/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Désigner un exploitant
+         * @description Un seul exploitant principal à la fois (D-06) : `replace_primary: true` clôt le principal en cours à `start_date`. Organisation : le producteur doit être rattaché à l'organisation ; espace personnel : le producteur se désigne lui-même. N'ouvre aucun accès à la parcelle.
+         */
+        post: operations["parcels_operators_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/operators/{operator_id}/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clore une exploitation */
+        post: operations["parcels_operators_end_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/owners/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ajouter un propriétaire
+         * @description Exactement un propriétaire : `owner_producer`, `owner_organization` ou `owner_name` (propriétaire non enregistré, D-07). Un changement de propriétaire = clore l'ancien (`/owners/{id}/end/`) puis en ajouter un nouveau. Dans l'espace personnel, la déclaration reste « déclarée ». N'ouvre aucun accès à la parcelle.
+         */
+        post: operations["parcels_owners_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/owners/{owner_id}/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clore une propriété */
+        post: operations["parcels_owners_end_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/personal-access/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ouvrir l'accès personnel à un producteur
+         * @description Le producteur (rattaché à l'organisation, avec un compte) voit la parcelle dans son espace personnel, en consultation (D-02). Permission : `parcels.grant_personal_access` (administrateur, gérant).
+         */
+        post: operations["parcels_personal_access_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/personal-access/{access_id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retirer l'accès personnel
+         * @description Seuls les accès accordés par l'organisation de l'espace actif.
+         */
+        post: operations["parcels_personal_access_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/retire/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retirer une parcelle
+         * @description Parcelle disparue ou fusionnée : statut `retired`, archivée ; son AgroID reste réservé à vie. Motif obligatoire.
+         */
+        post: operations["parcels_retire_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/units/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ajouter une unité de culture
+         * @description Code unique dans la parcelle (U1, U2…), surface facultative (D-16).
+         */
+        post: operations["parcels_units_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/{id}/units/{unit_id}/retire/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retirer une unité de culture */
+        post: operations["parcels_units_retire_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/link-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Demander à suivre une parcelle (par son AgroID)
+         * @description Le producteur communique l'AgroID de sa parcelle. Parcelle déclarée par un producteur : la demande attend son accord (D-03) et ne donne aucun accès d'ici là ; parcelle d'une autre organisation : suivi d'accompagnement immédiat. La réponse ne révèle rien d'autre de la parcelle. AgroID inconnu : 404.
+         */
+        post: operations["parcels_link_requests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/map/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Parcelles pour la carte (GeoJSON)
+         * @description `FeatureCollection` des contours courants dans l'emprise `bbox` (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez. Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres `status` et `producer` comme la liste.
+         */
+        get: operations["parcels_map_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/organizations/": {
         parameters: {
             query?: never;
@@ -680,6 +1059,16 @@ export interface components {
         ArchiveRequest: {
             reason: string;
         };
+        /**
+         * @description * `owner_operated` - Exploitée par le propriétaire
+         *     * `rental` - Location
+         *     * `sharecropping` - Métayage
+         *     * `loan` - Prêt
+         *     * `other` - Autre
+         *     * `unknown` - Inconnu
+         * @enum {string}
+         */
+        ArrangementTypeEnum: "owner_operated" | "rental" | "sharecropping" | "loan" | "other" | "unknown";
         Assignment: {
             /** Format: uuid */
             readonly id: string;
@@ -702,6 +1091,15 @@ export interface components {
         /** @enum {unknown} */
         BlankEnum: "";
         /**
+         * @description * `gps_walk` - Contour marché au GPS
+         *     * `gps_points` - Points GPS
+         *     * `manual_drawing` - Tracé sur la carte
+         *     * `import_geojson` - Import GeoJSON
+         *     * `import_kml` - Import KML
+         * @enum {string}
+         */
+        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "import_geojson" | "import_kml";
+        /**
          * @description * `phone` - Téléphone
          *     * `whatsapp` - WhatsApp
          *     * `email` - E-mail
@@ -709,6 +1107,31 @@ export interface components {
          * @enum {string}
          */
         ContactTypeEnum: "phone" | "whatsapp" | "email" | "relay_person";
+        CultivationUnit: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly code: string;
+            readonly name: string;
+            /** Format: decimal */
+            readonly area_m2: string | null;
+            readonly status: components["schemas"]["CultivationUnitStatusEnum"];
+            /** Format: date */
+            readonly valid_from: string | null;
+            /** Format: date */
+            readonly valid_to: string | null;
+        };
+        /**
+         * @description * `active` - Active
+         *     * `retired` - Retirée
+         * @enum {string}
+         */
+        CultivationUnitStatusEnum: "active" | "retired";
+        /**
+         * @description * `valid` - valid
+         *     * `rejected` - rejected
+         * @enum {string}
+         */
+        DecisionEnum: "valid" | "rejected";
         DetachProducerRequest: {
             /**
              * Format: date
@@ -733,6 +1156,33 @@ export interface components {
         DuplicateResponse: {
             detail: string;
             candidates: components["schemas"]["DuplicateCandidate"][];
+        };
+        EndRelationRequest: {
+            /** Format: date */
+            end_date: string;
+        };
+        GeometryVersion: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly version: number;
+            readonly is_current: boolean;
+            readonly geometry: {
+                [key: string]: unknown;
+            };
+            /** Format: decimal */
+            readonly area_m2: string;
+            /** Format: decimal */
+            readonly perimeter_m: string;
+            readonly capture_method: components["schemas"]["CaptureMethodEnum"];
+            /** Format: decimal */
+            readonly gps_accuracy_m: string | null;
+            /** Format: date-time */
+            readonly captured_at: string;
+            /** Format: date-time */
+            readonly valid_from: string | null;
+            /** Format: date-time */
+            readonly valid_to: string | null;
+            readonly validation: components["schemas"]["ValidationSummary"];
         };
         /** @description Adhésion créée, avec le code d'activation à transmettre (affiché une seule fois). */
         InvitationResult: {
@@ -767,6 +1217,18 @@ export interface components {
          * @enum {string}
          */
         KindEnum: "organization" | "personal";
+        LinkRequestRequest: {
+            /** @description AgroID communiqué par le producteur. */
+            agroid: string;
+        };
+        LinkRequestStatus: {
+            /** Format: uuid */
+            id: string;
+            agroid: string;
+            status: string;
+            /** Format: date */
+            start_date: string;
+        };
         /** @description Profil de l'utilisateur connecté. Le numéro de téléphone n'est pas modifiable ici. */
         Me: {
             /** Format: uuid */
@@ -851,6 +1313,55 @@ export interface components {
             readonly workspace: string;
             readonly roles: string[];
         };
+        NewGeometryRequest: {
+            /** @description Contour GeoJSON : Polygon, MultiPolygon ou Feature, coordonnées [longitude, latitude] en WGS 84, anneau fermé (le dernier point répète le premier). */
+            geometry: unknown;
+            /** @default manual_drawing */
+            capture_method: components["schemas"]["CaptureMethodEnum"];
+            /** Format: decimal */
+            gps_accuracy_m?: string | null;
+            /** Format: date-time */
+            captured_at?: string | null;
+        };
+        Operator: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly producer: string;
+            readonly producer_name: string;
+            readonly operator_role: components["schemas"]["OperatorRoleEnum"];
+            readonly arrangement_type: components["schemas"]["ArrangementTypeEnum"];
+            readonly verification_status: components["schemas"]["OperatorVerificationEnum"];
+            /** Format: date */
+            readonly start_date: string;
+            /** Format: date */
+            readonly end_date: string | null;
+            readonly is_current: boolean;
+        };
+        OperatorCreateRequest: {
+            /** Format: uuid */
+            producer: string;
+            operator_role: components["schemas"]["OperatorRoleEnum"];
+            /** @default unknown */
+            arrangement_type: components["schemas"]["ArrangementTypeEnum"];
+            /** Format: date */
+            start_date: string;
+            /** @default false */
+            replace_primary: boolean;
+        };
+        /**
+         * @description * `primary` - Exploitant principal
+         *     * `co_operator` - Co-exploitant
+         * @enum {string}
+         */
+        OperatorRoleEnum: "primary" | "co_operator";
+        /**
+         * @description * `declared` - Déclarée
+         *     * `confirmed_by_organization` - Confirmée par l'organisation
+         *     * `disputed` - Contestée
+         * @enum {string}
+         */
+        OperatorVerificationEnum: "declared" | "confirmed_by_organization" | "disputed";
         Organization: {
             /** Format: uuid */
             readonly id: string;
@@ -909,6 +1420,48 @@ export interface components {
          * @enum {string}
          */
         OrganizationTypeEnum: "cooperative" | "union" | "ngo" | "company" | "institution" | "public_agency" | "pest_ai";
+        Ownership: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly owner_display: string;
+            /** Format: uuid */
+            readonly owner_producer: string | null;
+            /** Format: uuid */
+            readonly owner_organization: string | null;
+            readonly owner_name: string;
+            readonly tenure_type: components["schemas"]["TenureTypeEnum"];
+            /** Format: decimal */
+            readonly share_percent: string | null;
+            /** Format: date */
+            readonly start_date: string;
+            /** Format: date */
+            readonly end_date: string | null;
+            readonly is_current: boolean;
+            readonly verification_status: components["schemas"]["OwnershipVerificationEnum"];
+            readonly notes: string;
+        };
+        OwnershipCreateRequest: {
+            tenure_type: components["schemas"]["TenureTypeEnum"];
+            /** Format: date */
+            start_date: string;
+            /** Format: uuid */
+            owner_producer?: string | null;
+            /** Format: uuid */
+            owner_organization?: string | null;
+            owner_name?: string;
+            /** Format: decimal */
+            share_percent?: string | null;
+            /** @default declared */
+            verification_status: components["schemas"]["OwnershipVerificationEnum"];
+            notes?: string;
+        };
+        /**
+         * @description * `declared` - Déclarée
+         *     * `documented` - Justifiée par un document
+         *     * `disputed` - Contestée
+         * @enum {string}
+         */
+        OwnershipVerificationEnum: "declared" | "documented" | "disputed";
         PaginatedMembershipList: {
             /** @example 123 */
             count: number;
@@ -938,6 +1491,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Organization"][];
+        };
+        PaginatedParcelListList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ParcelList"][];
         };
         PaginatedPlatformOrganizationList: {
             /** @example 123 */
@@ -969,6 +1537,86 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Producer"][];
         };
+        ParcelCreateRequest: {
+            /** @description Contour GeoJSON : Polygon, MultiPolygon ou Feature, coordonnées [longitude, latitude] en WGS 84, anneau fermé (le dernier point répète le premier). */
+            geometry?: unknown;
+            /** @default manual_drawing */
+            capture_method: components["schemas"]["CaptureMethodEnum"];
+            /** Format: decimal */
+            gps_accuracy_m?: string | null;
+            /** Format: date-time */
+            captured_at?: string | null;
+            local_name?: string;
+        };
+        /** @description Fiche parcelle dans l'espace actif. */
+        ParcelDetail: {
+            /** Format: uuid */
+            readonly id: string;
+            /** @description PAI-SN-XXXXXXXX. Attribué par le serveur, jamais modifié ni réutilisé. */
+            readonly agroid: string | null;
+            readonly local_name: string;
+            readonly status: components["schemas"]["ParcelStatusEnum"];
+            readonly registration_channel: components["schemas"]["ParcelRegistrationChannelEnum"];
+            /** Format: decimal */
+            readonly current_area_m2: string | null;
+            /** @description [longitude, latitude] ou null. */
+            readonly centroid: number[] | null;
+            readonly primary_operator: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly agroid_assigned_at: string | null;
+            readonly country_code: string;
+            readonly current_geometry: components["schemas"]["GeometryVersion"] | null;
+            readonly owners: components["schemas"]["Ownership"][];
+            readonly operators: components["schemas"]["Operator"][];
+            readonly units: components["schemas"]["CultivationUnit"][];
+            /** @description Droits de l'espace actif sur cette parcelle : view ou manage. */
+            readonly access: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly row_version: number;
+        };
+        ParcelHistory: {
+            geometries: components["schemas"]["GeometryVersion"][];
+            owners: components["schemas"]["Ownership"][];
+            operators: components["schemas"]["Operator"][];
+        };
+        /** @description Ligne de liste (sans contour : voir /parcels/map/ pour la carte). */
+        ParcelList: {
+            /** Format: uuid */
+            readonly id: string;
+            /** @description PAI-SN-XXXXXXXX. Attribué par le serveur, jamais modifié ni réutilisé. */
+            readonly agroid: string | null;
+            readonly local_name: string;
+            readonly status: components["schemas"]["ParcelStatusEnum"];
+            readonly registration_channel: components["schemas"]["ParcelRegistrationChannelEnum"];
+            /** Format: decimal */
+            readonly current_area_m2: string | null;
+            /** @description [longitude, latitude] ou null. */
+            readonly centroid: number[] | null;
+            readonly primary_operator: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `organization` - Enregistrée par une organisation
+         *     * `producer_self` - Déclarée par le producteur
+         * @enum {string}
+         */
+        ParcelRegistrationChannelEnum: "organization" | "producer_self";
+        /**
+         * @description * `draft` - Brouillon (hors ligne, sans AgroID)
+         *     * `pending_validation` - En attente de validation
+         *     * `active` - Active
+         *     * `retired` - Retirée (AgroID conservé)
+         * @enum {string}
+         */
+        ParcelStatusEnum: "draft" | "pending_validation" | "active" | "retired";
         PasswordChangeRequest: {
             current_password: string;
             new_password: string;
@@ -990,6 +1638,9 @@ export interface components {
             address?: string;
             phone_number?: string;
             email?: string;
+        };
+        PatchedParcelUpdateRequest: {
+            local_name?: string;
         };
         /** @description Création et gestion par le Super Admin (portée plateforme). */
         PatchedPlatformOrganizationRequest: {
@@ -1024,6 +1675,22 @@ export interface components {
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
             membership_number?: string;
         };
+        PendingLink: {
+            /** Format: uuid */
+            id: string;
+            /** @description Nom de l'organisation qui demande. */
+            organization: string;
+            /** Format: uuid */
+            parcel_id: string;
+            agroid: string;
+            local_name: string;
+            /** Format: date */
+            requested_at: string;
+        };
+        PersonalAccessRequest: {
+            /** Format: uuid */
+            producer: string;
+        };
         /** @description Profil producteur du compte connecté (espace personnel). */
         PersonalProfile: {
             /** Format: uuid */
@@ -1034,7 +1701,7 @@ export interface components {
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
-            readonly registration_channel: components["schemas"]["RegistrationChannelEnum"];
+            readonly registration_channel: components["schemas"]["ProducerRegistrationChannelEnum"];
             readonly status: components["schemas"]["ProducerStatusEnum"];
             /** Format: date-time */
             readonly created_at: string;
@@ -1117,7 +1784,7 @@ export interface components {
             readonly birth_year: number | null;
             readonly locality_text: string;
             readonly preferred_language: components["schemas"]["PreferredLanguageEnum"];
-            readonly registration_channel: components["schemas"]["RegistrationChannelEnum"];
+            readonly registration_channel: components["schemas"]["ProducerRegistrationChannelEnum"];
             readonly status: components["schemas"]["ProducerStatusEnum"];
             /** @description Téléphone principal (E.164) ou vide. */
             readonly phone_number: string;
@@ -1166,17 +1833,20 @@ export interface components {
             confirm_new: boolean;
         };
         /**
+         * @description * `organization` - Inscrit par une organisation
+         *     * `self_signup` - Inscrit par lui-même
+         * @enum {string}
+         */
+        ProducerRegistrationChannelEnum: "organization" | "self_signup";
+        /**
          * @description * `active` - Actif
          *     * `inactive` - Inactif
          * @enum {string}
          */
         ProducerStatusEnum: "active" | "inactive";
-        /**
-         * @description * `organization` - Inscrit par une organisation
-         *     * `self_signup` - Inscrit par lui-même
-         * @enum {string}
-         */
-        RegistrationChannelEnum: "organization" | "self_signup";
+        ReasonRequest: {
+            reason: string;
+        };
         /**
          * @description * `member` - Membre
          *     * `beneficiary` - Bénéficiaire
@@ -1184,6 +1854,10 @@ export interface components {
          * @enum {string}
          */
         RelationshipTypeEnum: "member" | "beneficiary" | "client";
+        ReviewRequest: {
+            decision: components["schemas"]["DecisionEnum"];
+            note?: string;
+        };
         RoleCodeRequest: {
             role: components["schemas"]["RoleEnum"];
         };
@@ -1215,6 +1889,17 @@ export interface components {
          * @enum {string}
          */
         SexEnum: "female" | "male" | "unspecified";
+        /**
+         * @description * `titled_property` - Titre foncier
+         *     * `customary_right` - Droit coutumier
+         *     * `family_land` - Terre familiale
+         *     * `lease` - Bail
+         *     * `communal` - Terre communautaire
+         *     * `other` - Autre
+         *     * `unknown` - Inconnu
+         * @enum {string}
+         */
+        TenureTypeEnum: "titled_property" | "customary_right" | "family_land" | "lease" | "communal" | "other" | "unknown";
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -1232,6 +1917,26 @@ export interface components {
         };
         TokenRefreshRequest: {
             refresh: string;
+        };
+        UnitCreateRequest: {
+            code: string;
+            name?: string;
+            /** Format: decimal */
+            area_m2?: string | null;
+        };
+        ValidationSummary: {
+            /** @description pending, valid, flagged ou rejected. */
+            status: string;
+            flags: string[];
+            /** @description Motifs lisibles. */
+            labels: string[];
+            /** @description Chevauchements : AgroID seulement si la parcelle voisine est visible dans l'espace actif, sinon « Parcelle hors de votre périmètre ». */
+            overlaps: {
+                [key: string]: unknown;
+            }[];
+            review: {
+                [key: string]: unknown;
+            } | null;
         };
         WebAccessToken: {
             access: string;
@@ -1539,6 +2244,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyMembership"];
+                };
+            };
+        };
+    };
+    me_parcel_links_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingLink"][];
+                };
+            };
+        };
+    };
+    me_parcel_links_accept_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkRequestStatus"];
+                };
+            };
+        };
+    };
+    me_parcel_links_decline_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkRequestStatus"];
                 };
             };
         };
@@ -1914,6 +2689,565 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedOrganizationList"];
+                };
+            };
+        };
+    };
+    parcels_list: {
+        parameters: {
+            query?: {
+                /** @description Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84). Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant la touche. */
+                bbox?: string;
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+                /** @description UUID d'un exploitant en cours. */
+                producer?: string;
+                /** @description AgroID (saisie tolérée) ou nom local. */
+                q?: string;
+                status?: "active" | "draft" | "pending_validation" | "retired";
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedParcelListList"];
+                };
+            };
+        };
+    };
+    parcels_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ParcelCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ParcelCreateRequest"];
+                "multipart/form-data": components["schemas"]["ParcelCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+            /** @description Contour refusé (côtés qui se croisent, hors limites, GeoJSON illisible…). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    parcels_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+        };
+    };
+    parcels_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedParcelUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedParcelUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedParcelUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+        };
+    };
+    parcels_geometries_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewGeometryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NewGeometryRequest"];
+                "multipart/form-data": components["schemas"]["NewGeometryRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+            /** @description Contour refusé (côtés qui se croisent, hors limites, GeoJSON illisible…). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    parcels_geometries_review_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                geometry_id: string;
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviewRequest"];
+                "multipart/form-data": components["schemas"]["ReviewRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+        };
+    };
+    parcels_history_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelHistory"];
+                };
+            };
+        };
+    };
+    parcels_operators_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OperatorCreateRequest"];
+                "multipart/form-data": components["schemas"]["OperatorCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operator"];
+                };
+            };
+        };
+    };
+    parcels_operators_end_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+                operator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndRelationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EndRelationRequest"];
+                "multipart/form-data": components["schemas"]["EndRelationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operator"];
+                };
+            };
+        };
+    };
+    parcels_owners_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnershipCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OwnershipCreateRequest"];
+                "multipart/form-data": components["schemas"]["OwnershipCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ownership"];
+                };
+            };
+        };
+    };
+    parcels_owners_end_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+                owner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndRelationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EndRelationRequest"];
+                "multipart/form-data": components["schemas"]["EndRelationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ownership"];
+                };
+            };
+        };
+    };
+    parcels_personal_access_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalAccessRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PersonalAccessRequest"];
+                "multipart/form-data": components["schemas"]["PersonalAccessRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    parcels_personal_access_revoke_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                access_id: string;
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReasonRequest"];
+                "multipart/form-data": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    parcels_retire_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReasonRequest"];
+                "multipart/form-data": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelDetail"];
+                };
+            };
+        };
+    };
+    parcels_units_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UnitCreateRequest"];
+                "multipart/form-data": components["schemas"]["UnitCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CultivationUnit"];
+                };
+            };
+        };
+    };
+    parcels_units_retire_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+                unit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReasonRequest"];
+                "multipart/form-data": components["schemas"]["ReasonRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CultivationUnit"];
+                };
+            };
+        };
+    };
+    parcels_link_requests_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkRequestRequest"];
+                "multipart/form-data": components["schemas"]["LinkRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkRequestStatus"];
+                };
+            };
+        };
+    };
+    parcels_map_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Emprise de la carte : `minLon,minLat,maxLon,maxLat` (WGS 84). Ex. `-15.1,16.5,-14.8,16.8`. Garde les parcelles dont le contour courant la touche. */
+                bbox?: string;
+                producer?: string;
+                status?: string;
+            };
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -19,5 +19,6 @@ urlpatterns = [
     path("api/v1/", include("apps.accounts.urls")),
     path("api/v1/", include("apps.organizations.urls")),
     path("api/v1/", include("apps.actors.urls")),
+    path("api/v1/", include("apps.parcels.urls")),
     path("api/v1/workspace/", WorkspaceContextView.as_view(), name="workspace-context"),
 ]

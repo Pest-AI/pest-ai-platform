@@ -35,6 +35,11 @@ Les permissions suivent le format `domaine.action` (par exemple `memberships.man
 | `producers.view` | `organization_admin`, `cooperative_manager`, `field_agent`, `agronomist`, `program_manager` |
 | `producers.create` | `organization_admin`, `cooperative_manager`, `field_agent` |
 | `producers.manage` | `organization_admin`, `cooperative_manager` |
+| `parcels.view` | `organization_admin`, `cooperative_manager`, `field_agent`, `agronomist`, `program_manager` |
+| `parcels.create` | `organization_admin`, `cooperative_manager`, `field_agent` |
+| `parcels.manage` | `organization_admin`, `cooperative_manager` |
+| `parcels.validate_geometry` | `organization_admin`, `cooperative_manager`, `agronomist` |
+| `parcels.grant_personal_access` | `organization_admin`, `cooperative_manager` |
 | `platform.organizations.view` / `.manage` | `super_admin` |
 
 :::info Règles complémentaires (validées le 23/11/2026)
