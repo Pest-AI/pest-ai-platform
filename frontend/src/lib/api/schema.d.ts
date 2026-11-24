@@ -843,6 +843,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parcels/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Résumé des parcelles de l'espace
+         * @description Indicateurs du tableau de bord : nombre de parcelles (hors retirées), nombre par statut, surface totale des contours courants (m²), contours à vérifier, emprise de l'ensemble (`bbox`, pour cadrer la carte) ou null.
+         */
+        get: operations["parcels_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/organizations/": {
         parameters: {
             query?: never;
@@ -1617,6 +1637,19 @@ export interface components {
          * @enum {string}
          */
         ParcelStatusEnum: "draft" | "pending_validation" | "active" | "retired";
+        ParcelSummary: {
+            /** @description Parcelles non retirées. */
+            count: number;
+            by_status: {
+                [key: string]: number;
+            };
+            /** Format: decimal */
+            total_area_m2: string;
+            /** @description Contours courants signalés ou à contrôler. */
+            to_review: number;
+            /** @description [minLon, minLat, maxLon, maxLat] des points centraux, ou null. */
+            bbox: number[] | null;
+        };
         PasswordChangeRequest: {
             current_password: string;
             new_password: string;
@@ -3248,6 +3281,28 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    parcels_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParcelSummary"];
                 };
             };
         };

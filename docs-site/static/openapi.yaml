@@ -1729,6 +1729,33 @@ paths:
                         area_m2: '9987.42'
                         validation_status: valid
           description: ''
+  /api/v1/parcels/summary/:
+    get:
+      operationId: parcels_summary_retrieve
+      description: 'Indicateurs du tableau de bord : nombre de parcelles (hors retirées),
+        nombre par statut, surface totale des contours courants (m²), contours à vérifier,
+        emprise de l''ensemble (`bbox`, pour cadrer la carte) ou null.'
+      summary: Résumé des parcelles de l'espace
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParcelSummary'
+          description: ''
   /api/v1/platform/organizations/:
     get:
       operationId: platform_organizations_list
@@ -3511,6 +3538,36 @@ components:
         * `pending_validation` - En attente de validation
         * `active` - Active
         * `retired` - Retirée (AgroID conservé)
+    ParcelSummary:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Parcelles non retirées.
+        by_status:
+          type: object
+          additionalProperties:
+            type: integer
+        total_area_m2:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,2})?$
+        to_review:
+          type: integer
+          description: Contours courants signalés ou à contrôler.
+        bbox:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          description: '[minLon, minLat, maxLon, maxLat] des points centraux, ou null.'
+      required:
+      - bbox
+      - by_status
+      - count
+      - to_review
+      - total_area_m2
     PasswordChangeRequest:
       type: object
       properties:

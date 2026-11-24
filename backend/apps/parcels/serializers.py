@@ -271,6 +271,18 @@ class ParcelDetailSerializer(ParcelListSerializer):
         return self.context.get("access_level", AccessLevel.VIEW)
 
 
+class ParcelSummarySerializer(serializers.Serializer):
+    count = serializers.IntegerField(help_text="Parcelles non retirées.")
+    by_status = serializers.DictField(child=serializers.IntegerField())
+    total_area_m2 = serializers.DecimalField(max_digits=16, decimal_places=2)
+    to_review = serializers.IntegerField(help_text="Contours courants signalés ou à contrôler.")
+    bbox = serializers.ListField(
+        child=serializers.FloatField(),
+        allow_null=True,
+        help_text="[minLon, minLat, maxLon, maxLat] des points centraux, ou null.",
+    )
+
+
 class ParcelHistorySerializer(serializers.Serializer):
     geometries = GeometryVersionSerializer(many=True)
     owners = OwnershipSerializer(many=True)

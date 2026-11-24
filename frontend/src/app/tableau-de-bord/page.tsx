@@ -15,11 +15,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AppShell, PageHeader, Stat, StatRow } from "@/components/app-shell";
+import { AutoSubmitSelect } from "@/components/auto-submit-select";
 import { StatusPill } from "@/components/list-toolbar";
 import { ParcelMap } from "@/components/parcel-map";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
+import { PARCEL_STATUS_FILTER, hectares, padBbox, type Bbox } from "@/lib/parcels";
 import { formatPhone } from "@/lib/phone";
 import { producerInitials } from "@/lib/producers";
 import { ORGANIZATION_TYPE_LABELS, countSince, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
@@ -29,17 +31,17 @@ import paysage from "../../../public/brand/tableau-paysage.jpg";
 
 export const metadata: Metadata = { title: "Vue d'ensemble" };
 
-/** Cadrage par défaut : vallée du fleuve Sénégal (Podor). Le cadrage suivra les parcelles (J14). */
+/** Cadrage par défaut (aucune parcelle) : vallée du fleuve Sénégal (Podor). */
 const DEFAULT_VIEW = { center: [-14.96, 16.65] as [number, number], zoom: 10 };
 
-/** Filtres de la carte, branchés au fil des modules du MVP. */
-const MAP_FILTERS = [
+/** Filtres pas encore branchés (modules à venir). */
+const UPCOMING_FILTERS = [
   ["Campagne", "toutes", "Campagnes (J16)"],
   ["Culture", "toutes", "Cultures (J16)"],
   ["Zone", "toutes", "Zones géographiques"],
-  ["Statut", "tous", "Registre des parcelles (J11)"],
-  ["Producteur", "tous", "Registre des parcelles (J11)"],
 ] as const;
+
+const UUID = /^[0-9a-f-]{36}$/;
 
 type Step = { label: string; done: boolean; href?: string };
 
@@ -121,17 +123,25 @@ function Onboarding({ steps }: { steps: Step[] }) {
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const statusFilter = PARCEL_STATUS_FILTER.some(([v]) => v && v === params.statut) ? (params.statut ?? "") : "";
+  const producerFilter = UUID.test(params.producteur ?? "") ? (params.producteur ?? "") : "";
   const workspace = await currentWorkspace();
   if (!workspace) redirect("/espaces");
 
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, membersResult, producersResult] = await Promise.all([
+  const [{ data: me }, orgResult, membersResult, producersResult, summaryResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/memberships/", { params: { header } }),
     api.GET("/api/v1/producers/", { params: { header } }),
+    api.GET("/api/v1/parcels/summary/", { params: { header } }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -150,11 +160,20 @@ export default async function DashboardPage() {
     .sort((a, b) => (b.assignment?.start_date ?? "").localeCompare(a.assignment?.start_date ?? ""))
     .slice(0, 5);
 
+  // null : parcelles non accessibles avec ce rôle.
+  const summary = summaryResult.data ?? null;
+  const parcelCount = summary?.count ?? 0;
+  const fitBbox = summary?.bbox?.length === 4 ? padBbox(summary.bbox as Bbox) : null;
+  const producerOptions: [string, string][] = [
+    ["", "Tous"],
+    ...(producersResult.data?.results ?? []).map((p): [string, string] => [p.id, `${p.first_name} ${p.last_name}`]),
+  ];
+
   const steps: Step[] = [
     { label: "Créer l'organisation", done: true },
     { label: "Inviter l'équipe", done: (list?.length ?? 0) > 1, href: "/equipe" },
     { label: "Enregistrer les producteurs", done: (producerCount ?? 0) > 0, href: "/producteurs" },
-    { label: "Cartographier les parcelles", done: false },
+    { label: "Cartographier les parcelles", done: parcelCount > 0, href: summary ? "/parcelles" : undefined },
   ];
 
   return (
@@ -192,10 +211,26 @@ export default async function DashboardPage() {
           label="Parcelles AgroID"
           icon={MapIcon}
           iconTone="gold"
-          value="0"
-          hint="registre cartographique bientôt"
+          value={summary ? String(parcelCount) : "—"}
+          hint={
+            !summary
+              ? "non accessible avec votre rôle"
+              : summary.to_review
+                ? `${summary.to_review} contour${summary.to_review > 1 ? "s" : ""} à vérifier`
+                : parcelCount
+                  ? "contours à jour"
+                  : "aucune parcelle cartographiée"
+          }
+          hintTone={summary?.to_review ? "warning" : "muted"}
+          href={summary ? "/parcelles" : undefined}
         />
-        <Stat label="Surface suivie" icon={ChartColumn} value="0" unit="ha" hint="calculée depuis les contours GPS" />
+        <Stat
+          label="Surface suivie"
+          icon={ChartColumn}
+          value={summary ? hectares(summary.total_area_m2) : "—"}
+          unit="ha"
+          hint="calculée depuis les contours"
+        />
         <Stat
           label="Producteurs"
           icon={UsersRound}
@@ -226,13 +261,13 @@ export default async function DashboardPage() {
 
       <Onboarding steps={steps} />
 
-      {/* Filtres de la carte */}
-      <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtres de la carte" role="group">
+      {/* Filtres de la carte (formulaire GET : l'état est dans l'URL) */}
+      <form action="/tableau-de-bord" className="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtres de la carte">
         <span className="mr-1 inline-flex items-center gap-1.5 text-[13px] font-semibold">
           <SlidersHorizontal className="size-4 text-leaf" aria-hidden />
           Filtres
         </span>
-        {MAP_FILTERS.map(([label, value, source]) => (
+        {UPCOMING_FILTERS.map(([label, value, source]) => (
           <span
             key={label}
             aria-disabled="true"
@@ -245,11 +280,37 @@ export default async function DashboardPage() {
             </svg>
           </span>
         ))}
-        <span className="tabular ml-auto font-mono text-[12px] text-muted">0 / 0 parcelle affichée</span>
-      </div>
+        {summary ? (
+          <>
+            <AutoSubmitSelect
+              name="statut"
+              label="Statut"
+              value={statusFilter}
+              options={PARCEL_STATUS_FILTER.map(([v, t]) => [v, `Statut : ${t.toLowerCase()}`])}
+            />
+            <AutoSubmitSelect
+              name="producteur"
+              label="Exploitant"
+              value={producerFilter}
+              options={producerOptions.map(([v, t]) => [v, v ? t : "Producteur : tous"])}
+            />
+          </>
+        ) : null}
+        {statusFilter || producerFilter ? (
+          <Link href="/tableau-de-bord" className="text-[13px] font-semibold text-brand-700 hover:underline">
+            Effacer les filtres
+          </Link>
+        ) : null}
+      </form>
 
       <div className="mt-3">
-        <ParcelMap view={DEFAULT_VIEW} emptyLabel="Aucune parcelle cartographiée pour le moment" />
+        <ParcelMap
+          view={DEFAULT_VIEW}
+          fitBbox={fitBbox}
+          filters={{ status: statusFilter, producer: producerFilter }}
+          total={summary ? parcelCount : 0}
+          emptyLabel={summary ? "Aucune parcelle cartographiée pour le moment" : "Parcelles non accessibles avec votre rôle"}
+        />
       </div>
 
       {/* Activité récente */}

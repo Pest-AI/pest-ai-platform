@@ -397,3 +397,25 @@ def test_schema_documente_le_geojson(api):
     schema = APIClient().get("/api/schema/").content.decode()
     assert "/api/v1/parcels/map/" in schema
     assert "FeatureCollection" in schema and "minLon,minLat,maxLon,maxLat" in schema
+
+
+def test_resume(admin, created):
+    admin.post(URL, {"geometry": square(lon=LON + 0.01), "gps_accuracy_m": 40}, format="json")
+    data = admin.get(f"{URL}summary/").json()
+    assert data["count"] == 2
+    assert data["by_status"] == {"active": 1, "pending_validation": 1}
+    assert data["to_review"] == 1
+    assert 19000 < float(data["total_area_m2"]) < 22000
+    min_lon, min_lat, max_lon, max_lat = data["bbox"]
+    assert min_lon < LON + 0.001 < max_lon + 0.001 and min_lat < LAT + 0.001
+
+
+def test_resume_vide(orgs, make_member):
+    other = client_for(make_member(orgs[1], "organization_admin")[0], orgs[1])
+    assert other.get(f"{URL}summary/").json() == {
+        "count": 0,
+        "by_status": {},
+        "total_area_m2": "0",
+        "to_review": 0,
+        "bbox": None,
+    }

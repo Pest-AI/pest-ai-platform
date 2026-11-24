@@ -46,3 +46,29 @@ test.describe("Parcours connecté", () => {
     await expect(page.locator("form[action='/api/session/workspace'] button[type=submit]").first()).toBeVisible();
   });
 });
+
+test.describe("Parcelles", () => {
+  test.beforeEach(() => requireAccount());
+
+  test("liste, recherche et fiche", async ({ page }) => {
+    await page.goto("/parcelles");
+    await expect(page.getByRole("heading", { name: "Parcelles & AgroID", level: 1 })).toBeVisible();
+    const first = page.locator("ul[aria-label=Parcelles] a").first();
+    if (await first.count()) {
+      await first.click();
+      await expect(page).toHaveURL(/\/parcelles\/[0-9a-f-]{36}/);
+      await expect(page.getByRole("heading", { name: "Historique du contour" })).toBeVisible();
+    }
+    await page.goto("/parcelles?q=PAI-SN-00000000");
+    await expect(page.getByText("Aucune parcelle ne correspond")).toBeVisible();
+  });
+
+  test("données de la carte en GeoJSON", async ({ page }) => {
+    await page.goto("/tableau-de-bord");
+    const res = await page.request.get("/parcelles/carte?bbox=-17.6,12.3,-11.3,16.7");
+    if (res.status() === 403) test.skip(true, "Rôle sans accès aux parcelles");
+    const data = await res.json();
+    expect(data.type).toBe("FeatureCollection");
+    expect((await page.request.get("/parcelles/carte?bbox=1,2,3")).status()).toBe(400);
+  });
+});

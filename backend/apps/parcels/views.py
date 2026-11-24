@@ -62,6 +62,7 @@ POLYGON_EXAMPLE = {
 
 ORG_PERMISSIONS = {
     "list": "parcels.view",
+    "summary": "parcels.view",
     "retrieve": "parcels.view",
     "map": "parcels.view",
     "history": "parcels.view",
@@ -83,6 +84,7 @@ ORG_PERMISSIONS = {
 
 PERSONAL_PERMISSIONS = {
     "list": "personal.parcels.view",
+    "summary": "personal.parcels.view",
     "retrieve": "personal.parcels.view",
     "map": "personal.parcels.view",
     "history": "personal.parcels.view",
@@ -381,6 +383,43 @@ class ParcelViewSet(
         parcel.updated_by = request.user
         parcel.save(update_fields=["local_name", "updated_by", "updated_at"])
         return self._detail(parcel)
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Résumé des parcelles de l'espace",
+        description="Indicateurs du tableau de bord : nombre de parcelles (hors retirées), "
+        "nombre par statut, surface totale des contours courants (m²), contours à vérifier, "
+        "emprise de l'ensemble (`bbox`, pour cadrer la carte) ou null.",
+        responses=serializers.ParcelSummarySerializer,
+    )
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        from django.contrib.gis.db.models import Extent
+        from django.db.models import Count, Sum
+
+        scope = self._scope()
+        live = Parcel.objects.filter(pk__in=scope.values("pk")).exclude(
+            status=Parcel.Status.RETIRED
+        )
+        by_status = {
+            row["status"]: row["n"] for row in scope.values("status").annotate(n=Count("id"))
+        }
+        totals = live.aggregate(area=Sum("current_area_m2"), extent=Extent("centroid"))
+        flagged = (
+            selectors.current_geometries(live.values("pk"))
+            .filter(validation_status__in=["flagged", "pending"])
+            .count()
+        )
+        extent = totals["extent"]
+        return Response(
+            {
+                "count": live.count(),
+                "by_status": by_status,
+                "total_area_m2": str(totals["area"] or 0),
+                "to_review": flagged,
+                "bbox": [round(v, 6) for v in extent] if extent else None,
+            }
+        )
 
     @extend_schema(
         tags=["parcels"],
