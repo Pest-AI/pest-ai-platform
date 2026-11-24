@@ -1,0 +1,67 @@
+# Tests de bout en bout (Playwright) contre le Web OS de staging. Lancement manuel uniquement.
+#
+# À configurer une fois dans GitHub (Settings → Secrets and variables → Actions) :
+#   variable E2E_BASE_URL   adresse du Web OS de staging
+#   variable E2E_ORG        nom de l'organisation de test (facultatif)
+#   secret   E2E_PHONE      numéro du compte de test (compte dédié, pas un compte personnel)
+#   secret   E2E_PASSWORD   mot de passe de ce compte
+name: E2E staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      ecriture:
+        description: "Autoriser les tests qui créent des données (fiches « E2E … »)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  e2e:
+    name: Parcours et sécurité
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+      E2E_ORG: ${{ vars.E2E_ORG }}
+      E2E_PHONE: ${{ secrets.E2E_PHONE }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_ALLOW_WRITES: ${{ inputs.ecriture && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Vérifier la configuration
+        run: |
+          test -n "$E2E_BASE_URL" || (echo "::error::Variable E2E_BASE_URL manquante." && exit 1)
+          test -n "$E2E_PHONE" || echo "::warning::Secrets E2E absents : seuls les tests publics seront joués."
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+      - name: Installer Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Tests E2E
+        run: pnpm e2e
+      - name: Rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-e2e
+          path: frontend/e2e/.rapport
+          retention-days: 7
+          if-no-files-found: ignore

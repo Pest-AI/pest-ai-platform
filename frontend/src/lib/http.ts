@@ -18,3 +18,16 @@ export function requestOrigin(request: NextRequest): string {
 export function seeOther(request: NextRequest, path: string) {
   return NextResponse.redirect(new URL(path, requestOrigin(request)), 303);
 }
+
+/**
+ * Protection CSRF des routes de session (formulaires POST) : la requête doit venir du site
+ * lui-même. Refusée si l'en-tête Origin désigne un autre site, ou si le navigateur la signale
+ * comme venant d'un autre site (Sec-Fetch-Site). Les cookies SameSite=Lax complètent la protection.
+ */
+export function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== "null") return origin === requestOrigin(request);
+  if (origin === "null") return false;
+  const site = request.headers.get("sec-fetch-site");
+  return site === null || site === "same-origin" || site === "none";
+}

@@ -1,13 +1,15 @@
 /** POST /api/session/login : connexion (formulaire), jetons stockés en cookies httpOnly. */
 import type { NextRequest } from "next/server";
 
-import { seeOther } from "@/lib/http";
+import { isSameOrigin, seeOther } from "@/lib/http";
 
 import { API_BASE_URL } from "@/lib/config";
 import { toInternationalPhone } from "@/lib/phone";
 import { ACCESS_COOKIE, ACCESS_MAX_AGE, REFRESH_COOKIE, REFRESH_MAX_AGE, cookieOptions } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
+  // Formulaire envoyé depuis un autre site : refusé (protection CSRF).
+  if (!isSameOrigin(request)) return new Response("Origine refusée.", { status: 403 });
   const form = await request.formData();
   const phone = toInternationalPhone(String(form.get("phone_number") ?? ""));
   const password = String(form.get("password") ?? "");
@@ -28,6 +30,7 @@ export async function POST(request: NextRequest) {
     return back("serveur");
   }
   if (res.status === 401 || res.status === 400) return back("identifiants");
+  if (res.status === 429) return back("tentatives");
   if (!res.ok) return back("serveur");
 
   const tokens = (await res.json()) as { access: string; refresh: string };

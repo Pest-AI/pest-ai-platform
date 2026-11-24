@@ -128,6 +128,8 @@ jobs:
         run: |
           docker exec api python manage.py check --deploy 2>&1 | tee /tmp/check.txt
           if grep -q "gis.W001" /tmp/check.txt; then echo "::error::GDAL < 3.9 dans l'image"; exit 1; fi
+      - name: Contrôles de sécurité de déploiement (aucun avertissement)
+        run: docker exec api python manage.py check --deploy --fail-level WARNING
       - name: Journaux du conteneur
         if: always()
         run: docker logs api || true

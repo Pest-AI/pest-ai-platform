@@ -6,7 +6,7 @@ VENV ?= backend/.venv
 BIN := $(abspath $(VENV))/bin
 
 .DEFAULT_GOAL := aide
-.PHONY: aide verifier qualite migrations-ok schema-ok tests serveur formater installer schema docs web web-verifier api-types
+.PHONY: aide verifier qualite migrations-ok schema-ok tests serveur formater installer schema docs web web-verifier api-types mobile mobile-verifier
 
 aide: ## Affiche cette aide
 	@echo "Commandes disponibles :"
@@ -39,9 +39,16 @@ web: ## Lance le Web OS sur http://localhost:3000 (API locale requise : make ser
 web-verifier: ## Contrôles du Web OS : types API à jour, lint, types, tests
 	cd frontend && pnpm check:api && pnpm lint && pnpm typecheck && pnpm test
 
-api-types: ## Régénère la référence API puis les types TypeScript du Web OS
+api-types: ## Régénère la référence API puis les types TypeScript (Web OS et mobile)
 	$(MAKE) schema
 	cd frontend && pnpm gen:api
+	cd mobile && npm run gen:api
+
+mobile: ## Lance l'app mobile (Expo : QR code pour le téléphone)
+	cd mobile && npm start
+
+mobile-verifier: ## Types de l'API, types TypeScript et tests de l'app mobile
+	cd mobile && npm run check:api && npm run typecheck && npm test
 
 docs: ## Lance le site de documentation sur http://localhost:3001
 	cd docs-site && pnpm install && pnpm start --port 3001

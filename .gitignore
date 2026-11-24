@@ -50,3 +50,8 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 *.swp
+
+# ── Tests E2E (Playwright) : session de test et résultats ──
+frontend/e2e/.auth/
+frontend/e2e/.resultats/
+frontend/e2e/.rapport/

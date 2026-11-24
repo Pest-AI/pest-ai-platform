@@ -34,6 +34,8 @@ Réponse `200` :
 
 `401` si le numéro ou le mot de passe est faux, ou si le compte est désactivé.
 
+`429` au-delà de **10 tentatives par minute pour un même numéro** (réussies ou non). L'en-tête `Retry-After` donne le nombre de secondes à attendre. Affichez un message clair (« Trop de tentatives… ») et ne relancez pas automatiquement. L'activation d'un compte (`/api/v1/auth/activate/`) suit la même règle, à 20 tentatives par heure et par numéro.
+
 ## Renouveler le jeton d'accès
 
 ```bash

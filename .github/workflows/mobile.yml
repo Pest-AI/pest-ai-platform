@@ -1,0 +1,51 @@
+# Intégration continue de l'app mobile (Expo) : types de l'API à jour, types TypeScript, tests.
+name: Mobile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - "docs-site/static/openapi.yaml"
+      - ".github/workflows/mobile.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "docs-site/static/openapi.yaml"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  check:
+    name: Types, tests
+    runs-on: ubuntu-24.04
+    env:
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Installer les dépendances
+        run: npm ci
+      - name: Vérifier que les types de l'API sont à jour
+        run: |
+          npm run check:api \
+            || (echo "::error::Types de l'API obsolètes : lancez « npm run gen:api » dans mobile/ et commitez." && exit 1)
+      - name: Types TypeScript
+        run: npm run typecheck
+      - name: Tests
+        run: npm test -- --ci

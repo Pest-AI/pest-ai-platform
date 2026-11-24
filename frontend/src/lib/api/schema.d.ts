@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * Se connecter
-         * @description Numéro de téléphone (E.164) et mot de passe. Renvoie `access` et `refresh`.
+         * @description Numéro de téléphone (E.164) et mot de passe. Renvoie `access` et `refresh`. Tentatives limitées par numéro : au-delà, réponse 429 avec l'en-tête `Retry-After`.
          */
         post: operations["auth_token_create"];
         delete?: never;

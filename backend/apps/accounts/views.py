@@ -10,7 +10,6 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts import services
@@ -20,6 +19,7 @@ from apps.accounts.serializers import (
     MyMembershipSerializer,
     PasswordChangeSerializer,
 )
+from apps.accounts.throttling import ActivationAttemptThrottle
 
 
 class MeView(APIView):
@@ -92,14 +92,13 @@ class AcceptInvitationView(APIView):
 class AccountActivationView(APIView):
     """POST /api/v1/auth/activate/ : la personne invitée choisit son mot de passe.
 
-    Route publique (pas de jeton), limitée en fréquence par adresse IP. Le message d'erreur
+    Route publique (pas de jeton), limitée en fréquence par numéro de téléphone. Le message d'erreur
     est le même quel que soit le motif, pour ne pas révéler si un numéro a un compte.
     """
 
     permission_classes = [AllowAny]
     authentication_classes = []
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "account_activation"
+    throttle_classes = [ActivationAttemptThrottle]
 
     @extend_schema(
         tags=["auth"],

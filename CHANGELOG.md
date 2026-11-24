@@ -6,7 +6,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 
 ### Ajouté
 - Web OS Next.js : connexion sécurisée (jetons en cookies httpOnly), choix de l'espace de travail.
-- Design validé (J7) : thème PEST AI (Montserrat, Inter, IBM Plex Mono auto-hébergées), logo officiel, navigation latérale, puce AgroID.
+- Design validé (J7) : thème PEST AI (polices auto-hébergées), logo officiel, navigation latérale, puce AgroID.
 - Console Admin : liste des organisations pour le super-admin.
 - API : champ `is_platform_admin` sur `GET /api/v1/me/`.
 - Connexion : un numéro sénégalais saisi sans indicatif est complété avec +221.
@@ -21,7 +21,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 - Rôle `producer` attribuable à un membre dont la fiche est rattachée à l'organisation.
 - Web OS : page Producteurs (liste, recherche, fiche, création avec gestion des doublons, modification, retrait) ; indicateur et étape « producteurs » sur la vue d'ensemble.
 
+- **App mobile (J10)** : projet Expo dans `mobile/` (connexion, choix de l'espace, registre des producteurs avec recherche et appel direct, fiche producteur) ; jetons dans le trousseau du téléphone, renouvellement unique en cas d'expiration, délai réseau de 20 s, bandeau hors ligne, déconnexion avec confirmation ; icônes aux couleurs PEST AI ; CI « Mobile » (types de l'API, TypeScript, tests).
+- **Tests de bout en bout (J10)** : Playwright dans `frontend/e2e` (sécurité, parcours connecté, déconnexion ; création de données uniquement sur demande) ; workflow manuel « E2E staging ».
+- **Sécurité (J10)** : en-têtes HTTP du Web OS (CSP, anti-iframe, HSTS…), refus des routes de session appelées depuis un autre site, `check --deploy` en CI, limite de 10 tentatives de connexion par minute et par numéro (429 + message clair), revue documentée dans `docs/05-security/revue-securite-j10.md`.
+
 ### Modifié
+- Limitation de l'activation de compte : par numéro de téléphone au lieu de l'adresse IP (le Web OS appelle l'API depuis des adresses partagées).
 - Refonte visuelle du Web OS (référence AI Studio) : barre latérale vert forêt, menu mobile en tiroir, navigation calée sur les modules du MVP, indicateurs en cartes, listes responsives, textes raccourcis.
 - Connexion et activation : nouvelle mise en page mobile / tablette / ordinateur avec visuel de parcelles ; vue d'ensemble avec parcours « Pour démarrer » ; choix de l'espace en liste.
 

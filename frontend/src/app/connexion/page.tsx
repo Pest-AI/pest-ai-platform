@@ -14,6 +14,7 @@ export const metadata: Metadata = { title: "Connexion" };
 const ERRORS: Record<string, string> = {
   identifiants: "Numéro de téléphone ou mot de passe incorrect.",
   champs: "Renseignez votre numéro et votre mot de passe.",
+  tentatives: "Trop de tentatives. Patientez une minute avant de réessayer.",
   serveur: "Le serveur ne répond pas. Réessayez dans un instant.",
   session: "Votre session a expiré. Reconnectez-vous.",
 };

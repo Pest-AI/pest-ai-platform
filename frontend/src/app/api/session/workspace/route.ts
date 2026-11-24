@@ -1,11 +1,13 @@
 /** POST /api/session/workspace : mémorise l'espace de travail choisi (X-Workspace). */
 import type { NextRequest } from "next/server";
 
-import { seeOther } from "@/lib/http";
+import { isSameOrigin, seeOther } from "@/lib/http";
 
 import { REFRESH_COOKIE, REFRESH_MAX_AGE, WORKSPACE_COOKIE, cookieOptions, isValidWorkspace } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
+  // Formulaire envoyé depuis un autre site : refusé (protection CSRF).
+  if (!isSameOrigin(request)) return new Response("Origine refusée.", { status: 403 });
   if (!request.cookies.get(REFRESH_COOKIE)) {
     return seeOther(request, "/connexion");
   }

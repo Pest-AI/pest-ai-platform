@@ -1,0 +1,55 @@
+{
+  "name": "pest-ai-os-mobile",
+  "version": "0.0.1",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/questrial": "^0.4.1",
+    "@expo/metro-runtime": "~58.0.17",
+    "@react-native-community/netinfo": "12.0.1",
+    "expo": "~58.0.26",
+    "expo-constants": "~58.0.16",
+    "expo-font": "~58.0.12",
+    "expo-image": "~58.0.18",
+    "expo-linking": "~58.0.17",
+    "expo-router": "~58.0.32",
+    "expo-secure-store": "~58.0.3",
+    "expo-splash-screen": "~58.0.14",
+    "expo-status-bar": "~58.0.5",
+    "lucide-react-native": "^1.78.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1",
+    "react-native-svg": "15.16.0",
+    "react-native-web": "~0.21.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.3.0",
+    "jest": "^30.5.2",
+    "jest-expo": "~58.0.15",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "gen:api": "npx -y -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript ../docs-site/static/openapi.yaml -o src/lib/schema.d.ts",
+    "check:api": "npx -y -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript ../docs-site/static/openapi.yaml -o /tmp/pestai-mobile-schema.d.ts && diff -q /tmp/pestai-mobile-schema.d.ts src/lib/schema.d.ts"
+  },
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ]
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

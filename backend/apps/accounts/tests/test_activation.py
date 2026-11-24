@@ -104,9 +104,9 @@ def test_limitation_de_frequence(api_client, invited, settings):
         **settings.REST_FRAMEWORK,
         "DEFAULT_THROTTLE_RATES": {"account_activation": "3/hour"},
     }
-    from rest_framework.throttling import ScopedRateThrottle
+    from apps.accounts.throttling import ActivationAttemptThrottle
 
-    ScopedRateThrottle.THROTTLE_RATES = {"account_activation": "3/hour"}
+    ActivationAttemptThrottle.THROTTLE_RATES = {"account_activation": "3/hour"}
     try:
         codes = [
             activate(
@@ -117,5 +117,5 @@ def test_limitation_de_frequence(api_client, invited, settings):
     finally:
         from rest_framework.settings import api_settings
 
-        ScopedRateThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+        ActivationAttemptThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
     assert codes[-1] == 429

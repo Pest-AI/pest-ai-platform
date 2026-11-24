@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from apps.accounts.throttling import LoginAttemptThrottle
 from apps.accounts.views import (
     AcceptInvitationView,
     AccountActivationView,
@@ -13,13 +14,23 @@ from apps.accounts.views import (
     PasswordChangeView,
 )
 
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    """Connexion, avec un nombre limité de tentatives par numéro (taux `auth_login`)."""
+
+    throttle_classes = [LoginAttemptThrottle]
+
+
 TokenObtain = extend_schema_view(
     post=extend_schema(
         tags=["auth"],
         summary="Se connecter",
-        description="Numéro de téléphone (E.164) et mot de passe. Renvoie `access` et `refresh`.",
+        description=(
+            "Numéro de téléphone (E.164) et mot de passe. Renvoie `access` et `refresh`. "
+            "Tentatives limitées par numéro : au-delà, réponse 429 avec l'en-tête `Retry-After`."
+        ),
     )
-)(TokenObtainPairView)
+)(ThrottledTokenObtainPairView)
 TokenRefresh = extend_schema_view(
     post=extend_schema(
         tags=["auth"],

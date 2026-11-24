@@ -93,3 +93,45 @@ def test_jeton_invalide_refuse(api_client):
     api_client.credentials(HTTP_AUTHORIZATION="Bearer jeton-invalide")
 
     assert api_client.get(reverse("me")).status_code == 401
+
+
+def test_tentatives_de_connexion_limitees_par_numero(api_client, user, make_user):
+    from rest_framework.settings import api_settings
+
+    from apps.accounts.throttling import LoginAttemptThrottle
+
+    LoginAttemptThrottle.THROTTLE_RATES = {"auth_login": "3/min"}
+    try:
+        codes = [
+            login(api_client, user.phone_number, "mauvais-mot-de-passe").status_code
+            for _ in range(4)
+        ]
+        # Même le bon mot de passe est refusé tant que la limite court.
+        blocked = login(api_client, user.phone_number)
+        # Un autre numéro n'est pas touché (même adresse IP).
+        other = make_user(phone_number="+221770009999")
+        other_code = login(api_client, other.phone_number).status_code
+    finally:
+        LoginAttemptThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+    assert codes[:3] == [401, 401, 401]
+    assert codes[3] == 429
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked
+    assert other_code == 200
+
+
+def test_limite_de_connexion_insensible_au_format_du_numero(api_client, user):
+    from rest_framework.settings import api_settings
+
+    from apps.accounts.throttling import LoginAttemptThrottle
+
+    spaced = user.phone_number[:4] + " " + user.phone_number[4:6] + " " + user.phone_number[6:]
+    LoginAttemptThrottle.THROTTLE_RATES = {"auth_login": "2/min"}
+    try:
+        codes = [
+            login(api_client, n, "x").status_code
+            for n in (user.phone_number, spaced, user.phone_number)
+        ]
+    finally:
+        LoginAttemptThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+    assert codes[-1] == 429
