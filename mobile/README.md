@@ -14,7 +14,9 @@ Un seul code, deux façons de la distribuer ([ADR-0009](../docs/01-architecture/
 |---|---|
 | Connexion | Téléphone (+221) et mot de passe ; lien vers l'activation d'une invitation (Web OS) |
 | Choix d'espace | Organisations actives, invitations à accepter, tirer pour actualiser |
-| Accueil | Registre des producteurs de l'espace : recherche, pagination, appel direct |
+| Parcelles (accueil, J15) | Parcelles de l'espace **consultables hors ligne** : liste, carte vectorielle (sans fond satellite), recherche par AgroID (saisie tolérée), nom ou exploitant, tri par distance avec « Ma position », date de la dernière mise à jour |
+| Fiche parcelle | AgroID, statut, surface, contour, itinéraire Google Maps, contrôle du contour, exploitant et propriété (avec le réseau) |
+| Producteurs | Registre des producteurs de l'espace : recherche, pagination, appel direct |
 | Fiche producteur | Identité, contacts (appel, WhatsApp), rattachement |
 
 La console d'administration reste sur le Web OS. L'enregistrement de producteurs et la capture de parcelles arrivent avec le mode hors ligne (file SQLite).
@@ -29,6 +31,13 @@ La console d'administration reste sur le Web OS. L'enregistrement de producteurs
 - Sauvegarde Android désactivée (`allowBackup: false`).
 - **Dans le navigateur (PWA)** : pas de coffre sécurisé, donc le jeton de renouvellement est un cookie `httpOnly` posé par l'API (`/api/v1/auth/web/…`, `SameSite=Strict`), illisible par la page. Seul le jeton d'accès (15 min) est gardé, en mémoire ; au rechargement, il est redemandé avec le cookie. Chaque route de session vérifie l'origine de la requête.
 - PWA : en-têtes de sécurité stricts (CSP sans script en ligne, anti-iframe, HSTS) dans `vercel.json` ; le service worker ne met jamais en cache les appels à l'API.
+
+## Hors ligne (lecture)
+
+- À chaque ouverture avec du réseau (et si la copie a plus de 10 minutes), l'app télécharge les parcelles de l'espace (contours et liste, 1 000 au plus) et les garde sur l'appareil, avec la date de mise à jour.
+- Sans réseau, la liste, la carte, la recherche et la fiche fonctionnent sur cette copie ; un bandeau indique l'âge des données.
+- Navigateur (PWA) : IndexedDB (base `pestai-terrain`). Téléphone : en mémoire pour l'instant, base SQLite avec la synchronisation (J18).
+- La copie est **effacée à la déconnexion**.
 
 ## Réseau
 

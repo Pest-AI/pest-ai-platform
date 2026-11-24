@@ -9,5 +9,6 @@
 | [05-security](05-security/) | Sécurité, gestion des accès, protection des données |
 | [06-developer-guide](06-developer-guide/) | Installation, workflow Git, standards de code |
 | [07-design](07-design/) | Direction visuelle validée, Design System, maquettes |
+| [08-sprints](08-sprints/) | Revues de sprint : livré, vérifié, reporté, à valider |
 
 Le portail de documentation pour les développeurs (guides + référence API interactive) est dans [`docs-site/`](../docs-site/).

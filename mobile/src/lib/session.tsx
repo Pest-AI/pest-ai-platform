@@ -7,6 +7,7 @@ import type * as React from "react";
 
 import { NetworkError, SessionExpiredError } from "./api";
 import { api } from "./client";
+import { clearParcelCache } from "./parcel-cache";
 import type { Me } from "./types";
 
 type Status = "loading" | "signedOut" | "signedIn";
@@ -51,7 +52,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setMe(null);
         setStatus("signedOut");
       } else if (error instanceof NetworkError) {
-        // Hors ligne au démarrage : on garde la session, l'écran propose de réessayer.
+        // Hors ligne au démarrage : on garde la session et l'espace choisi (données locales).
+        setWorkspace(await api.getWorkspace());
         setOffline(true);
         setStatus("signedIn");
       } else {
@@ -77,6 +79,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       async signOut() {
         await api.logout();
+        await clearParcelCache();
         setMe(null);
         setWorkspace(null);
         setStatus("signedOut");
@@ -87,6 +90,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       async expire() {
         await api.clearSession();
+        await clearParcelCache();
         setMe(null);
         setWorkspace(null);
         setStatus("signedOut");
