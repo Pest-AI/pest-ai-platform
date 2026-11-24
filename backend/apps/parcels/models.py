@@ -257,3 +257,436 @@ class ParcelGeometry(ImmutableFieldsMixin, BaseModel, SyncModel):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Une version de géométrie n'est jamais supprimée.")
+
+
+# ── Relations foncières et accès (J12, MVP-37) ───────────────────────────
+#
+# Règles communes (F-09, D-06, D-07) :
+# - propriété et exploitation sont deux relations distinctes : l'une ne vaut jamais l'autre ;
+# - chaque relation est datée ; un changement clôt la ligne (end_date) et en crée une nouvelle :
+#   l'historique n'est jamais écrasé ni supprimé (PostgreSQL refuse la suppression) ;
+# - aucune de ces relations n'ouvre d'accès : la visibilité vient uniquement de
+#   ParcelOrganizationLink (organisations) et de ProducerParcelAccess (espace personnel).
+
+
+class TenureType(models.TextChoices):
+    TITLED_PROPERTY = "titled_property", "Titre foncier"
+    CUSTOMARY_RIGHT = "customary_right", "Droit coutumier"
+    FAMILY_LAND = "family_land", "Terre familiale"
+    LEASE = "lease", "Bail"
+    COMMUNAL = "communal", "Terre communautaire"
+    OTHER = "other", "Autre"
+    UNKNOWN = "unknown", "Inconnu"
+
+
+class OwnershipVerification(models.TextChoices):
+    DECLARED = "declared", "Déclarée"
+    DOCUMENTED = "documented", "Justifiée par un document"
+    DISPUTED = "disputed", "Contestée"
+
+
+def _one_recorder():
+    return Q(recorded_by_organization__isnull=False, recorded_by_producer__isnull=True) | Q(
+        recorded_by_organization__isnull=True, recorded_by_producer__isnull=False
+    )
+
+
+def _period_ok():
+    return Q(end_date__isnull=True) | Q(end_date__gte=models.F("start_date"))
+
+
+class ParcelOwnership(ImmutableFieldsMixin, BaseModel, SyncModel):
+    """Propriété ou droit foncier sur une parcelle, historisé (BASE, SYNC)."""
+
+    Tenure = TenureType
+    Verification = OwnershipVerification
+
+    IMMUTABLE_FIELDS = (
+        "parcel",
+        "owner_producer",
+        "owner_organization",
+        "owner_name",
+        "tenure_type",
+        "share_percent",
+        "start_date",
+        "recorded_by_organization",
+        "recorded_by_producer",
+    )
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="ownerships")
+    owner_producer = models.ForeignKey(
+        "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    owner_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    owner_name = models.CharField(max_length=200, blank=True, default="")
+    tenure_type = models.CharField(max_length=32, choices=TenureType.choices)
+    share_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    verification_status = models.CharField(
+        max_length=32, choices=OwnershipVerification.choices, default=OwnershipVerification.DECLARED
+    )
+    recorded_by_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    recorded_by_producer = models.ForeignKey(
+        "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "parcels_ownership"
+        verbose_name = "propriété de parcelle"
+        verbose_name_plural = "propriétés de parcelles"
+        constraints = [
+            models.CheckConstraint(condition=_one_recorder(), name="ownership_one_recorder"),
+            # Exactement un propriétaire : producteur, organisation ou nom déclaré (D-07).
+            models.CheckConstraint(
+                condition=(
+                    Q(owner_producer__isnull=False, owner_organization__isnull=True, owner_name="")
+                    | Q(
+                        owner_producer__isnull=True, owner_organization__isnull=False, owner_name=""
+                    )
+                    | Q(owner_producer__isnull=True, owner_organization__isnull=True)
+                    & ~Q(owner_name="")
+                ),
+                name="ownership_one_owner",
+            ),
+            models.CheckConstraint(condition=_period_ok(), name="ownership_period_order"),
+            models.CheckConstraint(
+                condition=Q(tenure_type__in=TenureType.values), name="ownership_tenure_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(verification_status__in=OwnershipVerification.values),
+                name="ownership_verification_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(share_percent__isnull=True)
+                | Q(share_percent__gt=0, share_percent__lte=100),
+                name="ownership_share_range",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["parcel"], condition=Q(end_date__isnull=True), name="ownership_current_idx"
+            ),
+            models.Index(fields=["owner_producer"], name="ownership_owner_idx"),
+        ]
+
+    @property
+    def is_current(self) -> bool:
+        return self.end_date is None
+
+
+class OperatorRole(models.TextChoices):
+    PRIMARY = "primary", "Exploitant principal"
+    CO_OPERATOR = "co_operator", "Co-exploitant"
+
+
+class ArrangementType(models.TextChoices):
+    OWNER_OPERATED = "owner_operated", "Exploitée par le propriétaire"
+    RENTAL = "rental", "Location"
+    SHARECROPPING = "sharecropping", "Métayage"
+    LOAN = "loan", "Prêt"
+    OTHER = "other", "Autre"
+    UNKNOWN = "unknown", "Inconnu"
+
+
+class OperatorVerification(models.TextChoices):
+    DECLARED = "declared", "Déclarée"
+    CONFIRMED_BY_ORGANIZATION = "confirmed_by_organization", "Confirmée par l'organisation"
+    DISPUTED = "disputed", "Contestée"
+
+
+class ParcelOperatorAssignment(ImmutableFieldsMixin, BaseModel, SyncModel):
+    """Exploitant effectif d'une parcelle, historisé (BASE, SYNC). D-06 : un seul principal."""
+
+    Role = OperatorRole
+    Arrangement = ArrangementType
+    Verification = OperatorVerification
+
+    IMMUTABLE_FIELDS = (
+        "parcel",
+        "producer",
+        "operator_role",
+        "arrangement_type",
+        "start_date",
+        "recorded_by_organization",
+        "recorded_by_producer",
+    )
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="operators")
+    producer = models.ForeignKey("actors.Producer", on_delete=models.PROTECT, related_name="+")
+    operator_role = models.CharField(max_length=32, choices=OperatorRole.choices)
+    arrangement_type = models.CharField(
+        max_length=32, choices=ArrangementType.choices, default=ArrangementType.UNKNOWN
+    )
+    verification_status = models.CharField(
+        max_length=32, choices=OperatorVerification.choices, default=OperatorVerification.DECLARED
+    )
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    recorded_by_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    recorded_by_producer = models.ForeignKey(
+        "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        db_table = "parcels_operator_assignment"
+        verbose_name = "exploitant de parcelle"
+        verbose_name_plural = "exploitants de parcelles"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parcel"],
+                condition=Q(end_date__isnull=True, operator_role="primary"),
+                name="operator_one_primary",
+            ),
+            models.UniqueConstraint(
+                fields=["parcel", "producer"],
+                condition=Q(end_date__isnull=True),
+                name="operator_once_per_parcel",
+            ),
+            models.CheckConstraint(condition=_one_recorder(), name="operator_one_recorder"),
+            models.CheckConstraint(condition=_period_ok(), name="operator_period_order"),
+            models.CheckConstraint(
+                condition=Q(operator_role__in=OperatorRole.values), name="operator_role_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(arrangement_type__in=ArrangementType.values),
+                name="operator_arrangement_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(verification_status__in=OperatorVerification.values),
+                name="operator_verification_valid",
+            ),
+            # Une déclaration du producteur reste « declared » tant qu'aucune organisation ne
+            # l'a confirmée : il ne peut pas se la confirmer lui-même.
+            models.CheckConstraint(
+                condition=Q(recorded_by_producer__isnull=True)
+                | ~Q(verification_status="confirmed_by_organization"),
+                name="operator_self_not_confirmed",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["producer"], condition=Q(end_date__isnull=True), name="operator_current_idx"
+            ),
+        ]
+
+
+class LinkType(models.TextChoices):
+    REGISTERING = "registering", "Organisation d'enregistrement"
+    SUPPORTING = "supporting", "Organisation d'accompagnement"
+
+
+class LinkStatus(models.TextChoices):
+    PENDING_PRODUCER_CONSENT = "pending_producer_consent", "En attente de l'accord du producteur"
+    ACTIVE = "active", "Actif"
+    ENDED = "ended", "Terminé"
+
+
+class ParcelOrganizationLink(ImmutableFieldsMixin, BaseModel):
+    """Organisation qui suit une parcelle, historisée (BASE). Seule source de visibilité
+    d'une parcelle pour une organisation."""
+
+    Type = LinkType
+    Status = LinkStatus
+
+    IMMUTABLE_FIELDS = ("parcel", "organization", "link_type", "start_date", "granted_by")
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="organization_links")
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.PROTECT, related_name="parcel_links"
+    )
+    link_type = models.CharField(max_length=32, choices=LinkType.choices)
+    status = models.CharField(max_length=32, choices=LinkStatus.choices)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    consented_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    consented_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "parcels_organization_link"
+        verbose_name = "lien parcelle – organisation"
+        verbose_name_plural = "liens parcelles – organisations"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parcel", "organization"],
+                condition=Q(end_date__isnull=True),
+                name="parcel_link_one_open",
+            ),
+            models.CheckConstraint(condition=_period_ok(), name="parcel_link_period_order"),
+            models.CheckConstraint(
+                condition=Q(link_type__in=LinkType.values), name="parcel_link_type_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=LinkStatus.values), name="parcel_link_status_valid"
+            ),
+            # Un lien terminé a une date de fin, et inversement.
+            models.CheckConstraint(
+                condition=Q(status="ended", end_date__isnull=False)
+                | ~Q(status="ended") & Q(end_date__isnull=True),
+                name="parcel_link_ended_has_end",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["organization"],
+                condition=Q(end_date__isnull=True),
+                name="parcel_link_org_open_idx",
+            ),
+        ]
+
+
+class AccessLevel(models.TextChoices):
+    VIEW = "view", "Consultation"
+    MANAGE = "manage", "Gestion"
+
+
+class AccessBasis(models.TextChoices):
+    SELF_REGISTERED = "self_registered", "Parcelle déclarée par le producteur"
+    GRANTED_BY_ORGANIZATION = "granted_by_organization", "Accordé par une organisation"
+    VERIFIED_CLAIM = "verified_claim", "Revendication vérifiée (hors MVP)"
+
+
+class ProducerParcelAccess(ImmutableFieldsMixin, BaseModel):
+    """Accès PERSONNEL d'un producteur à une parcelle (BASE). Explicite, historisé, révocable.
+    N'ouvre aucun accès aux données de l'espace d'une organisation (D-02)."""
+
+    Level = AccessLevel
+    Basis = AccessBasis
+
+    IMMUTABLE_FIELDS = (
+        "producer",
+        "parcel",
+        "access_level",
+        "basis",
+        "granted_by_organization",
+        "granted_by",
+        "start_date",
+    )
+
+    producer = models.ForeignKey(
+        "actors.Producer", on_delete=models.PROTECT, related_name="parcel_accesses"
+    )
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="personal_accesses")
+    access_level = models.CharField(max_length=32, choices=AccessLevel.choices)
+    basis = models.CharField(max_length=32, choices=AccessBasis.choices)
+    granted_by_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    revocation_reason = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "parcels_producer_access"
+        verbose_name = "accès personnel à une parcelle"
+        verbose_name_plural = "accès personnels aux parcelles"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["producer", "parcel"],
+                condition=Q(end_date__isnull=True),
+                name="producer_access_one_open",
+            ),
+            models.CheckConstraint(
+                condition=~Q(basis="granted_by_organization")
+                | Q(granted_by_organization__isnull=False),
+                name="producer_access_org_basis",
+            ),
+            models.CheckConstraint(condition=_period_ok(), name="producer_access_period_order"),
+            models.CheckConstraint(
+                condition=Q(access_level__in=AccessLevel.values),
+                name="producer_access_level_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(basis__in=AccessBasis.values), name="producer_access_basis_valid"
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["producer"],
+                condition=Q(end_date__isnull=True),
+                name="producer_access_open_idx",
+            ),
+            models.Index(fields=["parcel"], name="producer_access_parcel_idx"),
+        ]
+
+
+class CultivationUnitStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    RETIRED = "retired", "Retirée"
+
+
+class CultivationUnit(BaseModel, ArchivableModel, SyncModel):
+    """Subdivision d'une parcelle consacrée à une culture (BASE, ARCH, SYNC). F-10, D-16 :
+    au MVP, une unité est déclarée par son code et sa surface ; son contour est facultatif."""
+
+    Status = CultivationUnitStatus
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="units")
+    code = models.CharField(max_length=16)
+    name = models.CharField(max_length=100, blank=True, default="")
+    geometry = models.MultiPolygonField(srid=4326, null=True, blank=True)
+    area_m2 = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    status = models.CharField(
+        max_length=32, choices=CultivationUnitStatus.choices, default=CultivationUnitStatus.ACTIVE
+    )
+    valid_from = models.DateField(null=True, blank=True)
+    valid_to = models.DateField(null=True, blank=True)
+
+    class Meta:
+        db_table = "parcels_cultivation_unit"
+        verbose_name = "unité de culture"
+        verbose_name_plural = "unités de culture"
+        ordering = ["parcel", "code"]
+        constraints = [
+            models.UniqueConstraint(fields=["parcel", "code"], name="unit_code_per_parcel"),
+            models.CheckConstraint(
+                condition=Q(status__in=CultivationUnitStatus.values), name="unit_status_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(area_m2__isnull=True) | Q(area_m2__gt=0), name="unit_area_positive"
+            ),
+            models.CheckConstraint(
+                condition=Q(valid_to__isnull=True)
+                | Q(valid_from__isnull=True)
+                | Q(valid_to__gte=models.F("valid_from")),
+                name="unit_period_order",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.parcel} · {self.code}"

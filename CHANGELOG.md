@@ -7,6 +7,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version p
 ### Ajouté
 - **Parcelles (J11)** : app `parcels` ; `Parcel` avec AgroID `PAI-SN-XXXXXXXX` (tirage cryptographique base32 Crockford, attribué par le serveur, brouillon hors ligne sans AgroID, D-05) ; `ParcelGeometry` versionnée (MultiPolygon WGS 84, surface et périmètre calculés par PostGIS, une seule version courante) ; services de création, d'attribution, de nouveau contour et de retrait ; recherche par AgroID tolérante aux erreurs de saisie.
 - Garanties PostgreSQL : AgroID attribué non modifiable, parcelles et versions de contour jamais supprimées, contour valide en SRID 4326.
+- **Règles foncières (J12)** : propriété (`ParcelOwnership`, propriétaire non enregistré par son nom), exploitation (`ParcelOperatorAssignment`, un seul principal), suivi par les organisations (`ParcelOrganizationLink`, accord du producteur pour ses parcelles), accès personnels (`ProducerParcelAccess`), unités de culture ; historique daté, jamais réécrit ni supprimé ; aucun accès déduit de la propriété ou de l'exploitation.
+- **Contrôle des contours (J12, D-19)** : surface hors bornes, précision GPS insuffisante et chevauchement > 5 % signalés (parcelle « en attente de validation ») avec rapport détaillé ; revue humaine (confirmer ou refuser) ; seuils réglables.
 
 ## [Non publié] — Semaine 2 : Web OS
 

@@ -172,6 +172,16 @@ WEB_SESSION_ALLOWED_ORIGINS = env.list("WEB_SESSION_ALLOWED_ORIGINS", default=[]
 WEB_SESSION_COOKIE_NAME = "pestai_terrain_refresh"
 WEB_SESSION_COOKIE_SECURE = env.bool("WEB_SESSION_COOKIE_SECURE", default=True)
 
+# ── Contrôle des contours de parcelles (D-19) ─────────────
+# Valeurs de départ, à ajuster après le pilote. Au-delà, le contour est « signalé » (flagged),
+# pas refusé : le terrain n'est jamais bloqué, une personne habilitée tranche ensuite.
+PARCEL_GEOMETRY_RULES = {
+    "MIN_AREA_M2": env.float("PARCEL_MIN_AREA_M2", default=50.0),
+    "MAX_AREA_M2": env.float("PARCEL_MAX_AREA_M2", default=500_000.0),  # 50 ha
+    "MAX_GPS_ACCURACY_M": env.float("PARCEL_MAX_GPS_ACCURACY_M", default=10.0),
+    "MAX_OVERLAP_PERCENT": env.float("PARCEL_MAX_OVERLAP_PERCENT", default=5.0),
+}
+
 # ── Documentation de l'API (OpenAPI 3) ────────────────────
 SPECTACULAR_SETTINGS = {
     "TITLE": "PEST AI OS — API",
