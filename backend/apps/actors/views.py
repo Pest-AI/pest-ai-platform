@@ -20,12 +20,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.actors import selectors, services
+from apps.actors import membership_numbers, producer_code, selectors, services
 from apps.actors.models import Producer, RegistrationChannel
 from apps.actors.serializers import (
     AttachProducerSerializer,
     DetachProducerSerializer,
     DuplicateResponseSerializer,
+    MembershipNumberProposalSerializer,
     PersonalProfileSerializer,
     ProducerCreateSerializer,
     ProducerSerializer,
@@ -144,6 +145,7 @@ class ProducerViewSet(
         "retrieve": "producers.view",
         "create": "producers.create",
         "attach": "producers.create",
+        "membership_number": "producers.create",
         "partial_update": "producers.manage",
         "detach": "producers.manage",
     }
@@ -157,8 +159,10 @@ class ProducerViewSet(
         params = self.request.query_params
         q = (params.get("q") or "").strip()
         if q:
+            code = producer_code.normalize(q)
             queryset = queryset.filter(
-                Q(first_name__icontains=q)
+                Q(producer_code=code or q.upper())
+                | Q(first_name__icontains=q)
                 | Q(last_name__icontains=q)
                 | Q(locality_text__icontains=q)
                 | Q(contacts__value__icontains=q.replace(" ", ""))
@@ -237,6 +241,23 @@ class ProducerViewSet(
                 **assignment_fields,
             )
         return Response(self._fresh(producer).data)
+
+    @extend_schema(
+        tags=["producers"],
+        summary="Numéro d'adhérent proposé",
+        description="Prochain numéro d'adhérent de l'organisation (« PRÉFIXE-000123 »), pour "
+        "préremplir la saisie. Il n'est pas réservé : il est attribué à l'enregistrement.",
+        responses=MembershipNumberProposalSerializer,
+    )
+    @action(detail=False, methods=["get"], url_path="membership-number")
+    def membership_number(self, request):
+        organization = request.workspace.organization
+        return Response(
+            {
+                "proposed": membership_numbers.propose(organization),
+                "prefix": membership_numbers.prefix_for(organization),
+            }
+        )
 
     @action(detail=False, methods=["post"])
     def attach(self, request):

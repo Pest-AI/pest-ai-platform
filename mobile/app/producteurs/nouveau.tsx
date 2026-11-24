@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from "expo-router";
 import { ArrowLeft, Link2, UserPlus } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -57,10 +57,22 @@ export default function NewProducerScreen() {
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [phone, setPhone] = useState("");
   const [membership, setMembership] = useState("");
+  const [proposed, setProposed] = useState<string | null>(null);
+  const [household, setHousehold] = useState("");
+  const [workers, setWorkers] = useState("");
   const [language, setLanguage] = useState("fr");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Numéro d'adhérent proposé (attribué à l'enregistrement si le champ reste vide).
+  useEffect(() => {
+    if (!workspace) return;
+    api
+      .request<{ proposed: string }>("/api/v1/producers/membership-number/", { workspace })
+      .then((d) => setProposed(d.proposed))
+      .catch(() => setProposed(null));
+  }, [workspace]);
 
   if (status !== "signedIn") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
@@ -79,6 +91,11 @@ export default function NewProducerScreen() {
     if (birthYear !== null && (!Number.isInteger(birthYear) || birthYear < 1900 || birthYear > new Date().getFullYear())) {
       return setError("Année de naissance invalide (ex. 1985).");
     }
+    const size = household.trim() ? Number(household) : null;
+    const active = workers.trim() ? Number(workers) : null;
+    if (size !== null && (!Number.isInteger(size) || size < 1 || size > 200)) return setError("Taille du ménage invalide.");
+    if (active !== null && (!Number.isInteger(active) || active < 0 || active > 200)) return setError("Nombre d'actifs invalide.");
+    if (size !== null && active !== null && active > size) return setError("Pas plus d'actifs que de personnes dans le ménage.");
     setBusy(true);
     try {
       const created = await api.request<Producer>("/api/v1/producers/", {
@@ -94,6 +111,8 @@ export default function NewProducerScreen() {
           phone_number: phone.trim() ? toInternationalPhone(phone, country) : "",
           relationship_type: "member",
           membership_number: membership.trim(),
+          household_size: size,
+          household_farm_workers: active,
           confirm_new: confirmNew,
         },
       });
@@ -197,9 +216,28 @@ export default function NewProducerScreen() {
             <T style={styles.label}>Téléphone (facultatif)</T>
             <PhoneInput country={country} onCountryChange={setCountry} value={phone} onChangeText={setPhone} />
           </View>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <T style={styles.label}>Personnes du ménage</T>
+              <Input accessibilityLabel="Personnes du ménage" value={household} onChangeText={setHousehold} keyboardType="number-pad" maxLength={3} placeholder="Facultatif" />
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <T style={styles.label}>Dont actifs aux champs</T>
+              <Input accessibilityLabel="Actifs aux champs" value={workers} onChangeText={setWorkers} keyboardType="number-pad" maxLength={3} placeholder="Facultatif" />
+            </View>
+          </View>
           <View style={{ gap: 6 }}>
-            <T style={styles.label}>N° d&apos;adhérent (facultatif)</T>
-            <Input accessibilityLabel="Numéro d'adhérent" value={membership} onChangeText={setMembership} autoCapitalize="characters" />
+            <T style={styles.label}>N° d&apos;adhérent</T>
+            <Input
+              accessibilityLabel="Numéro d'adhérent"
+              value={membership}
+              onChangeText={setMembership}
+              autoCapitalize="characters"
+              placeholder={proposed ? `Auto : ${proposed}` : "Attribué automatiquement"}
+            />
+            <T style={{ color: colors.muted, fontSize: 13 }}>
+              Laissez vide pour le numéro suivant, ou saisissez celui de sa carte de membre.
+            </T>
           </View>
           <View style={{ gap: 6 }}>
             <T style={styles.label}>Langue préférée</T>

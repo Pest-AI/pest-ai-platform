@@ -1,4 +1,4 @@
-import { ArrowLeft, BadgeCheck, CalendarDays, Fingerprint, Languages, MapPin, MessageCircle, Phone, User } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarDays, Fingerprint, Languages, MapPin, MessageCircle, Phone, User, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -63,6 +63,17 @@ export default async function ProducerPage({
     [CalendarDays, "Année de naissance", p.birth_year ? `${p.birth_year}${age !== null ? ` (≈ ${age} ans)` : ""}` : "Non renseignée"],
     [MapPin, "Village ou commune", p.locality_text || "Non renseigné"],
     [Languages, "Langue préférée", LANGUAGE_LABELS[p.preferred_language] ?? p.preferred_language],
+    [
+      Users,
+      "Ménage",
+      p.household_size
+        ? `${p.household_size} personne${p.household_size > 1 ? "s" : ""}${
+            p.household_farm_workers !== null && p.household_farm_workers !== undefined
+              ? `, dont ${p.household_farm_workers} actif${p.household_farm_workers > 1 ? "s" : ""} aux champs`
+              : ""
+          }`
+        : "Non renseigné",
+    ],
   ];
 
   return (
@@ -96,6 +107,9 @@ export default async function ProducerPage({
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="text-[24px] leading-8 font-bold sm:text-[28px] sm:leading-9">{name}</h1>
+            <p className="mt-1 font-mono text-[14px] tracking-[0.04em] text-brand-800" title="Identifiant producteur PEST AI, permanent">
+              {p.producer_code}
+            </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge tone="brand">{RELATIONSHIP_LABELS[p.assignment?.relationship_type ?? "member"]}</Badge>
               {p.assignment?.membership_number ? (
@@ -127,6 +141,11 @@ export default async function ProducerPage({
                     language: p.preferred_language,
                     relationship: p.assignment?.relationship_type ?? "member",
                     membershipNumber: p.assignment?.membership_number ?? "",
+                    householdSize: p.household_size ? String(p.household_size) : "",
+                    householdWorkers:
+                      p.household_farm_workers !== null && p.household_farm_workers !== undefined
+                        ? String(p.household_farm_workers)
+                        : "",
                   }}
                 />
               ) : null}

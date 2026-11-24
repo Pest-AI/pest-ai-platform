@@ -109,6 +109,18 @@ function CreateForm({ onDone }: { onDone: () => void }) {
           </div>
         </div>
         <div className="space-y-1.5">
+          <Label htmlFor="member_number_prefix">Préfixe des numéros d&apos;adhérent (facultatif)</Label>
+          <Input
+            id="member_number_prefix"
+            name="member_number_prefix"
+            placeholder="ex. CARB — sinon déduit du nom court"
+            maxLength={12}
+            className="font-mono uppercase"
+            defaultValue={v?.member_number_prefix}
+          />
+          <p className="text-[12px] text-muted">Numéros proposés aux agents : PRÉFIXE-000001, PRÉFIXE-000002…</p>
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="status">Statut</Label>
           <select id="status" name="status" defaultValue={v?.status || "active"} className={SELECT}>
             <option value="active">Active : ses membres peuvent se connecter</option>

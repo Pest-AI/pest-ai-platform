@@ -17,10 +17,11 @@ Reportés (documentés dans le README de l'app) :
 from __future__ import annotations
 
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 
 from apps.accounts.models import Language  # mêmes langues que le compte (fr, wo, ff)
+from apps.actors import producer_code
 from apps.core.models import ArchivableModel, BaseModel, ImmutableFieldsMixin, SyncModel
 
 
@@ -74,6 +75,17 @@ class Producer(BaseModel, ArchivableModel, SyncModel):
     status = models.CharField(
         max_length=32, choices=ProducerStatus.choices, default=ProducerStatus.ACTIVE
     )
+    producer_code = models.CharField(
+        max_length=15,
+        unique=True,
+        blank=True,
+        editable=False,
+        help_text="Identifiant producteur PEST AI (PRD-SN-XXXXXXXX), permanent.",
+    )
+    household_size = models.PositiveSmallIntegerField(null=True, blank=True)
+    household_farm_workers = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    CODE_ATTEMPTS = 5
 
     class Meta:
         db_table = "actors_producer"
@@ -112,11 +124,47 @@ class Producer(BaseModel, ArchivableModel, SyncModel):
                 | Q(birth_year__gte=1900, birth_year__lte=2100),
                 name="producer_birth_year_range",
             ),
+            models.CheckConstraint(
+                condition=Q(producer_code__regex=producer_code.PATTERN),
+                name="producer_code_format",
+            ),
+            models.CheckConstraint(
+                condition=Q(household_size__isnull=True)
+                | Q(household_size__gte=1, household_size__lte=200),
+                name="producer_household_size_range",
+            ),
+            models.CheckConstraint(
+                condition=Q(household_farm_workers__isnull=True)
+                | Q(household_size__isnull=True)
+                | Q(household_farm_workers__lte=models.F("household_size")),
+                name="producer_household_workers_le_size",
+            ),
         ]
         indexes = [
             models.Index(fields=["last_name", "first_name"], name="producer_name_idx"),
             models.Index(fields=["registered_by_organization"], name="producer_reg_org_idx"),
         ]
+
+    def full_clean(self, exclude=None, validate_unique=True, validate_constraints=True):
+        # Identifiant pas encore tiré (création) : il est attribué par save().
+        if not self.producer_code:
+            exclude = {*(exclude or ()), "producer_code"}
+        return super().full_clean(exclude, validate_unique, validate_constraints)
+
+    def save(self, *args, **kwargs):
+        """Attribue l'identifiant producteur à la création (nouveau tirage en cas de collision)."""
+        if self.producer_code:
+            return super().save(*args, **kwargs)
+        country = getattr(self.registered_by_organization, "country_code", None) or "SN"
+        for _ in range(self.CODE_ATTEMPTS):
+            self.producer_code = producer_code.generate(country)
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError as exc:
+                if "producer_code" not in str(exc):
+                    raise
+        raise IntegrityError("Impossible d'attribuer un identifiant producteur unique.")
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"

@@ -27,3 +27,10 @@ export function parseBirthYear(value: string, today = new Date()): number | null
   if (!value.trim() || !Number.isInteger(n)) return null;
   return n >= 1900 && n <= today.getFullYear() ? n : null;
 }
+
+/** Effectif du ménage saisi : entier de 0 à 200, sinon null (vide : non renseigné). */
+export function parseCount(value: string, min = 0): number | null {
+  const n = Number(value.trim());
+  if (!value.trim() || !Number.isInteger(n)) return null;
+  return n >= min && n <= 200 ? n : null;
+}

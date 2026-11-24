@@ -8,13 +8,14 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.actors import selectors
+from apps.actors import membership_numbers, selectors
 from apps.actors.models import (
     ContactType,
     Producer,
     ProducerContact,
     ProducerOrganizationAssignment,
     RegistrationChannel,
+    RelationshipType,
 )
 from apps.core.audit import PRODUCER_CHANGE, security_event
 
@@ -25,7 +26,25 @@ PROFILE_FIELDS = (
     "birth_year",
     "locality_text",
     "preferred_language",
+    "household_size",
+    "household_farm_workers",
 )
+
+NUMBER_TAKEN = (
+    "Ce numéro d'adhérent est déjà utilisé dans votre organisation (même par un ancien membre)."
+)
+NUMBER_REQUIRED = "Un membre a toujours un numéro d'adhérent."
+
+
+def _membership_number(organization, relationship_type, membership_number):
+    """Numéro saisi (normalisé), ou attribué automatiquement pour un membre sans numéro."""
+    number = (membership_number or "").strip().upper() or None
+    if number:
+        membership_numbers.note_manual(organization, number)
+        return number
+    if (relationship_type or RelationshipType.MEMBER) == RelationshipType.MEMBER:
+        return membership_numbers.allocate(organization)
+    return None
 
 
 class DuplicateProducerError(Exception):
@@ -79,15 +98,15 @@ def _open_assignment(producer, organization, by, relationship_type, membership_n
                 organization=organization,
                 relationship_type=relationship_type
                 or ProducerOrganizationAssignment.Relationship.MEMBER,
-                membership_number=(membership_number or "").strip() or None,
+                membership_number=_membership_number(
+                    organization, relationship_type, membership_number
+                ),
                 start_date=start_date or timezone.localdate(),
                 created_by=by,
                 updated_by=by,
             )
     except IntegrityError as exc:
-        raise ValidationError(
-            {"membership_number": "Ce numéro d'adhérent est déjà utilisé dans votre organisation."}
-        ) from exc
+        raise ValidationError({"membership_number": NUMBER_TAKEN}) from exc
 
 
 @transaction.atomic
@@ -264,13 +283,18 @@ def update_assignment(*, assignment: ProducerOrganizationAssignment, updated_by,
     if "relationship_type" in fields:
         assignment.relationship_type = fields["relationship_type"]
     if "membership_number" in fields:
-        assignment.membership_number = (fields["membership_number"] or "").strip() or None
+        number = (fields["membership_number"] or "").strip().upper() or None
+        if number is None and assignment.relationship_type == RelationshipType.MEMBER:
+            raise ValidationError({"membership_number": NUMBER_REQUIRED})
+        if number and number != assignment.membership_number:
+            membership_numbers.note_manual(assignment.organization, number)
+        assignment.membership_number = number
+    if assignment.relationship_type == RelationshipType.MEMBER and not assignment.membership_number:
+        assignment.membership_number = membership_numbers.allocate(assignment.organization)
     assignment.updated_by = updated_by
     try:
         with transaction.atomic():
             assignment.save()
     except IntegrityError as exc:
-        raise ValidationError(
-            {"membership_number": "Ce numéro d'adhérent est déjà utilisé dans votre organisation."}
-        ) from exc
+        raise ValidationError({"membership_number": NUMBER_TAKEN}) from exc
     return assignment

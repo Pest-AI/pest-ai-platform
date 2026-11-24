@@ -26,7 +26,16 @@ const SELECT =
   "h-11 w-full rounded-lg border border-field bg-canvas px-3 text-[15px] text-ink focus:border-brand-800 focus:ring-3 focus:ring-gold/35 focus:outline-none";
 
 /** Champs de la fiche producteur, partagés par la création et la modification. */
-function ProducerFields({ values, idPrefix }: { values?: Partial<ProducerValues>; idPrefix: string }) {
+function ProducerFields({
+  values,
+  idPrefix,
+  proposedNumber,
+}: {
+  values?: Partial<ProducerValues>;
+  idPrefix: string;
+  /** Création : numéro qui sera attribué si le champ reste vide. */
+  proposedNumber?: string;
+}) {
   const id = (name: string) => `${idPrefix}-${name}`;
   return (
     <div className="space-y-4">
@@ -85,6 +94,17 @@ function ProducerFields({ values, idPrefix }: { values?: Partial<ProducerValues>
         <Input id={id("locality")} name="locality_text" placeholder="ex. Guédé" defaultValue={values?.locality} />
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={id("hh")}>Personnes dans le ménage</Label>
+          <Input id={id("hh")} name="household_size" inputMode="numeric" maxLength={3} placeholder="Facultatif" defaultValue={values?.householdSize} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={id("hw")}>Dont actifs aux champs</Label>
+          <Input id={id("hw")} name="household_farm_workers" inputMode="numeric" maxLength={3} placeholder="Facultatif" defaultValue={values?.householdWorkers} />
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor={id("phone")}>Téléphone</Label>
         <PhoneField id={id("phone")} defaultValue={values?.phone} autoComplete="off" label="Téléphone" />
@@ -103,7 +123,18 @@ function ProducerFields({ values, idPrefix }: { values?: Partial<ProducerValues>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id("num")}>N° d&apos;adhérent</Label>
-          <Input id={id("num")} name="membership_number" placeholder="Facultatif" defaultValue={values?.membershipNumber} />
+          <Input
+            id={id("num")}
+            name="membership_number"
+            className="font-mono uppercase"
+            placeholder={proposedNumber ? `Auto : ${proposedNumber}` : "Obligatoire pour un membre"}
+            defaultValue={values?.membershipNumber}
+          />
+          <p className="text-[12px] text-muted">
+            {proposedNumber
+              ? "Laissez vide : le numéro suivant est attribué. Ou saisissez le numéro existant de la coopérative."
+              : "Unique dans l'organisation, jamais réutilisé."}
+          </p>
         </div>
       </div>
     </div>
@@ -121,6 +152,8 @@ function HiddenValues({ values }: { values: ProducerValues }) {
     ["preferred_language", values.language],
     ["relationship_type", values.relationship],
     ["membership_number", values.membershipNumber],
+    ["household_size", values.householdSize],
+    ["household_farm_workers", values.householdWorkers],
   ];
   return (
     <>
@@ -195,7 +228,7 @@ function Duplicates({
   );
 }
 
-function CreateForm({ onDone }: { onDone: () => void }) {
+function CreateForm({ onDone, proposedNumber }: { onDone: () => void; proposedNumber?: string }) {
   const [state, action, pending] = useActionState<CreateState, FormData>(createProducer, { status: "idle" });
   // « Retour » depuis les doublons : on revient au formulaire rempli, sans perdre la saisie.
   const [dismissed, setDismissed] = useState<CreateState | null>(null);
@@ -208,7 +241,7 @@ function CreateForm({ onDone }: { onDone: () => void }) {
     <form action={action} key={state.status === "error" ? state.message : String(state.status)}>
       <div className="max-h-[65dvh] space-y-4 overflow-y-auto px-6 py-5">
         {state.status === "error" ? <Alert>{state.message}</Alert> : null}
-        <ProducerFields values={values} idPrefix="new" />
+        <ProducerFields values={values} idPrefix="new" proposedNumber={proposedNumber} />
       </div>
       <div className="flex justify-end gap-2 border-t border-line bg-surface px-6 py-4">
         <Button type="button" variant="secondary" onClick={onDone}>
@@ -222,7 +255,13 @@ function CreateForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function CreateProducerDialog({ label = "Enregistrer un producteur" }: { label?: string }) {
+export function CreateProducerDialog({
+  label = "Enregistrer un producteur",
+  proposedNumber,
+}: {
+  label?: string;
+  proposedNumber?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [round, setRound] = useState(0);
   const close = () => {
@@ -242,7 +281,7 @@ export function CreateProducerDialog({ label = "Enregistrer un producteur" }: { 
         description="Sa fiche est rattachée à votre organisation."
         className="max-w-xl"
       >
-        <CreateForm key={round} onDone={close} />
+        <CreateForm key={round} onDone={close} proposedNumber={proposedNumber} />
       </Modal>
     </>
   );
@@ -331,7 +370,7 @@ export function DetachProducerDialog({ producerId, name, organization }: { produ
 }
 
 /** État vide du registre : invite à enregistrer le premier producteur. */
-export function EmptyRegistry({ canCreate }: { canCreate: boolean }) {
+export function EmptyRegistry({ canCreate, proposedNumber }: { canCreate: boolean; proposedNumber?: string }) {
   return (
     <div className="flex flex-col items-center px-6 py-16 text-center">
       <span className="grid size-14 place-items-center rounded-2xl bg-brand-50 text-brand-700">
@@ -343,7 +382,7 @@ export function EmptyRegistry({ canCreate }: { canCreate: boolean }) {
       </p>
       {canCreate ? (
         <div className="mt-5">
-          <CreateProducerDialog label="Enregistrer le premier producteur" />
+          <CreateProducerDialog label="Enregistrer le premier producteur" proposedNumber={proposedNumber} />
         </div>
       ) : null}
     </div>

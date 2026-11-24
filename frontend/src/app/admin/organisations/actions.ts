@@ -23,6 +23,7 @@ function values(form: FormData) {
     [
       "name",
       "short_name",
+      "member_number_prefix",
       "organization_type",
       "status",
       "admin_phone",
@@ -65,6 +66,7 @@ export async function createOrganization(_prev: OrgFormState, form: FormData): P
     body: {
       name: v.name.trim(),
       short_name: v.short_name?.trim() ?? "",
+      member_number_prefix: (v.member_number_prefix ?? "").trim().toUpperCase(),
       organization_type: (v.organization_type || "cooperative") as OrgType,
       status: (v.status || "active") as OrgStatus,
       country_code: "SN",

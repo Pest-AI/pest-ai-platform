@@ -11,7 +11,7 @@ import { currentWorkspace, getApi } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
 import { toInternationalPhone } from "@/lib/phone";
-import { parseBirthYear } from "@/lib/producers";
+import { parseBirthYear, parseCount } from "@/lib/producers";
 
 type Candidate = components["schemas"]["DuplicateCandidate"];
 type Sex = components["schemas"]["SexEnum"];
@@ -28,6 +28,8 @@ export type ProducerValues = {
   language: string;
   relationship: string;
   membershipNumber: string;
+  householdSize: string;
+  householdWorkers: string;
 };
 
 export type CreateState =
@@ -55,7 +57,21 @@ function readValues(form: FormData): ProducerValues {
     language: get("preferred_language") || "fr",
     relationship: get("relationship_type") || "member",
     membershipNumber: get("membership_number"),
+    householdSize: get("household_size"),
+    householdWorkers: get("household_farm_workers"),
   };
+}
+
+/** Contrôles communs à la création et à la modification ; message d'erreur ou null. */
+function checkValues(values: ProducerValues): string | null {
+  if (!values.firstName || !values.lastName) return "Indiquez le prénom et le nom.";
+  if (values.birthYear && parseBirthYear(values.birthYear) === null) return "Année de naissance invalide (ex. 1985).";
+  const size = parseCount(values.householdSize, 1);
+  const workers = parseCount(values.householdWorkers);
+  if (values.householdSize && size === null) return "Taille du ménage invalide (1 à 200).";
+  if (values.householdWorkers && workers === null) return "Nombre d'actifs agricoles invalide.";
+  if (size !== null && workers !== null && workers > size) return "Pas plus d'actifs agricoles que de personnes dans le ménage.";
+  return null;
 }
 
 function profileBody(values: ProducerValues) {
@@ -67,17 +83,15 @@ function profileBody(values: ProducerValues) {
     locality_text: values.locality,
     preferred_language: values.language as Language,
     phone_number: values.phone,
+    household_size: parseCount(values.householdSize, 1),
+    household_farm_workers: parseCount(values.householdWorkers),
   };
 }
 
 export async function createProducer(_prev: CreateState, form: FormData): Promise<CreateState> {
   const values = readValues(form);
-  if (!values.firstName || !values.lastName) {
-    return { status: "error", message: "Indiquez le prénom et le nom.", values };
-  }
-  if (values.birthYear && parseBirthYear(values.birthYear) === null) {
-    return { status: "error", message: "Année de naissance invalide (ex. 1985).", values };
-  }
+  const invalid = checkValues(values);
+  if (invalid) return { status: "error", message: invalid, values };
   const { api, header } = await context();
   const { data, error, response } = await api.POST("/api/v1/producers/", {
     params: { header },
@@ -116,12 +130,8 @@ export async function attachProducer(_prev: SimpleState, form: FormData): Promis
 export async function updateProducer(_prev: CreateState, form: FormData): Promise<CreateState> {
   const id = String(form.get("producer_id") ?? "");
   const values = readValues(form);
-  if (!values.firstName || !values.lastName) {
-    return { status: "error", message: "Indiquez le prénom et le nom.", values };
-  }
-  if (values.birthYear && parseBirthYear(values.birthYear) === null) {
-    return { status: "error", message: "Année de naissance invalide (ex. 1985).", values };
-  }
+  const invalid = checkValues(values);
+  if (invalid) return { status: "error", message: invalid, values };
   const { api, header } = await context();
   const { data, error } = await api.PATCH("/api/v1/producers/{id}/", {
     params: { header, path: { id } },

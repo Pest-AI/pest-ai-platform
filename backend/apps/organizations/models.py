@@ -72,6 +72,15 @@ class Organization(BaseModel, ArchivableModel):
     country_code = models.CharField(max_length=2, default="SN", help_text="ISO 3166-1 alpha-2.")
     # administrative_zone (FK GeographicZone) : ajoutée avec l'application geo (mission ultérieure).
     address = models.TextField(blank=True, default="")
+    # Numéros d'adhérent proposés automatiquement (J18c) : « PRÉFIXE-000123 ». Le compteur ne
+    # redescend jamais : un numéro attribué n'est jamais réutilisé.
+    member_number_prefix = models.CharField(
+        max_length=12,
+        blank=True,
+        default="",
+        help_text="Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court.",
+    )
+    member_number_seq = models.PositiveIntegerField(default=0, editable=False)
     phone_number = models.CharField(max_length=16, blank=True, default="")
     email = models.EmailField(max_length=254, blank=True, default="")
     parent_organization = models.ForeignKey(
@@ -109,6 +118,10 @@ class Organization(BaseModel, ArchivableModel):
                 condition=~models.Q(parent_organization=models.F("id")),
                 name="org_not_its_own_parent",
             ),
+            models.CheckConstraint(
+                condition=models.Q(member_number_prefix__regex=r"^[A-Z0-9]{0,12}$"),
+                name="org_member_prefix_format",
+            ),
         ]
         indexes = [
             models.Index(fields=["organization_type"], name="org_type_idx"),
@@ -121,6 +134,7 @@ class Organization(BaseModel, ArchivableModel):
             self.legal_identifier = None
         if self.country_code:
             self.country_code = self.country_code.upper()
+        self.member_number_prefix = (self.member_number_prefix or "").strip().upper()
         super().save(*args, **kwargs)
 
     @property

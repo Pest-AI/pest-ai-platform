@@ -91,6 +91,9 @@ export default async function ProducersPage({
       ])
     : [null, null];
   if (listResult && listResult.response.status === 404 && page > 1) redirect("/producteurs");
+  const proposedNumber = canCreate
+    ? (await api.GET("/api/v1/producers/membership-number/", { params: { header } })).data?.proposed
+    : undefined;
   const producers = listResult?.data?.results ?? [];
   const count = listResult?.data?.count ?? 0;
   const all = (filtered ? allResult?.data : listResult?.data) ?? null;
@@ -172,7 +175,7 @@ export default async function ProducersPage({
                   </a>
                 </Button>
               ) : null}
-              {canCreate ? <CreateProducerDialog /> : null}
+              {canCreate ? <CreateProducerDialog proposedNumber={proposedNumber} /> : null}
             </>
           ) : undefined
         }
@@ -216,7 +219,7 @@ export default async function ProducersPage({
             <ListToolbar
               action="/producteurs"
               q={q}
-              placeholder="Rechercher par nom, village, téléphone ou n° d'adhérent…"
+              placeholder="Nom, village, téléphone, n° d'adhérent ou identifiant PRD…"
               count={count}
               total={total}
               noun={total > 1 ? "producteurs" : "producteur"}
@@ -248,7 +251,7 @@ export default async function ProducersPage({
                   </Link>
                 </div>
               ) : (
-                <EmptyRegistry canCreate={canCreate} />
+                <EmptyRegistry canCreate={canCreate} proposedNumber={proposedNumber} />
               )}
             </Card>
           ) : view === "cartes" ? (

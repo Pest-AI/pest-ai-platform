@@ -4,6 +4,8 @@ Règle (section 9.5) : l'organisation d'un objet n'est jamais lue dans le payloa
 elle vient du contexte vérifié de la requête.
 """
 
+import re
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -11,6 +13,13 @@ from apps.accounts.models import User
 from apps.accounts.validators import normalize_phone_number, validate_e164
 from apps.organizations import constants as C
 from apps.organizations.models import Organization, OrganizationMembership
+
+
+def _validate_prefix(value: str) -> str:
+    value = (value or "").strip().upper()
+    if value and not re.fullmatch(r"[A-Z0-9]{1,12}", value):
+        raise serializers.ValidationError("Lettres et chiffres seulement, 12 au plus (ex. FPIP).")
+    return value
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -25,6 +34,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "legal_identifier",
             "country_code",
             "address",
+            "member_number_prefix",
             "phone_number",
             "email",
             "parent_organization",
@@ -42,6 +52,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    def validate_member_number_prefix(self, value):
+        return _validate_prefix(value)
+
 
 class PlatformOrganizationSerializer(serializers.ModelSerializer):
     """Création et gestion par le Super Admin (portée plateforme)."""
@@ -57,6 +70,7 @@ class PlatformOrganizationSerializer(serializers.ModelSerializer):
             "legal_identifier",
             "country_code",
             "address",
+            "member_number_prefix",
             "phone_number",
             "email",
             "parent_organization",
@@ -66,6 +80,9 @@ class PlatformOrganizationSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "is_archived", "archived_at", "archive_reason", "created_at"]
+
+    def validate_member_number_prefix(self, value):
+        return _validate_prefix(value)
 
 
 class MemberUserSerializer(serializers.ModelSerializer):

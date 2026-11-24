@@ -3350,6 +3350,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/Producer'
           description: ''
+  /api/v1/producers/membership-number/:
+    get:
+      operationId: producers_membership_number_retrieve
+      description: 'Prochain numéro d''adhérent de l''organisation (« PRÉFIXE-000123
+        »), pour préremplir la saisie. Il n''est pas réservé : il est attribué à l''enregistrement.'
+      summary: Numéro d'adhérent proposé
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - producers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipNumberProposal'
+          description: ''
   /api/v1/workspace/:
     get:
       operationId: workspace_retrieve
@@ -4885,6 +4911,17 @@ components:
       - roles
       - status
       - user
+    MembershipNumberProposal:
+      type: object
+      properties:
+        proposed:
+          type: string
+          description: Numéro qui serait attribué maintenant.
+        prefix:
+          type: string
+      required:
+      - prefix
+      - proposed
     MembershipStatusEnum:
       enum:
       - invited
@@ -5211,6 +5248,11 @@ components:
           description: ISO 3166-1 alpha-2.
         address:
           type: string
+        member_number_prefix:
+          type: string
+          description: 'Préfixe des numéros d''adhérent (ex. FPIP) ; vide : déduit
+            du nom court.'
+          maxLength: 12
         phone_number:
           type: string
           maxLength: 16
@@ -6155,6 +6197,11 @@ components:
           maxLength: 50
         address:
           type: string
+        member_number_prefix:
+          type: string
+          description: 'Préfixe des numéros d''adhérent (ex. FPIP) ; vide : déduit
+            du nom court.'
+          maxLength: 12
         phone_number:
           type: string
           maxLength: 16
@@ -6199,6 +6246,11 @@ components:
           maxLength: 2
         address:
           type: string
+        member_number_prefix:
+          type: string
+          description: 'Préfixe des numéros d''adhérent (ex. FPIP) ; vide : déduit
+            du nom court.'
+          maxLength: 12
         phone_number:
           type: string
           maxLength: 16
@@ -6239,6 +6291,18 @@ components:
           maxLength: 200
         preferred_language:
           $ref: '#/components/schemas/PreferredLanguageEnum'
+        household_size:
+          type: integer
+          maximum: 200
+          minimum: 1
+          nullable: true
+          description: Personnes du ménage.
+        household_farm_workers:
+          type: integer
+          maximum: 200
+          minimum: 0
+          nullable: true
+          description: Membres du ménage qui travaillent aux champs.
         phone_number:
           type: string
         relationship_type:
@@ -6288,6 +6352,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        producer_code:
+          type: string
+          readOnly: true
+          description: Identifiant producteur PEST AI (PRD-SN-XXXXXXXX), permanent.
         first_name:
           type: string
           maxLength: 100
@@ -6307,6 +6375,16 @@ components:
           type: string
         preferred_language:
           $ref: '#/components/schemas/PreferredLanguageEnum'
+        household_size:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        household_farm_workers:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
         registration_channel:
           allOf:
           - $ref: '#/components/schemas/ProducerRegistrationChannelEnum'
@@ -6324,6 +6402,7 @@ components:
       - first_name
       - id
       - last_name
+      - producer_code
       - registration_channel
       - status
     PersonalProfileRequest:
@@ -6351,6 +6430,16 @@ components:
           type: string
         preferred_language:
           $ref: '#/components/schemas/PreferredLanguageEnum'
+        household_size:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+        household_farm_workers:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
       required:
       - first_name
       - last_name
@@ -6521,6 +6610,11 @@ components:
           maxLength: 2
         address:
           type: string
+        member_number_prefix:
+          type: string
+          description: 'Préfixe des numéros d''adhérent (ex. FPIP) ; vide : déduit
+            du nom court.'
+          maxLength: 12
         phone_number:
           type: string
           maxLength: 16
@@ -6587,6 +6681,11 @@ components:
           maxLength: 2
         address:
           type: string
+        member_number_prefix:
+          type: string
+          description: 'Préfixe des numéros d''adhérent (ex. FPIP) ; vide : déduit
+            du nom court.'
+          maxLength: 12
         phone_number:
           type: string
           maxLength: 16
@@ -6623,6 +6722,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        producer_code:
+          type: string
+          readOnly: true
+          description: Identifiant producteur PEST AI (PRD-SN-XXXXXXXX), permanent.
         first_name:
           type: string
           readOnly: true
@@ -6644,6 +6747,14 @@ components:
           allOf:
           - $ref: '#/components/schemas/PreferredLanguageEnum'
           readOnly: true
+        household_size:
+          type: integer
+          readOnly: true
+          nullable: true
+        household_farm_workers:
+          type: integer
+          readOnly: true
+          nullable: true
         registration_channel:
           allOf:
           - $ref: '#/components/schemas/ProducerRegistrationChannelEnum'
@@ -6696,11 +6807,14 @@ components:
       - first_name
       - has_account
       - history
+      - household_farm_workers
+      - household_size
       - id
       - last_name
       - locality_text
       - phone_number
       - preferred_language
+      - producer_code
       - registration_channel
       - row_version
       - sex
@@ -6761,6 +6875,18 @@ components:
           maxLength: 200
         preferred_language:
           $ref: '#/components/schemas/PreferredLanguageEnum'
+        household_size:
+          type: integer
+          maximum: 200
+          minimum: 1
+          nullable: true
+          description: Personnes du ménage.
+        household_farm_workers:
+          type: integer
+          maximum: 200
+          minimum: 0
+          nullable: true
+          description: Membres du ménage qui travaillent aux champs.
         phone_number:
           type: string
           description: Téléphone principal, format E.164 (+221…).
@@ -6768,6 +6894,7 @@ components:
           $ref: '#/components/schemas/RelationshipTypeEnum'
         membership_number:
           type: string
+          description: 'Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123).'
           maxLength: 50
         start_date:
           type: string

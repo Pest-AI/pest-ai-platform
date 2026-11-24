@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CalendarDays, Fingerprint, Footprints, Languages, MapPin, MessageCircle, Phone, User } from "lucide-react-native";
+import { ArrowLeft, CalendarDays, Fingerprint, Footprints, Languages, MapPin, MessageCircle, Phone, User, Users } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -61,6 +61,13 @@ export default function ProducerScreen() {
         [CalendarDays, "Année de naissance", p.birth_year ? `${p.birth_year} (≈ ${year} ans)` : "Non renseignée"],
         [MapPin, "Village ou commune", p.locality_text || "Non renseigné"],
         [Languages, "Langue préférée", LANGUAGE_LABELS[p.preferred_language ?? "fr"] ?? "Français"],
+        [
+          Users,
+          "Ménage",
+          p.household_size
+            ? `${p.household_size} pers.${p.household_farm_workers != null ? `, dont ${p.household_farm_workers} aux champs` : ""}`
+            : "Non renseigné",
+        ],
       ]
     : [];
 
@@ -97,6 +104,9 @@ export default function ProducerScreen() {
                 N° {p.assignment.membership_number}
               </T>
             ) : null}
+            <T mono style={{ marginTop: 4, color: colors.muted, fontSize: 13 }} accessibilityLabel={`Identifiant producteur ${p.producer_code}`}>
+              {p.producer_code}
+            </T>
           </View>
 
           {canEnrolParcel ? (

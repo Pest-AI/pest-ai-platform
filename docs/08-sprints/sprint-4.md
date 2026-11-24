@@ -47,6 +47,21 @@ Décisions du fondateur du 24/11/2026.
 
 Hors J18b (propositions à valider) : rôle d'administrateur plateforme distinct du super-administrateur ; code PIN à 6 chiffres pour les agents ; espace agronome ; données sol et eau (addendum v2.3 du Design).
 
+## J18c — Identité du producteur (livré)
+
+Décisions du fondateur du 24/11/2026 (addendum v2.3, partie Producteur).
+
+| Livré | Vérification |
+|---|---|
+| **Identifiant producteur PEST AI** `PRD-SN-XXXXXXXX` : tiré au hasard (base32 Crockford, comme l'AgroID), unique sur la plateforme, attribué à la création (y compris espace personnel) et aux producteurs existants par la migration ; modification interdite par PostgreSQL ; recherche par identifiant (saisie tolérante) | 4 tests |
+| **Numéro d'adhérent obligatoire pour un membre**, unique dans l'organisation, **jamais réutilisé** ; proposé automatiquement « PRÉFIXE-000123 » (préfixe réglable par organisation, sinon déduit du nom court) ; un numéro saisi (numérotation existante) est accepté et fait avancer le compteur ; bénéficiaires et clients sans numéro | 5 tests |
+| API : `GET /api/v1/producers/membership-number/` (numéro proposé) ; `member_number_prefix` sur l'organisation | 2 tests |
+| **Ménage** : nombre de personnes et d'actifs aux champs (actifs ≤ personnes, contrôlé en base) | 1 test |
+| Web OS et app terrain : numéro proposé dans les formulaires, identifiant et ménage sur la fiche ; préfixe à la création d'une organisation | Parcours navigateur |
+| Commande `manage.py assign_membership_numbers [--dry-run]` : numéros pour les membres actuels qui n'en ont pas (ajout seulement) | 1 test |
+
+Migrations : `organizations 0002`, `actors 0002` (ajout de colonnes, identifiants des producteurs existants, déclencheur d'immuabilité ; aucune donnée modifiée ni supprimée). Photo du producteur : avec les pièces jointes (J21). Pièce d'identité : non collectée (décision du 24/11).
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

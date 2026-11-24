@@ -1510,6 +1510,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/producers/membership-number/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Numéro d'adhérent proposé
+         * @description Prochain numéro d'adhérent de l'organisation (« PRÉFIXE-000123 »), pour préremplir la saisie. Il n'est pas réservé : il est attribué à l'enregistrement.
+         */
+        get: operations["producers_membership_number_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/": {
         parameters: {
             query?: never;
@@ -2154,6 +2174,11 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
         };
+        MembershipNumberProposal: {
+            /** @description Numéro qui serait attribué maintenant. */
+            proposed: string;
+            prefix: string;
+        };
         /**
          * @description * `invited` - Invitée
          *     * `active` - Active
@@ -2300,6 +2325,8 @@ export interface components {
              */
             readonly country_code: string;
             address?: string;
+            /** @description Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court. */
+            member_number_prefix?: string;
             phone_number?: string;
             email?: string;
             /**
@@ -2753,6 +2780,8 @@ export interface components {
             name?: string;
             short_name?: string;
             address?: string;
+            /** @description Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court. */
+            member_number_prefix?: string;
             phone_number?: string;
             email?: string;
         };
@@ -2773,6 +2802,8 @@ export interface components {
              */
             country_code: string;
             address?: string;
+            /** @description Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court. */
+            member_number_prefix?: string;
             phone_number?: string;
             email?: string;
             /**
@@ -2788,6 +2819,10 @@ export interface components {
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            /** @description Personnes du ménage. */
+            household_size?: number | null;
+            /** @description Membres du ménage qui travaillent aux champs. */
+            household_farm_workers?: number | null;
             phone_number?: string;
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
             membership_number?: string;
@@ -2812,12 +2847,16 @@ export interface components {
         PersonalProfile: {
             /** Format: uuid */
             readonly id: string;
+            /** @description Identifiant producteur PEST AI (PRD-SN-XXXXXXXX), permanent. */
+            readonly producer_code: string;
             first_name: string;
             last_name: string;
             sex?: components["schemas"]["SexEnum"] | components["schemas"]["BlankEnum"];
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            household_size?: number | null;
+            household_farm_workers?: number | null;
             readonly registration_channel: components["schemas"]["ProducerRegistrationChannelEnum"];
             readonly status: components["schemas"]["ProducerStatusEnum"];
             /** Format: date-time */
@@ -2831,6 +2870,8 @@ export interface components {
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            household_size?: number | null;
+            household_farm_workers?: number | null;
         };
         /** @description Adhésion d'un agent terrain, avec son organisation d'affectation. */
         PlatformAgent: {
@@ -2895,6 +2936,8 @@ export interface components {
              */
             country_code: string;
             address?: string;
+            /** @description Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court. */
+            member_number_prefix?: string;
             phone_number?: string;
             email?: string;
             /**
@@ -2923,6 +2966,8 @@ export interface components {
              */
             country_code: string;
             address?: string;
+            /** @description Préfixe des numéros d'adhérent (ex. FPIP) ; vide : déduit du nom court. */
+            member_number_prefix?: string;
             phone_number?: string;
             email?: string;
             /**
@@ -2942,12 +2987,16 @@ export interface components {
         Producer: {
             /** Format: uuid */
             readonly id: string;
+            /** @description Identifiant producteur PEST AI (PRD-SN-XXXXXXXX), permanent. */
+            readonly producer_code: string;
             readonly first_name: string;
             readonly last_name: string;
             readonly sex: components["schemas"]["SexEnum"];
             readonly birth_year: number | null;
             readonly locality_text: string;
             readonly preferred_language: components["schemas"]["PreferredLanguageEnum"];
+            readonly household_size: number | null;
+            readonly household_farm_workers: number | null;
             readonly registration_channel: components["schemas"]["ProducerRegistrationChannelEnum"];
             readonly status: components["schemas"]["ProducerStatusEnum"];
             /** @description Téléphone principal (E.164) ou vide. */
@@ -2981,9 +3030,14 @@ export interface components {
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+            /** @description Personnes du ménage. */
+            household_size?: number | null;
+            /** @description Membres du ménage qui travaillent aux champs. */
+            household_farm_workers?: number | null;
             /** @description Téléphone principal, format E.164 (+221…). */
             phone_number?: string;
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
+            /** @description Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123). */
             membership_number?: string;
             /**
              * Format: date
@@ -5661,6 +5715,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Producer"];
+                };
+            };
+        };
+    };
+    producers_membership_number_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipNumberProposal"];
                 };
             };
         };

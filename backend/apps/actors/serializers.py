@@ -70,12 +70,15 @@ class ProducerSerializer(serializers.ModelSerializer):
         model = Producer
         fields = [
             "id",
+            "producer_code",
             "first_name",
             "last_name",
             "sex",
             "birth_year",
             "locality_text",
             "preferred_language",
+            "household_size",
+            "household_farm_workers",
             "registration_channel",
             "status",
             "phone_number",
@@ -124,6 +127,28 @@ class _ProfileFields(serializers.Serializer):
     )
     locality_text = serializers.CharField(required=False, allow_blank=True, max_length=200)
     preferred_language = serializers.ChoiceField(choices=Language.choices, required=False)
+    household_size = serializers.IntegerField(
+        min_value=1,
+        max_value=200,
+        required=False,
+        allow_null=True,
+        help_text="Personnes du ménage.",
+    )
+    household_farm_workers = serializers.IntegerField(
+        min_value=0,
+        max_value=200,
+        required=False,
+        allow_null=True,
+        help_text="Membres du ménage qui travaillent aux champs.",
+    )
+
+    def validate(self, attrs):
+        size, workers = attrs.get("household_size"), attrs.get("household_farm_workers")
+        if size is not None and workers is not None and workers > size:
+            raise serializers.ValidationError(
+                {"household_farm_workers": "Pas plus d'actifs que de personnes dans le ménage."}
+            )
+        return attrs
 
 
 class ProducerCreateSerializer(_ProfileFields):
@@ -131,7 +156,12 @@ class ProducerCreateSerializer(_ProfileFields):
         required=False, allow_blank=True, help_text="Téléphone principal, format E.164 (+221…)."
     )
     relationship_type = serializers.ChoiceField(choices=RelationshipType.choices, required=False)
-    membership_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    membership_number = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=50,
+        help_text="Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123).",
+    )
     start_date = serializers.DateField(
         required=False, help_text="Début du rattachement (défaut : aujourd'hui)."
     )
@@ -194,15 +224,23 @@ class PersonalProfileSerializer(serializers.ModelSerializer):
         model = Producer
         fields = [
             "id",
+            "producer_code",
             "first_name",
             "last_name",
             "sex",
             "birth_year",
             "locality_text",
             "preferred_language",
+            "household_size",
+            "household_farm_workers",
             "registration_channel",
             "status",
             "created_at",
         ]
-        read_only_fields = ["id", "registration_channel", "status", "created_at"]
+        read_only_fields = ["id", "producer_code", "registration_channel", "status", "created_at"]
         extra_kwargs = {"sex": {"required": False}, "preferred_language": {"required": False}}
+
+
+class MembershipNumberProposalSerializer(serializers.Serializer):
+    proposed = serializers.CharField(help_text="Numéro qui serait attribué maintenant.")
+    prefix = serializers.CharField()
