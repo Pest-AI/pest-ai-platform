@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from "expo-router";
-import { ChevronRight, CloudOff, Fingerprint, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
+import { ChevronRight, CloudOff, Fingerprint, Footprints, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,6 +32,7 @@ export default function ParcelsHome() {
   const { fix, error: positionError, locate } = usePosition();
   const [org, setOrg] = useState<Organization | null>(null);
   const [canView, setCanView] = useState<boolean | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
   const [snapshot, setSnapshot] = useState<ParcelSnapshot | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function ParcelsHome() {
       setOrg(organization);
       const allowed = context.permissions.some((c) => c === "parcels.view" || c === "personal.parcels.view");
       setCanView(allowed);
+      setCanCreate(context.permissions.some((c) => c === "parcels.create" || c === "personal.parcels.register"));
       if (allowed) {
         setSnapshot(await syncParcels(api, workspace, new Date(), organization.short_name || organization.name));
       }
@@ -149,6 +151,10 @@ export default function ParcelsHome() {
             )}
           </Pressable>
         </View>
+
+        {canCreate ? (
+          <Button label="Enrôler une parcelle" icon={<Footprints size={18} color="#fff" />} onPress={() => router.push("/parcelles/nouvelle")} />
+        ) : null}
 
         {error ? <Alert tone={snapshot ? "info" : "danger"}>{error}</Alert> : null}
         {snapshot?.truncated ? (

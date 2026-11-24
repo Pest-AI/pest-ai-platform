@@ -1,12 +1,12 @@
-import { ChevronRight, Lock, Mail, Phone } from "lucide-react";
+import { ChevronRight, Lock, Mail } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AuthLayout } from "@/components/auth-layout";
 import { PasswordInput } from "@/components/password-input";
 import { Alert } from "@/components/ui/alert";
+import { PhoneField } from "@/components/phone-field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const metadata: Metadata = { title: "Connexion" };
@@ -42,26 +42,7 @@ export default async function LoginPage({
 
       <form action="/api/session/login" method="post" className="mt-7 space-y-4">
         <div>
-          <Label htmlFor="phone_number" className="sr-only">
-            Numéro de téléphone (+221)
-          </Label>
-          <Input
-            id="phone_number"
-            name="phone_number"
-            type="tel"
-            inputMode="tel"
-            autoComplete="username"
-            placeholder="Numéro de téléphone"
-            icon={
-              <span className="flex items-center gap-2">
-                <Phone />
-                <span className="text-[15px] font-medium text-ink">+221</span>
-              </span>
-            }
-            title="Numéro étranger : saisissez-le avec son indicatif, par exemple +33…"
-            className="h-[52px] rounded-xl border-line-strong"
-            required
-          />
+          <PhoneField id="phone_number" autoComplete="username" large required />
         </div>
         <div>
           <Label htmlFor="password" className="sr-only">

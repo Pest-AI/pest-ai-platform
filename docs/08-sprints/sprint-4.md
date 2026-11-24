@@ -21,12 +21,26 @@
 | Liste de tous les cycles avec filtres (statut, culture, campagne) ; cycles sur la fiche parcelle | Parcours navigateur |
 | API : recherche de parcelle par morceau d'AgroID | 1 test API |
 
+## J18 — Enrôlement terrain (livré)
+
+| Livré | Vérification |
+|---|---|
+| **Choix du pays** pour tous les numéros (245 pays, drapeau et indicatif ; Sénégal et Afrique de l'Ouest en tête ; recherche par nom ou indicatif) : connexion, activation, invitation, producteurs, création d'organisation (Web OS) ; connexion, activation, enrôlement (app terrain). Le numéro est envoyé au format international | 8 + 8 tests unitaires, parcours navigateur (Web OS et app) |
+| App terrain : **activation du compte avec le code** directement dans l'app (plus de passage par le Web OS) | Parcours navigateur |
+| App terrain : **enrôlement d'un producteur** (identité, village, téléphone, n° d'adhérent, langue) ; doublons possibles proposés au rattachement (D-28) | Parcours navigateur |
+| App terrain : **enrôlement d'une parcelle** — exploitant, nom, puis **tour du champ** au GPS (points ajoutés en marchant, retour au départ détecté), **coin par coin**, ou simple position ; aperçu du contour, surface, périmètre, précision ; **AgroID affiché** à l'envoi ; contour signalé selon D-19 | 3 tests unitaires, parcours navigateur (position simulée) |
+| Accès : boutons affichés selon les droits (`producers.create`, `parcels.create`, `personal.parcels.register`) ; « Enrôler une parcelle » depuis l'accueil et depuis la fiche producteur | Parcours navigateur |
+
+Limites assumées : l'enrôlement demande le réseau (message clair sinon ; la file hors ligne arrive au J20) ; le relevé GPS se fait dans l'app navigateur (`terrain.pestai.africa`), le module natif d'Expo viendra avec les stores ; **vérification OTP par SMS reportée** par le fondateur (D-14).
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.
 - `AgriculturalOperation.product` : avec le catalogue de produits (texte libre `product_text` en attendant).
-- `source_device` : avec la synchronisation (J18).
-- Saisie des cycles, opérations et récoltes dans l'app terrain (hors ligne) : jours suivants du sprint.
+- `source_device` : avec la synchronisation (J20).
+- Unités de culture avec contour (relevé GPS, dessin Web OS, contrôle d'inclusion D-16) puis cycles, opérations et récoltes dans l'app terrain : J19.
+- Enrôlement hors ligne et synchronisation : J20.
+- Vérification OTP par SMS (D-14) : reportée par le fondateur.
 
 ## À valider par le fondateur
 

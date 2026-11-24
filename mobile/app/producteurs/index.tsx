@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import { Redirect, useRouter } from "expo-router";
-import { ChevronRight, MapPin, Phone, Search, UsersRound } from "lucide-react-native";
+import { ChevronRight, MapPin, Phone, Search, UserPlus, UsersRound } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +22,7 @@ export default function ProducersScreen() {
   const insets = useSafeAreaInsets();
   const [org, setOrg] = useState<Organization | null>(null);
   const [canView, setCanView] = useState<boolean | null>(null);
+  const [canCreate, setCanCreate] = useState(false);
   const [items, setItems] = useState<Producer[]>([]);
   const [count, setCount] = useState(0);
   const [next, setNext] = useState<number | null>(null);
@@ -65,6 +66,7 @@ export default function ProducersScreen() {
         setOrg(organization);
         const allowed = context.permissions.includes("producers.view");
         setCanView(allowed);
+        setCanCreate(context.permissions.includes("producers.create"));
         if (allowed) await loadPage(1, q);
       } catch (e) {
         await handle(e);
@@ -122,6 +124,12 @@ export default function ProducersScreen() {
             {canView === false ? "—" : count}
           </T>
         </View>
+
+        {canCreate ? (
+          <View style={{ marginTop: 14 }}>
+            <Button label="Enrôler un producteur" icon={<UserPlus size={18} color="#fff" />} onPress={() => router.push("/producteurs/nouveau")} />
+          </View>
+        ) : null}
 
         {error ? (
           <View style={{ marginTop: 14, gap: 10 }}>

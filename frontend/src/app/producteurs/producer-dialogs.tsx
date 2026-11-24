@@ -6,6 +6,7 @@ import { useActionState, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PhoneField } from "@/components/phone-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
@@ -86,15 +87,7 @@ function ProducerFields({ values, idPrefix }: { values?: Partial<ProducerValues>
 
       <div className="space-y-1.5">
         <Label htmlFor={id("phone")}>Téléphone</Label>
-        <Input
-          id={id("phone")}
-          name="phone_number"
-          type="tel"
-          inputMode="tel"
-          prefix="+221"
-          placeholder="77 123 45 67"
-          defaultValue={values?.phone}
-        />
+        <PhoneField id={id("phone")} defaultValue={values?.phone} autoComplete="off" label="Téléphone" />
       </div>
 
       <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">

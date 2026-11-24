@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   // Formulaire envoyé depuis un autre site : refusé (protection CSRF).
   if (!isSameOrigin(request)) return new Response("Origine refusée.", { status: 403 });
   const form = await request.formData();
-  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""));
+  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""), String(form.get("phone_country") ?? "SN"));
   const password = String(form.get("password") ?? "");
   const back = (reason: string) =>
     seeOther(request, `/connexion?erreur=${reason}`);

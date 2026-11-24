@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { PasswordInput } from "@/components/password-input";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PhoneField } from "@/components/phone-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,7 +18,7 @@ export function ActivationForm() {
       {state.message ? <Alert>{state.message}</Alert> : null}
       <div className="space-y-1.5">
         <Label htmlFor="phone_number">Numéro de téléphone</Label>
-        <Input id="phone_number" name="phone_number" defaultValue={state.phone} type="tel" inputMode="tel" autoComplete="username" prefix="+221" placeholder="77 123 45 67" className="h-[52px] rounded-xl" required />
+        <PhoneField id="phone_number" defaultValue={state.phone} autoComplete="username" large required />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="code">Code d&apos;activation</Label>

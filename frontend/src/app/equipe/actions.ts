@@ -30,11 +30,11 @@ async function context() {
 }
 
 export async function inviteMember(_prev: InviteState, form: FormData): Promise<InviteState> {
-  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""));
+  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""), String(form.get("phone_country") ?? "SN"));
   const roles = form.getAll("roles").map(String);
   // Renvoyées en cas d'erreur pour que le formulaire reste rempli.
   const values: InviteValues = {
-    phone: String(form.get("phone_number") ?? ""),
+    phone,
     firstName: String(form.get("first_name") ?? ""),
     lastName: String(form.get("last_name") ?? ""),
     roles,

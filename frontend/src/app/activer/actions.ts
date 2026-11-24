@@ -11,12 +11,12 @@ export type ActivationState = { message: string | null; phone?: string; code?: s
 
 /** Active un compte créé par invitation (route publique de l'API, sans session). */
 export async function activateAccount(_prev: ActivationState, form: FormData): Promise<ActivationState> {
-  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""));
+  const phone = toInternationalPhone(String(form.get("phone_number") ?? ""), String(form.get("phone_country") ?? "SN"));
   const code = String(form.get("code") ?? "").trim();
   const password = String(form.get("password") ?? "");
   const confirm = String(form.get("password_confirm") ?? "");
   // Les champs saisis sont renvoyés pour rester remplis après une erreur (sauf les mots de passe).
-  const keep = { phone: String(form.get("phone_number") ?? ""), code };
+  const keep = { phone, code };
   if (!phone || !code || !password) return { ...keep, message: "Renseignez votre numéro, le code et un mot de passe." };
   if (password !== confirm) return { ...keep, message: "Les deux mots de passe ne sont pas identiques." };
 

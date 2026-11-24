@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PhoneField } from "@/components/phone-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
@@ -54,7 +55,7 @@ function InviteForm({ isAdmin, organization, onDone }: { isAdmin: boolean; organ
         {state.status === "error" ? <Alert>{state.message}</Alert> : null}
         <div className="space-y-1.5">
           <Label htmlFor="invite-phone">Numéro de téléphone</Label>
-          <Input id="invite-phone" name="phone_number" defaultValue={values?.phone} type="tel" inputMode="tel" prefix="+221" placeholder="77 123 45 67" required />
+          <PhoneField id="invite-phone" defaultValue={values?.phone} autoComplete="off" required />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">

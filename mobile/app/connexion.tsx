@@ -1,7 +1,6 @@
 import { Image } from "expo-image";
-import * as Linking from "expo-linking";
-import { Redirect } from "expo-router";
-import { ChevronRight, Eye, EyeOff, Lock, Mail, Phone } from "lucide-react-native";
+import { Redirect, useRouter } from "expo-router";
+import { ChevronRight, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -14,19 +13,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { PhoneInput } from "@/components/phone-input";
 import { Alert, Button, Input, type InputRef, T } from "@/components/ui";
 import { ApiError, NetworkError } from "@/lib/api";
-import { toInternationalPhone } from "@/lib/phone";
+import { DEFAULT_COUNTRY, toInternationalPhone } from "@/lib/phone";
 import { useSession } from "@/lib/session";
 import { colors, radius } from "@/theme";
-
-const WEB_ACTIVATION_URL = "https://app.pestai.africa/activer";
 
 /** Connexion : photo de terrain en haut, logo PEST AI, formulaire sur une feuille blanche. */
 export default function LoginScreen() {
   const { status, signIn } = useSession();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const router = useRouter();
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +38,7 @@ export default function LoginScreen() {
 
   async function submit() {
     setError(null);
-    const e164 = toInternationalPhone(phone);
+    const e164 = toInternationalPhone(phone, country);
     if (!e164 || !password) {
       setError("Renseignez votre numéro et votre mot de passe.");
       return;
@@ -92,17 +92,11 @@ export default function LoginScreen() {
           ) : null}
 
           <View style={{ gap: 12, marginTop: 22 }}>
-            <Input
-              accessibilityLabel="Numéro de téléphone"
-              icon={<Phone size={18} color={colors.muted} />}
-              prefix="+221"
-              placeholder="77 123 45 67"
-              keyboardType="phone-pad"
-              autoComplete="tel"
-              textContentType="telephoneNumber"
+            <PhoneInput
+              country={country}
+              onCountryChange={setCountry}
               value={phone}
               onChangeText={setPhone}
-              returnKeyType="next"
               onSubmitEditing={() => passwordRef.current?.focus()}
             />
             <Input
@@ -144,8 +138,8 @@ export default function LoginScreen() {
           </View>
 
           <Pressable
-            onPress={() => Linking.openURL(WEB_ACTIVATION_URL)}
-            accessibilityRole="link"
+            onPress={() => router.push("/activer")}
+            accessibilityRole="button"
             style={({ pressed }) => [styles.invite, pressed && { opacity: 0.8 }]}
           >
             <Mail size={22} color={colors.forest} />

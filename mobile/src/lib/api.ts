@@ -197,6 +197,22 @@ export function createApiClient({
       }
     },
 
+    /** Activation d'un compte invité : code transmis par l'organisation + mot de passe choisi. */
+    async activate(phoneNumber: string, code: string, newPassword: string) {
+      try {
+        await request<unknown>("/api/v1/auth/activate/", {
+          method: "POST",
+          auth: false,
+          body: { phone_number: phoneNumber, code: code.trim().toUpperCase(), new_password: newPassword },
+        });
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 429) {
+          throw new ApiError(429, { detail: TOO_MANY_ATTEMPTS });
+        }
+        throw error;
+      }
+    },
+
     /** Déconnexion : le jeton de rafraîchissement est invalidé côté API (si le réseau le permet). */
     async logout() {
       try {

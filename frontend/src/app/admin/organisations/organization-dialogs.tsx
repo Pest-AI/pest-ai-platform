@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { PhoneField } from "@/components/phone-field";
+import { toInternationalPhone } from "@/lib/phone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
@@ -22,7 +24,7 @@ function AdminFields({ values }: { values?: Record<string, string> }) {
     <>
       <div className="space-y-1.5">
         <Label htmlFor="admin_phone">Numéro de téléphone</Label>
-        <Input id="admin_phone" name="admin_phone" type="tel" inputMode="tel" prefix="+221" placeholder="77 123 45 67" defaultValue={values?.admin_phone} />
+        <PhoneField id="admin_phone" name="admin_phone" countryName="admin_phone_country" defaultValue={values?.admin_phone ? toInternationalPhone(values.admin_phone, values.admin_phone_country || "SN") : undefined} autoComplete="off" />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">

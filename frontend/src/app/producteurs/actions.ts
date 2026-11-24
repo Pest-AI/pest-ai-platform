@@ -51,7 +51,7 @@ function readValues(form: FormData): ProducerValues {
     sex: get("sex"),
     birthYear: get("birth_year"),
     locality: get("locality_text"),
-    phone: get("phone_number"),
+    phone: get("phone_number") ? toInternationalPhone(get("phone_number"), get("phone_country") || "SN") : "",
     language: get("preferred_language") || "fr",
     relationship: get("relationship_type") || "member",
     membershipNumber: get("membership_number"),
@@ -66,7 +66,7 @@ function profileBody(values: ProducerValues) {
     birth_year: parseBirthYear(values.birthYear),
     locality_text: values.locality,
     preferred_language: values.language as Language,
-    phone_number: values.phone ? toInternationalPhone(values.phone) : "",
+    phone_number: values.phone,
   };
 }
 

@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CalendarDays, Fingerprint, Languages, MapPin, MessageCircle, Phone, User } from "lucide-react-native";
+import { ArrowLeft, CalendarDays, Fingerprint, Footprints, Languages, MapPin, MessageCircle, Phone, User } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,7 +11,7 @@ import { api } from "@/lib/client";
 import { LANGUAGE_LABELS, RELATIONSHIP_LABELS, SEX_LABELS } from "@/lib/labels";
 import { formatPhone } from "@/lib/phone";
 import { useSession } from "@/lib/session";
-import type { Producer } from "@/lib/types";
+import type { Producer, WorkspaceContext } from "@/lib/types";
 import { colors, radius } from "@/theme";
 
 function formatDate(iso: string) {
@@ -21,18 +21,24 @@ function formatDate(iso: string) {
 
 /** Fiche producteur (lecture) : identité, contacts (appel direct), rattachement. */
 export default function ProducerScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, nouveau } = useLocalSearchParams<{ id: string; nouveau?: string }>();
   const { status, workspace, expire } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [producer, setProducer] = useState<Producer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canEnrolParcel, setCanEnrolParcel] = useState(false);
 
   const load = useCallback(async () => {
     if (!workspace || !id) return;
     setError(null);
     try {
-      setProducer(await api.request<Producer>(`/api/v1/producers/${id}/`, { workspace }));
+      const [data, context] = await Promise.all([
+        api.request<Producer>(`/api/v1/producers/${id}/`, { workspace }),
+        api.request<WorkspaceContext>("/api/v1/workspace/", { workspace }),
+      ]);
+      setProducer(data);
+      setCanEnrolParcel(context.permissions.includes("parcels.create"));
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
       if (e instanceof ApiError && e.status === 404) setError("Ce producteur n'est pas (ou plus) rattaché à votre organisation.");
@@ -76,6 +82,7 @@ export default function ProducerScreen() {
         <ActivityIndicator color={colors.forest} style={{ marginTop: 32 }} />
       ) : (
         <View style={{ padding: 16, gap: 12 }}>
+          {nouveau ? <Alert tone="info">Producteur enrôlé.</Alert> : null}
           <View style={[styles.card, { alignItems: "center", paddingVertical: 22 }]}>
             <Avatar initials={initialsOf(p.first_name, p.last_name)} size={72} />
             <T style={{ fontSize: 24, fontWeight: "700", marginTop: 12, textAlign: "center" }}>
@@ -91,6 +98,14 @@ export default function ProducerScreen() {
               </T>
             ) : null}
           </View>
+
+          {canEnrolParcel ? (
+            <Button
+              label="Enrôler une parcelle"
+              icon={<Footprints size={18} color="#fff" />}
+              onPress={() => router.push({ pathname: "/parcelles/nouvelle", params: { producteur: p.id } })}
+            />
+          ) : null}
 
           <View style={styles.card}>
             <T style={styles.h2}>Identité</T>

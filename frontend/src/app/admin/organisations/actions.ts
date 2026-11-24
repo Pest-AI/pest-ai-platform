@@ -20,7 +20,16 @@ export type OrgFormState =
 
 function values(form: FormData) {
   return Object.fromEntries(
-    ["name", "short_name", "organization_type", "status", "admin_phone", "admin_first_name", "admin_last_name"].map(
+    [
+      "name",
+      "short_name",
+      "organization_type",
+      "status",
+      "admin_phone",
+      "admin_phone_country",
+      "admin_first_name",
+      "admin_last_name",
+    ].map(
       (k) => [k, String(form.get(k) ?? "")],
     ),
   );
@@ -31,7 +40,7 @@ async function designate(organizationId: string, v: Record<string, string>) {
   const { data, error } = await api.POST("/api/v1/platform/organizations/{id}/admins/", {
     params: { path: { id: organizationId } },
     body: {
-      phone_number: toInternationalPhone(v.admin_phone ?? ""),
+      phone_number: toInternationalPhone(v.admin_phone ?? "", v.admin_phone_country || "SN"),
       first_name: (v.admin_first_name ?? "").trim(),
       last_name: (v.admin_last_name ?? "").trim(),
     },
