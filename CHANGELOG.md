@@ -2,6 +2,12 @@
 
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une version par fin de semaine du planning MVP.
 
+## [Non publié] — Semaine 3 : parcelles et AgroID
+
+### Ajouté
+- **Parcelles (J11)** : app `parcels` ; `Parcel` avec AgroID `PAI-SN-XXXXXXXX` (tirage cryptographique base32 Crockford, attribué par le serveur, brouillon hors ligne sans AgroID, D-05) ; `ParcelGeometry` versionnée (MultiPolygon WGS 84, surface et périmètre calculés par PostGIS, une seule version courante) ; services de création, d'attribution, de nouveau contour et de retrait ; recherche par AgroID tolérante aux erreurs de saisie.
+- Garanties PostgreSQL : AgroID attribué non modifiable, parcelles et versions de contour jamais supprimées, contour valide en SRID 4326.
+
 ## [Non publié] — Semaine 2 : Web OS
 
 ### Ajouté

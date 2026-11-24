@@ -7,6 +7,8 @@ Chaque domaine métier est une app dans ce dossier (`apps/<nom>/`), ajoutée au 
 | [`core`](core/) | Mixins communs (BASE, ARCH, SYNC ; TENANT au J3, SPACE au J10), services d'archivage | J1 |
 | [`accounts`](accounts/) | Utilisateur (connexion par téléphone), authentification JWT, `/me` | J2 |
 | [`organizations`](organizations/) | Organisations, adhésions, 7 rôles, X-Workspace, `ensure_initial_admin` | J3, J5 |
+| [`actors`](actors/) | Producteurs (cas A et B), rattachements aux organisations | J9 |
+| [`parcels`](parcels/) | Parcelles, AgroID permanent, contours versionnés | J11 |
 
 Structure type d'une app :
 
