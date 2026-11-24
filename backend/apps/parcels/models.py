@@ -164,6 +164,7 @@ class CaptureMethod(models.TextChoices):
     GPS_WALK = "gps_walk", "Contour marché au GPS"
     GPS_POINTS = "gps_points", "Points GPS"
     MANUAL_DRAWING = "manual_drawing", "Tracé sur la carte"
+    MANUAL_COORDINATES = "manual_coordinates", "Coordonnées saisies"
     IMPORT_GEOJSON = "import_geojson", "Import GeoJSON"
     IMPORT_KML = "import_kml", "Import KML"
     IMPORT_SHAPEFILE = "import_shapefile", "Import Shapefile"

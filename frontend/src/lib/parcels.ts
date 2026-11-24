@@ -33,8 +33,11 @@ export const CAPTURE_METHODS: Record<string, string> = {
   gps_walk: "Contour marché au GPS",
   gps_points: "Points GPS",
   manual_drawing: "Tracé sur la carte",
+  manual_coordinates: "Coordonnées saisies",
   import_geojson: "Import GeoJSON",
   import_kml: "Import KML",
+  import_shapefile: "Import Shapefile",
+  import_csv: "Import CSV",
 };
 
 export const TENURE_LABELS: Record<string, string> = {

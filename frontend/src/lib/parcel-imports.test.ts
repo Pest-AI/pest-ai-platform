@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { canImportParcels, checkFile, formatBytes, reportCsv } from "@/lib/parcel-imports";
+import { checkFile, formatBytes, reportCsv } from "@/lib/parcel-imports";
 
 describe("import de parcelles", () => {
-  it("réserve l'import aux gestionnaires", () => {
-    expect(canImportParcels(["organization_admin"])).toBe(true);
-    expect(canImportParcels(["cooperative_manager", "field_agent"])).toBe(true);
-    expect(canImportParcels(["field_agent", "agronomist"])).toBe(false);
-  });
-
   it("contrôle le fichier avant envoi", () => {
     expect(checkFile(null)).toMatch("Choisissez");
     expect(checkFile({ name: "a.kml", size: 0 })).toMatch("vide");

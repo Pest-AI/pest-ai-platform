@@ -180,6 +180,19 @@ PARCEL_GEOMETRY_RULES = {
     "MAX_AREA_M2": env.float("PARCEL_MAX_AREA_M2", default=500_000.0),  # 50 ha
     "MAX_GPS_ACCURACY_M": env.float("PARCEL_MAX_GPS_ACCURACY_M", default=10.0),
     "MAX_OVERLAP_PERCENT": env.float("PARCEL_MAX_OVERLAP_PERCENT", default=5.0),
+    # Décision du 24/11/2026 (option A) : un contour tracé à la main ou importé d'un fichier
+    # reste « à confirmer par un relevé terrain » (relevé GPS ou décision d'un habilité).
+    "FIELD_SURVEY_REQUIRED_METHODS": env.list(
+        "PARCEL_FIELD_SURVEY_REQUIRED_METHODS",
+        default=[
+            "manual_drawing",
+            "manual_coordinates",
+            "import_kml",
+            "import_geojson",
+            "import_shapefile",
+            "import_csv",
+        ],
+    ),
 }
 
 # ── Documentation de l'API (OpenAPI 3) ────────────────────

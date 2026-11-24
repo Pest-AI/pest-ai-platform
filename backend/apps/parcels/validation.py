@@ -24,12 +24,14 @@ AREA_TOO_SMALL = "area_too_small"
 AREA_TOO_LARGE = "area_too_large"
 GPS_ACCURACY_LOW = "gps_accuracy_low"
 OVERLAP = "overlap"
+FIELD_SURVEY_REQUIRED = "field_survey_required"
 
 FLAG_LABELS = {
     AREA_TOO_SMALL: "Surface très petite",
     AREA_TOO_LARGE: "Surface très grande",
     GPS_ACCURACY_LOW: "Précision GPS insuffisante",
     OVERLAP: "Chevauche une autre parcelle",
+    FIELD_SURVEY_REQUIRED: "À confirmer par un relevé terrain",
 }
 
 
@@ -122,6 +124,8 @@ def evaluate(version) -> tuple[str, dict]:
     accuracy = version.gps_accuracy_m
     if accuracy is not None and float(accuracy) > limits["MAX_GPS_ACCURACY_M"]:
         flags.append(GPS_ACCURACY_LOW)
+    if version.capture_method in limits.get("FIELD_SURVEY_REQUIRED_METHODS", []):
+        flags.append(FIELD_SURVEY_REQUIRED)
     overlaps = _overlaps(version)
     if any(o["percent"] > limits["MAX_OVERLAP_PERCENT"] for o in overlaps):
         flags.append(OVERLAP)

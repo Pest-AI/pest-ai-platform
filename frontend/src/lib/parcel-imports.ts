@@ -7,13 +7,6 @@ import type { Tone } from "@/lib/parcels";
 export const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 export const IMPORT_ACCEPT = ".kml,.kmz,.zip,.geojson,.json,.csv,.txt";
 
-/** Rôles qui ont parcels.manage (matrice J13) : seuls à voir le bouton « Importer ». */
-const IMPORT_ROLES = ["organization_admin", "cooperative_manager"];
-
-export function canImportParcels(roles: readonly string[]): boolean {
-  return roles.some((r) => IMPORT_ROLES.includes(r));
-}
-
 export const IMPORT_FORMATS: Record<string, string> = {
   kml: "KML",
   kmz: "KMZ",

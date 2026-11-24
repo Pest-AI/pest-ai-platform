@@ -119,7 +119,8 @@ export function CommitForm({ importId, ok, flagged }: { importId: string; ok: nu
           : `Créer ${count} parcelle${count > 1 ? "s" : ""} avec AgroID`}
       </Button>
       <p className="text-[12px] leading-5 text-muted">
-        Une parcelle créée garde son AgroID pour toujours : elle peut être retirée, jamais supprimée.
+        Les contours importés seront « à confirmer par un relevé terrain ». Une parcelle créée garde son AgroID pour
+        toujours : elle peut être retirée, jamais supprimée.
       </p>
     </form>
   );

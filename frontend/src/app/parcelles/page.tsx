@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FileUp, Fingerprint, Map as MapIcon, Ruler, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileUp, Fingerprint, Plus, Map as MapIcon, Ruler, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
-import { canImportParcels } from "@/lib/parcel-imports";
 import { PARCEL_STATUS_FILTER, formatArea, hectares, parcelStatus } from "@/lib/parcels";
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 
@@ -42,11 +41,12 @@ export default async function ParcelsPage({
   if (!workspace) redirect("/espaces");
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, listResult, summaryResult] = await Promise.all([
+  const [{ data: me }, orgResult, listResult, summaryResult, contextResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/parcels/", { params: { header, query: { q: q || undefined, status, page } } }),
     api.GET("/api/v1/parcels/summary/", { params: { header } }),
+    api.GET("/api/v1/workspace/", { headers: header }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -59,7 +59,9 @@ export default async function ParcelsPage({
   const count = listResult.data?.count ?? 0;
   const summary = summaryResult.data;
   const total = summary?.count ?? 0;
-  const canImport = canView && canImportParcels(roles);
+  const permissions = new Set(contextResult.data?.permissions ?? []);
+  const canImport = canView && permissions.has("parcels.manage");
+  const canCreate = canView && permissions.has("parcels.create");
 
   const query = (extra: Record<string, string | number | undefined>) => {
     const merged: Record<string, string | number | undefined> = { q: q || undefined, statut: status, ...extra };
@@ -87,7 +89,7 @@ export default async function ParcelsPage({
         title="Parcelles & AgroID"
         description="Chaque parcelle suivie, son identité AgroID, son contour et son exploitant."
         actions={
-          total > 0 || canImport ? (
+          total > 0 || canImport || canCreate ? (
             <div className="flex flex-wrap gap-2">
               {total > 0 ? (
                 <Button asChild variant="secondary" className="h-10 rounded-xl">
@@ -98,10 +100,18 @@ export default async function ParcelsPage({
                 </Button>
               ) : null}
               {canImport ? (
-                <Button asChild className="h-10 rounded-xl">
+                <Button asChild variant="secondary" className="h-10 rounded-xl">
                   <Link href="/parcelles/import">
                     <FileUp aria-hidden />
                     Importer un fichier
+                  </Link>
+                </Button>
+              ) : null}
+              {canCreate ? (
+                <Button asChild className="h-10 rounded-xl">
+                  <Link href="/parcelles/nouvelle">
+                    <Plus aria-hidden />
+                    Nouvelle parcelle
                   </Link>
                 </Button>
               ) : null}

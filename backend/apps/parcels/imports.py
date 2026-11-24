@@ -313,11 +313,9 @@ def commit(record: ParcelImport, *, by, include_flagged: bool = False) -> Parcel
             organization=record.organization,
             local_name=row["label"],
             geometry=row["geometry"] if f["kind"] == "polygon" else None,
+            position=GEOSGeometry(f["ewkt"]) if f["kind"] == "point" else None,
             capture_method=method,
         )
-        if f["kind"] == "point":
-            parcel.centroid = GEOSGeometry(f["ewkt"])
-            parcel.save(update_fields=["centroid", "updated_at"])
         if row["operator"]:
             services.assign_operator(
                 parcel,

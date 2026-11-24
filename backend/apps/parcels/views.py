@@ -11,8 +11,11 @@ pas révélée).
 
 from __future__ import annotations
 
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Prefetch, Q
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiExample,
@@ -179,8 +182,11 @@ GEOMETRY_ERROR = OpenApiResponse(
         summary="Enregistrer une parcelle",
         description="Crée la parcelle et lui attribue son AgroID. Le contour (facultatif) devient "
         "la version 1 et est contrôlé (D-19) : un contour suspect est accepté mais signalé, la "
-        "parcelle passe alors « en attente de validation ». Organisation : `parcels.create` ; "
-        "espace personnel : le producteur déclare sa propre parcelle.",
+        "parcelle passe alors « en attente de validation ». Un contour tracé à la main "
+        "(`manual_drawing`) ou importé reste « à confirmer par un relevé terrain ». Sans "
+        "contour, `position` situe la parcelle. `operator` désigne l'exploitant principal. "
+        "Organisation : `parcels.create` ; espace personnel : le producteur déclare sa propre "
+        "parcelle.",
         request=serializers.ParcelCreateSerializer,
         responses={201: serializers.ParcelDetailSerializer, 400: GEOMETRY_ERROR},
         examples=[
@@ -362,16 +368,30 @@ class ParcelViewSet(
             if self.is_personal
             else {"organization": request.workspace.organization}
         )
-        parcel = _run(
-            services.create_parcel,
-            by=request.user,
-            local_name=data.get("local_name", ""),
-            geometry=data.get("geometry"),
-            capture_method=data["capture_method"],
-            gps_accuracy_m=data.get("gps_accuracy_m"),
-            captured_at=data.get("captured_at"),
-            **origin,
-        )
+        operator = self._producer(data["operator"]) if data.get("operator") else None
+        position = data.get("position")
+        with transaction.atomic():  # parcelle et exploitant ensemble, ou rien
+            parcel = _run(
+                services.create_parcel,
+                by=request.user,
+                local_name=data.get("local_name", ""),
+                geometry=data.get("geometry"),
+                position=Point(*position, srid=4326) if position else None,
+                capture_method=data["capture_method"],
+                gps_accuracy_m=data.get("gps_accuracy_m"),
+                captured_at=data.get("captured_at"),
+                **origin,
+            )
+            if operator is not None:
+                _run(
+                    services.assign_operator,
+                    parcel,
+                    operator,
+                    by=request.user,
+                    role="primary",
+                    start_date=timezone.localdate(),
+                    **self._recorder(),
+                )
         return self._detail(parcel, status.HTTP_201_CREATED)
 
     def retrieve(self, request, *args, **kwargs):

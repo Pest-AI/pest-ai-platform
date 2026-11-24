@@ -99,6 +99,21 @@ La fiche détaille le contrôle dans `current_geometry.validation` : `status`, `
 
 Une organisation qui suit une parcelle peut aussi ouvrir à un producteur rattaché (avec un compte) l'accès **en consultation** dans son espace personnel (`…/personal-access/`), et le lui retirer avec un motif.
 
+## Saisie dans le Web OS
+
+Pour une parcelle notée sur papier ou relevée hors de l'app terrain (**Parcelles & AgroID → Nouvelle parcelle**). L'agent de terrain reste le moyen principal d'enregistrement.
+
+| Mode | Envoi à l'API | Contour |
+|---|---|---|
+| Tracer sur la carte | `geometry`, `capture_method: "manual_drawing"` | À confirmer par un relevé terrain |
+| Saisir des coordonnées (décimales ou degrés-minutes-secondes, latitude d'abord) | `geometry`, `capture_method: "manual_coordinates"` | À confirmer par un relevé terrain |
+| Position seulement | `position: [longitude, latitude]` | À relever |
+| Sans localisation | ni l'un ni l'autre | À relever |
+
+`operator` (facultatif) désigne l'exploitant principal dès la création ; parcelle et exploitant sont enregistrés ensemble, ou pas du tout.
+
+**Relevé terrain (décision du 24/11/2026).** Un contour tracé à la main, saisi en coordonnées ou importé est signalé « À confirmer par un relevé terrain » : la parcelle reste « à vérifier » jusqu'à un nouveau contour relevé au GPS (`gps_walk`, `gps_points`) ou la décision d'une personne habilitée (`…/review/`). Liste des méthodes concernées réglable par `PARCEL_FIELD_SURVEY_REQUIRED_METHODS`.
+
 ## Import par fichier
 
 Enregistre plusieurs parcelles à la fois. Espace d'organisation seulement, permission `parcels.manage` (administrateur et gérant). Dans le Web OS : **Parcelles & AgroID → Importer un fichier**.
@@ -119,4 +134,4 @@ Limites : 10 Mo, 1 000 parcelles par fichier. KML déclarant des entités XML re
 3. `POST …/{id}/commit/` : crée les lignes `ok` (et `flagged` si `include_flagged: true`) en une seule fois, chacune avec son AgroID ; l'exploitant reconnu devient exploitant principal. Le bilan ligne par ligne (`report`, avec les AgroID) reste consultable ; les contours du fichier ne sont plus conservés.
 4. `POST …/{id}/discard/` : abandonne l'aperçu.
 
-Un import n'est jamais supprimé. Le Web OS propose un **rapport CSV** (séparateur `;`, ouvrable dans Excel) avant et après confirmation.
+Les contours importés sont « à confirmer par un relevé terrain ». Un import n'est jamais supprimé. Le Web OS propose un **rapport CSV** (séparateur `;`, ouvrable dans Excel) avant et après confirmation.

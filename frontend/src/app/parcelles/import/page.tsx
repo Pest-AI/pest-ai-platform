@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
-import { IMPORT_FORMATS, canImportParcels, importStatus } from "@/lib/parcel-imports";
+import { IMPORT_FORMATS, importStatus } from "@/lib/parcel-imports";
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 
 import { UploadForm } from "./upload-form";
@@ -39,17 +39,19 @@ export default async function ParcelImportPage() {
   if (!workspace) redirect("/espaces");
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, historyResult] = await Promise.all([
+  const [{ data: me }, orgResult, historyResult, contextResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/parcel-imports/", { params: { header } }),
+    api.GET("/api/v1/workspace/", { headers: header }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
   const org = orgResult.data;
   const roles = me.memberships.find((m) => m.workspace === workspace)?.roles ?? [];
   const typeLabel = ORGANIZATION_TYPE_LABELS[org.organization_type] ?? org.organization_type;
-  const allowed = canImportParcels(roles) && historyResult.response.ok;
+  const permissions = new Set(contextResult.data?.permissions ?? []);
+  const allowed = permissions.has("parcels.manage") && historyResult.response.ok;
   const history = historyResult.data?.results ?? [];
 
   return (

@@ -307,6 +307,35 @@ class GeometryInputMixin(serializers.Serializer):
 class ParcelCreateSerializer(GeometryInputMixin):
     local_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     geometry = serializers.JSONField(required=False, allow_null=True, help_text=GEOJSON_HELP)
+    position = serializers.ListField(
+        child=serializers.FloatField(),
+        min_length=2,
+        max_length=2,
+        required=False,
+        allow_null=True,
+        help_text="Sans contour : position [longitude, latitude] en WGS 84 (contour à relever).",
+    )
+    operator = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Exploitant principal (producteur rattaché à l'organisation), désigné dès la "
+        "création.",
+    )
+
+    def validate_position(self, value):
+        if value is None:
+            return None
+        lon, lat = value
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            raise serializers.ValidationError("Position hors limites : [longitude, latitude].")
+        return value
+
+    def validate(self, attrs):
+        if attrs.get("geometry") and attrs.get("position"):
+            raise serializers.ValidationError(
+                {"position": "Donnez un contour ou une position, pas les deux."}
+            )
+        return attrs
 
 
 class ParcelUpdateSerializer(serializers.Serializer):

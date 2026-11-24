@@ -7,6 +7,7 @@ import { AgroIdBadge } from "@/components/agroid-badge";
 import { AppShell } from "@/components/app-shell";
 import { StatusPill } from "@/components/list-toolbar";
 import { ParcelShape } from "@/components/parcel-shape";
+import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
@@ -43,8 +44,15 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-xl bg-surface px-4 py-4 text-center text-[13px] text-muted">{children}</p>;
 }
 
-export default async function ParcelPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ParcelPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const { id } = await params;
+  const justCreated = (await searchParams).nouvelle === "1";
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const workspace = await currentWorkspace();
   if (!workspace) redirect("/espaces");
@@ -86,6 +94,12 @@ export default async function ParcelPage({ params }: { params: Promise<{ id: str
         Parcelles
       </Link>
 
+      {justCreated ? (
+        <Alert tone="info" className="mt-3">
+          Parcelle enregistrée : son AgroID est attribué et définitif.
+        </Alert>
+      ) : null}
+
       {/* En-tête : identité */}
       <div className="mt-3 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div className="min-w-0">
@@ -117,7 +131,14 @@ export default async function ParcelPage({ params }: { params: Promise<{ id: str
             <ParcelShape current={current.geometry as Geometry} previous={previous} color={st.color} />
           ) : (
             <Card className="grid h-[320px] place-items-center rounded-2xl text-center">
-              <p className="px-6 text-[14px] text-muted">Contour pas encore relevé.</p>
+              <div className="px-6">
+                <p className="text-[14px] font-semibold">Contour à relever sur le terrain</p>
+                <p className="mt-1 text-[13px] text-muted">
+                  {Array.isArray(p.centroid)
+                    ? `Position enregistrée : ${(p.centroid as number[])[1]?.toFixed(5)}, ${(p.centroid as number[])[0]?.toFixed(5)}`
+                    : "Aucune position enregistrée."}
+                </p>
+              </div>
             </Card>
           )}
 

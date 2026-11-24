@@ -419,3 +419,49 @@ def test_resume_vide(orgs, make_member):
         "to_review": 0,
         "bbox": None,
     }
+
+
+# ── Saisie dans le Web OS (J15c) : position seule, exploitant à la création ──
+
+
+@pytest.fixture
+def farmer(orgs, make_member):
+    owner = make_member(orgs[0], "organization_admin")[0]
+    return actor_services.register_producer(
+        organization=orgs[0], registered_by=owner, first_name="Awa", last_name="Sow"
+    )
+
+
+def test_creation_par_position_sans_contour(admin):
+    res = admin.post(URL, {"local_name": "Jardin", "position": [LON, LAT]}, format="json")
+    assert res.status_code == 201, res.json()
+    body = res.json()
+    assert body["current_geometry"] is None and body["status"] == "active"
+    assert body["centroid"] == [LON, LAT]
+
+
+def test_contour_et_position_exclusifs(admin):
+    res = admin.post(URL, {"geometry": square(), "position": [LON, LAT]}, format="json")
+    assert res.status_code == 400 and "position" in res.json()
+    res = admin.post(URL, {"position": [LAT, 200]}, format="json")
+    assert res.status_code == 400
+
+
+def test_creation_avec_exploitant(admin, farmer):
+    res = admin.post(
+        URL,
+        {"geometry": square(), "capture_method": "manual_drawing", "operator": str(farmer.pk)},
+        format="json",
+    )
+    assert res.status_code == 201, res.json()
+    assert res.json()["primary_operator"]["name"] == "Awa Sow"
+
+
+def test_exploitant_hors_organisation_rien_n_est_cree(admin, orgs, make_member):
+    other_admin = make_member(orgs[1], "organization_admin")[0]
+    stranger = actor_services.register_producer(
+        organization=orgs[1], registered_by=other_admin, first_name="Moussa", last_name="Ba"
+    )
+    before = Parcel.objects.count()
+    res = admin.post(URL, {"position": [LON, LAT], "operator": str(stranger.pk)}, format="json")
+    assert res.status_code == 400 and Parcel.objects.count() == before

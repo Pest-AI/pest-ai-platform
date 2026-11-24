@@ -1122,8 +1122,11 @@ paths:
       operationId: parcels_create
       description: 'Crée la parcelle et lui attribue son AgroID. Le contour (facultatif)
         devient la version 1 et est contrôlé (D-19) : un contour suspect est accepté
-        mais signalé, la parcelle passe alors « en attente de validation ». Organisation
-        : `parcels.create` ; espace personnel : le producteur déclare sa propre parcelle.'
+        mais signalé, la parcelle passe alors « en attente de validation ». Un contour
+        tracé à la main (`manual_drawing`) ou importé reste « à confirmer par un relevé
+        terrain ». Sans contour, `position` situe la parcelle. `operator` désigne
+        l''exploitant principal. Organisation : `parcels.create` ; espace personnel
+        : le producteur déclare sa propre parcelle.'
       summary: Enregistrer une parcelle
       parameters:
       - in: header
@@ -2559,6 +2562,7 @@ components:
       - gps_walk
       - gps_points
       - manual_drawing
+      - manual_coordinates
       - import_geojson
       - import_kml
       - import_shapefile
@@ -2568,6 +2572,7 @@ components:
         * `gps_walk` - Contour marché au GPS
         * `gps_points` - Points GPS
         * `manual_drawing` - Tracé sur la carte
+        * `manual_coordinates` - Coordonnées saisies
         * `import_geojson` - Import GeoJSON
         * `import_kml` - Import KML
         * `import_shapefile` - Import Shapefile
@@ -3735,6 +3740,22 @@ components:
         local_name:
           type: string
           maxLength: 150
+        position:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          description: 'Sans contour : position [longitude, latitude] en WGS 84 (contour
+            à relever).'
+          maxItems: 2
+          minItems: 2
+        operator:
+          type: string
+          format: uuid
+          nullable: true
+          description: Exploitant principal (producteur rattaché à l'organisation),
+            désigné dès la création.
     ParcelDetail:
       type: object
       description: Fiche parcelle dans l'espace actif.

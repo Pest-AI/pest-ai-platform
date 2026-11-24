@@ -643,7 +643,7 @@ export interface paths {
         put?: never;
         /**
          * Enregistrer une parcelle
-         * @description Crée la parcelle et lui attribue son AgroID. Le contour (facultatif) devient la version 1 et est contrôlé (D-19) : un contour suspect est accepté mais signalé, la parcelle passe alors « en attente de validation ». Organisation : `parcels.create` ; espace personnel : le producteur déclare sa propre parcelle.
+         * @description Crée la parcelle et lui attribue son AgroID. Le contour (facultatif) devient la version 1 et est contrôlé (D-19) : un contour suspect est accepté mais signalé, la parcelle passe alors « en attente de validation ». Un contour tracé à la main (`manual_drawing`) ou importé reste « à confirmer par un relevé terrain ». Sans contour, `position` situe la parcelle. `operator` désigne l'exploitant principal. Organisation : `parcels.create` ; espace personnel : le producteur déclare sa propre parcelle.
          */
         post: operations["parcels_create"];
         delete?: never;
@@ -1218,13 +1218,14 @@ export interface components {
          * @description * `gps_walk` - Contour marché au GPS
          *     * `gps_points` - Points GPS
          *     * `manual_drawing` - Tracé sur la carte
+         *     * `manual_coordinates` - Coordonnées saisies
          *     * `import_geojson` - Import GeoJSON
          *     * `import_kml` - Import KML
          *     * `import_shapefile` - Import Shapefile
          *     * `import_csv` - Import CSV
          * @enum {string}
          */
-        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv";
+        CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "manual_coordinates" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv";
         /**
          * @description * `phone` - Téléphone
          *     * `whatsapp` - WhatsApp
@@ -1765,6 +1766,13 @@ export interface components {
             /** Format: date-time */
             captured_at?: string | null;
             local_name?: string;
+            /** @description Sans contour : position [longitude, latitude] en WGS 84 (contour à relever). */
+            position?: number[] | null;
+            /**
+             * Format: uuid
+             * @description Exploitant principal (producteur rattaché à l'organisation), désigné dès la création.
+             */
+            operator?: string | null;
         };
         /** @description Fiche parcelle dans l'espace actif. */
         ParcelDetail: {

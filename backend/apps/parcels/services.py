@@ -125,6 +125,7 @@ def create_parcel(
     captured_at: datetime | None = None,
     draft: bool = False,
     client_created_at: datetime | None = None,
+    position=None,
 ) -> Parcel:
     """Crée une parcelle.
 
@@ -132,6 +133,7 @@ def create_parcel(
     - Brouillon (`draft=True`, saisie hors ligne) : pas d'AgroID ; il sera attribué à la
       synchronisation par `assign_agroid`.
     - Si un contour est fourni, il devient la version 1.
+    - Sans contour, `position` (Point WGS 84) situe la parcelle : « contour à relever ».
     """
     country = (country_code or "SN").upper()
     if producer is not None and (producer.user_id is None or producer.status != "active"):
@@ -139,7 +141,10 @@ def create_parcel(
             "Seul un producteur actif disposant d'un compte déclare ses parcelles."
         )
     measured = geo.measure(geo.from_geojson(geometry)) if geometry is not None else None
+    if measured is not None and position is not None:
+        raise ValidationError("Donnez un contour ou une position, pas les deux.")
     parcel = Parcel.objects.create(
+        centroid=position,
         country_code=country,
         local_name=(local_name or "").strip(),
         status=ParcelStatus.DRAFT,
