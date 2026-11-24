@@ -5,6 +5,7 @@ from apps.organizations.views import (
     CurrentOrganizationView,
     MembershipViewSet,
     MyOrganizationsView,
+    PlatformAgentViewSet,
     PlatformOrganizationViewSet,
 )
 
@@ -13,6 +14,7 @@ router.register("memberships", MembershipViewSet, basename="membership")
 router.register(
     "platform/organizations", PlatformOrganizationViewSet, basename="platform-organization"
 )
+router.register("platform/agents", PlatformAgentViewSet, basename="platform-agent")
 
 urlpatterns = [
     path("organizations/", MyOrganizationsView.as_view(), name="my-organizations"),

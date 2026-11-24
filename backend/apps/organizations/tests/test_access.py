@@ -160,23 +160,26 @@ def test_admin_invites_and_assigns_roles(make_member, make_org, make_user, api):
     target = make_user()
     client = api.as_user(admin, org)
     response = client.post(
-        MEMBERS_URL, {"phone_number": target.phone_number, "roles": ["field_agent"]}, format="json"
+        MEMBERS_URL,
+        {"phone_number": target.phone_number, "roles": ["program_manager"]},
+        format="json",
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["status"] == "invited" and body["roles"] == ["field_agent"]
+    assert body["status"] == "invited" and body["roles"] == ["program_manager"]
     response = client.post(
         f"{MEMBERS_URL}{body['id']}/roles/", {"role": "agronomist"}, format="json"
     )
-    assert response.status_code == 200 and response.json()["roles"] == ["agronomist", "field_agent"]
-    response = client.post(f"{MEMBERS_URL}{body['id']}/roles/field_agent/revoke/")
+    assert response.status_code == 200
+    assert response.json()["roles"] == ["agronomist", "program_manager"]
+    response = client.post(f"{MEMBERS_URL}{body['id']}/roles/program_manager/revoke/")
     assert response.status_code == 200 and response.json()["roles"] == ["agronomist"]
 
 
 def test_admin_cannot_assign_super_admin_or_producer(make_member, make_org, api):
     org = make_org()
     admin, _ = make_member(org, "organization_admin")
-    _, member = make_member(org, "field_agent")
+    _, member = make_member(org, "program_manager")
     client = api.as_user(admin, org)
     assert (
         client.post(

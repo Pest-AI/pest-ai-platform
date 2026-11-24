@@ -17,6 +17,8 @@ const ERRORS: Record<string, string> = {
   tentatives: "Trop de tentatives. Patientez une minute avant de réessayer.",
   serveur: "Le serveur ne répond pas. Réessayez dans un instant.",
   session: "Votre session a expiré. Reconnectez-vous.",
+  terrain:
+    "Le Web OS est réservé aux administrateurs, gérants, agronomes et gestionnaires de programme. Votre compte s'utilise dans l'application terrain : terrain.pestai.africa.",
 };
 
 export default async function LoginPage({

@@ -420,8 +420,20 @@ class ParcelViewSet(
             else {"organization": request.workspace.organization}
         )
         operator = self._producer(data["operator"]) if data.get("operator") else None
+        if operator is None and self.is_personal:
+            operator_for_ownership = request.workspace.producer
+        else:
+            operator_for_ownership = operator
+        ownership = data.get("ownership")
+        if ownership and ownership["owner"] == "operator" and operator_for_ownership is None:
+            raise ValidationError(
+                {"ownership": "Désignez l'exploitant, ou nommez le propriétaire."}
+            )
+        arrangement = data.get("arrangement_type") or (
+            "owner_operated" if ownership and ownership["owner"] == "operator" else "unknown"
+        )
         position = data.get("position")
-        with transaction.atomic():  # parcelle et exploitant ensemble, ou rien
+        with transaction.atomic():  # parcelle, exploitant et foncier ensemble, ou rien
             parcel = _run(
                 services.create_parcel,
                 by=request.user,
@@ -441,6 +453,19 @@ class ParcelViewSet(
                     by=request.user,
                     role="primary",
                     start_date=timezone.localdate(),
+                    arrangement_type=arrangement,
+                    **self._recorder(),
+                )
+            if ownership:
+                by_operator = ownership["owner"] == "operator"
+                _run(
+                    services.record_ownership,
+                    parcel,
+                    by=request.user,
+                    tenure_type=ownership["tenure_type"],
+                    start_date=timezone.localdate(),
+                    owner_producer=operator_for_ownership if by_operator else None,
+                    owner_name="" if by_operator else ownership["owner_name"],
                     **self._recorder(),
                 )
         return self._detail(parcel, status.HTTP_201_CREATED)

@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
 
-import { COUNTRIES, FIRST_COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/countries";
 import { DEFAULT_COUNTRY, findCountry, flag, lengthHint, splitPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -64,20 +64,11 @@ export function PhoneField({
             className="absolute inset-0 cursor-pointer opacity-0"
             title={`${country.name} (+${country.dial})`}
           >
-            <optgroup label="Sénégal et Afrique de l'Ouest">
-              {COUNTRIES.slice(0, FIRST_COUNTRIES).map((c) => (
-                <option key={c.iso} value={c.iso}>
-                  {flag(c.iso)} {c.name} (+{c.dial})
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Tous les pays">
-              {COUNTRIES.slice(FIRST_COUNTRIES).map((c) => (
-                <option key={c.iso} value={c.iso}>
-                  {flag(c.iso)} {c.name} (+{c.dial})
-                </option>
-              ))}
-            </optgroup>
+            {COUNTRIES.map((c) => (
+              <option key={c.iso} value={c.iso}>
+                {flag(c.iso)} {c.name} (+{c.dial})
+              </option>
+            ))}
           </select>
         </span>
         <label htmlFor={id} className="sr-only">

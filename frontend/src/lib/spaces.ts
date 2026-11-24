@@ -8,6 +8,37 @@ const ROLE_TO_SPACE: Record<string, SpaceKey> = {
   program_manager: "ong",
 };
 
+/**
+ * Accès au Web OS (décision du fondateur, 24/11/2026) : administration PEST AI, administrateurs et
+ * gérants d'organisation, agronomes, gestionnaires de programme. Les agents terrain et les
+ * producteurs utilisent l'application terrain (terrain.pestai.africa).
+ */
+export const WEB_OS_ROLES = Object.keys(ROLE_TO_SPACE);
+export const TERRAIN_URL = "https://terrain.pestai.africa";
+
+type MeLike = {
+  is_platform_admin?: boolean;
+  memberships: { workspace: string; status: string; roles: readonly string[] }[];
+};
+
+export function hasWebAccess(roles: readonly string[]): boolean {
+  return roles.some((r) => WEB_OS_ROLES.includes(r));
+}
+
+/** Adhésions (actives ou invitations) qui ouvrent le Web OS. */
+export function webMemberships<M extends MeLike["memberships"][number]>(memberships: M[]): M[] {
+  return memberships.filter((m) => (m.status === "active" || m.status === "invited") && hasWebAccess(m.roles));
+}
+
+export function canUseWebOS(me: MeLike): boolean {
+  return Boolean(me.is_platform_admin) || webMemberships(me.memberships).length > 0;
+}
+
+/** L'espace choisi est-il ouvert dans le Web OS pour cet utilisateur ? */
+export function isWebWorkspace(me: MeLike, workspace: string): boolean {
+  return me.memberships.some((m) => m.workspace === workspace && m.status === "active" && hasWebAccess(m.roles));
+}
+
 /** Espaces accessibles pour une liste de rôles d'organisation (sans doublon, ordre stable). */
 export function spacesForRoles(roles: readonly string[]): SpaceKey[] {
   const order: SpaceKey[] = ["cooperative", "agronome", "ong"];

@@ -168,5 +168,36 @@ class OrganizationAdminSerializer(serializers.Serializer):
         return phone
 
 
+class PlatformAgentCreateSerializer(OrganizationAdminSerializer):
+    """Création d'un agent terrain par PEST AI et affectation à une organisation."""
+
+    organization = serializers.UUIDField()
+
+
+class AgentOrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ["id", "name", "short_name"]
+        read_only_fields = fields
+
+
+class PlatformAgentSerializer(MembershipSerializer):
+    """Adhésion d'un agent terrain, avec son organisation d'affectation."""
+
+    organization = AgentOrganizationSerializer(read_only=True)
+
+    class Meta(MembershipSerializer.Meta):
+        fields = [*MembershipSerializer.Meta.fields, "organization"]
+        read_only_fields = fields
+
+
+class PlatformAgentResultSerializer(PlatformAgentSerializer):
+    activation_code = serializers.CharField(allow_null=True, read_only=True)
+
+    class Meta(PlatformAgentSerializer.Meta):
+        fields = [*PlatformAgentSerializer.Meta.fields, "activation_code"]
+        read_only_fields = fields
+
+
 class ArchiveSerializer(serializers.Serializer):
     reason = serializers.CharField(min_length=3)

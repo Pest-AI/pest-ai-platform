@@ -6,6 +6,8 @@ Deux familles :
 - routes plateforme (/platform/...) : réservées au super_admin actif.
 """
 
+import uuid
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Prefetch
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -27,8 +29,16 @@ from apps.organizations.serializers import (
     MembershipSerializer,
     OrganizationAdminSerializer,
     OrganizationSerializer,
+    PlatformAgentCreateSerializer,
+    PlatformAgentResultSerializer,
+    PlatformAgentSerializer,
     PlatformOrganizationSerializer,
     RoleCodeSerializer,
+)
+
+AGENTS_BY_PEST_AI = (
+    "Les agents terrain sont recrutés et affectés par PEST AI : "
+    "contactez PEST AI pour toute demande les concernant."
 )
 
 
@@ -144,7 +154,10 @@ class MembershipViewSet(
         return C.ORGANIZATION_ADMIN in self.request.workspace.role_codes
 
     def _guard_role(self, role_code: str) -> None:
-        """Seul un administrateur d'organisation nomme un administrateur."""
+        """Seul un administrateur d'organisation nomme un administrateur ; seul PEST AI
+        attribue les rôles qu'il gère (agents terrain)."""
+        if role_code in C.PLATFORM_MANAGED_ROLES:
+            raise PermissionDenied(AGENTS_BY_PEST_AI)
         if role_code == C.ORGANIZATION_ADMIN and not self._is_admin():
             raise PermissionDenied(
                 "Seul un administrateur d'organisation peut nommer un administrateur."
@@ -163,6 +176,8 @@ class MembershipViewSet(
             raise PermissionDenied(
                 "Seul un administrateur d'organisation peut modifier un administrateur."
             )
+        if target_roles & set(C.PLATFORM_MANAGED_ROLES):
+            raise PermissionDenied(AGENTS_BY_PEST_AI)
 
     def create(self, request, *args, **kwargs):
         serializer = InviteMemberSerializer(data=request.data)
@@ -335,6 +350,128 @@ class PlatformOrganizationViewSet(
         )
         membership.activation_code = code
         return Response(InvitationResultSerializer(membership).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["platform"],
+        summary="Agents terrain",
+        description="Adhésions portant le rôle agent terrain, toutes organisations. Filtre "
+        "`organization` (identifiant) facultatif. Les adhésions révoquées sont exclues.",
+        parameters=[OpenApiParameter("organization", str, OpenApiParameter.QUERY)],
+    ),
+    create=extend_schema(
+        tags=["platform"],
+        summary="Créer un agent et l'affecter",
+        description="Invite la personne comme agent terrain de l'organisation. Sans compte "
+        "existant, le compte est créé (prénom et nom requis) et un code d'activation est "
+        "renvoyé, une seule fois. Un agent peut être affecté à plusieurs organisations.",
+        request=PlatformAgentCreateSerializer,
+        responses={201: PlatformAgentResultSerializer},
+    ),
+    suspend=extend_schema(tags=["platform"], summary="Suspendre un agent", request=None),
+    reactivate=extend_schema(tags=["platform"], summary="Réactiver un agent", request=None),
+    revoke=extend_schema(
+        tags=["platform"], summary="Retirer l'agent de l'organisation", request=None
+    ),
+    activation_code=extend_schema(
+        tags=["platform"],
+        summary="Nouveau code d'activation",
+        request=None,
+        responses=ActivationCodeSerializer,
+    ),
+)
+class PlatformAgentViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026)."""
+
+    serializer_class = PlatformAgentSerializer
+    permission_classes = [IsAuthenticated, PlatformPermission]
+    required_permissions = {
+        "list": "platform.organizations.view",
+        "create": "platform.organizations.manage",
+        "suspend": "platform.organizations.manage",
+        "reactivate": "platform.organizations.manage",
+        "revoke": "platform.organizations.manage",
+        "activation_code": "platform.organizations.manage",
+    }
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return OrganizationMembership.objects.none()
+        active_roles = MembershipRole.objects.active().select_related("role")
+        queryset = (
+            OrganizationMembership.objects.exclude(status=OrganizationMembership.Status.REVOKED)
+            .filter(
+                role_assignments__role__code=C.FIELD_AGENT,
+                role_assignments__revoked_at__isnull=True,
+            )
+            .select_related("user", "organization")
+            .prefetch_related(Prefetch("role_assignments", queryset=active_roles))
+            .distinct()
+            .order_by("user__last_name", "user__first_name", "organization__name")
+        )
+        organization = self.request.query_params.get("organization")
+        if organization:
+            try:
+                uuid.UUID(organization)
+            except ValueError as exc:
+                raise ValidationError({"organization": "Identifiant invalide."}) from exc
+            queryset = queryset.filter(organization_id=organization)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = PlatformAgentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        organization = Organization.objects.filter(pk=data["organization"]).first()
+        if organization is None:
+            raise ValidationError({"organization": "Organisation introuvable."})
+        membership, code = _run(
+            services.invite_by_phone,
+            organization=organization,
+            phone_number=data["phone_number"],
+            first_name=data["first_name"],
+            last_name=data["last_name"],
+            invited_by=request.user,
+            role_codes=[C.FIELD_AGENT],
+        )
+        membership = self.get_queryset().get(pk=membership.pk)
+        membership.activation_code = code
+        return Response(
+            PlatformAgentResultSerializer(membership).data, status=status.HTTP_201_CREATED
+        )
+
+    def _respond(self, membership):
+        return Response(self.get_serializer(self.get_queryset().get(pk=membership.pk)).data)
+
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, pk=None):
+        membership = _run(
+            services.suspend_membership, membership=self.get_object(), actor=request.user
+        )
+        return self._respond(membership)
+
+    @action(detail=True, methods=["post"])
+    def reactivate(self, request, pk=None):
+        membership = _run(
+            services.reactivate_membership, membership=self.get_object(), actor=request.user
+        )
+        return self._respond(membership)
+
+    @action(detail=True, methods=["post"])
+    def revoke(self, request, pk=None):
+        membership = self.get_object()
+        _run(services.revoke_membership, membership=membership, actor=request.user)
+        membership.refresh_from_db()
+        return Response(self.get_serializer(membership).data)
+
+    @action(detail=True, methods=["post"], url_path="activation-code")
+    def activation_code(self, request, pk=None):
+        from apps.accounts.activation import issue_activation_code
+
+        membership = self.get_object()
+        code, activation = _run(issue_activation_code, user=membership.user, issued_by=request.user)
+        return Response({"activation_code": code, "expires_at": activation.expires_at})
 
 
 @extend_schema_view(get=extend_schema(tags=["me"], summary="Mes organisations (choix de l'espace)"))

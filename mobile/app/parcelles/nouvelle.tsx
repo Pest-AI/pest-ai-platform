@@ -26,6 +26,56 @@ import type { Paginated, Producer } from "@/lib/types";
 import { colors, radius } from "@/theme";
 
 type Mode = "walk" | "corners" | "position";
+type Owner = "operator" | "other" | "unknown";
+
+const OWNERS: { value: Owner; label: string; personalLabel?: string }[] = [
+  { value: "operator", label: "L'exploitant", personalLabel: "Moi-même" },
+  { value: "other", label: "Une autre personne" },
+  { value: "unknown", label: "Ne sait pas" },
+];
+const TENURES = [
+  ["customary_right", "Droit coutumier"],
+  ["family_land", "Terre familiale"],
+  ["titled_property", "Titre foncier"],
+  ["lease", "Bail"],
+  ["communal", "Terre communautaire"],
+  ["other", "Autre"],
+  ["unknown", "Inconnu"],
+] as const;
+const ARRANGEMENTS = [
+  ["rental", "Location"],
+  ["sharecropping", "Métayage"],
+  ["loan", "Prêt"],
+  ["other", "Autre"],
+] as const;
+
+function Chips<V extends string>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: readonly (readonly [V, string])[];
+  value: V;
+  onChange: (v: V) => void;
+  label: string;
+}) {
+  return (
+    <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={label}>
+      {options.map(([v, text]) => (
+        <Pressable
+          key={v}
+          onPress={() => onChange(v)}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === v }}
+          style={[styles.chip, value === v && styles.chipOn]}
+        >
+          <T style={{ fontSize: 14, fontWeight: "700", color: value === v ? colors.forest : colors.ink }}>{text}</T>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
 type Created = { id: string; agroid: string | null; status: string; current_geometry?: { validation?: { status?: string } } | null };
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -96,6 +146,10 @@ export default function NewParcelScreen() {
   const insets = useSafeAreaInsets();
   const [producer, setProducer] = useState<Producer | null>(null);
   const [name, setName] = useState("");
+  const [owner, setOwner] = useState<Owner>("unknown");
+  const [ownerName, setOwnerName] = useState("");
+  const [tenure, setTenure] = useState<(typeof TENURES)[number][0]>("unknown");
+  const [arrangement, setArrangement] = useState<(typeof ARRANGEMENTS)[number][0]>("rental");
   const [mode, setMode] = useState<Mode>("walk");
   const [recording, setRecording] = useState(false);
   const [points, setPoints] = useState<Fix[]>([]);
@@ -122,11 +176,14 @@ export default function NewParcelScreen() {
   const area = ringAreaM2(ring);
   const gap = closingGapM(ring);
   const tone = TONE[accuracyTone(fix?.accuracy ?? null)];
-  const ready = mode === "position" ? Boolean(fix && fix.accuracy <= 25) : points.length >= 3;
+  const located = mode === "position" ? Boolean(fix && fix.accuracy <= 25) : points.length >= 3;
+  const ownerOk = owner !== "other" || ownerName.trim().length > 1;
 
   if (status !== "signedIn") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
   const personal = workspace === "personal";
+  const operatorKnown = personal || Boolean(producer);
+  const ready = located && ownerOk && (owner !== "operator" || operatorKnown);
 
   const reset = () => {
     setPoints([]);
@@ -138,6 +195,10 @@ export default function NewParcelScreen() {
     setRecording(false);
     setBusy(true);
     const body: Record<string, unknown> = { local_name: name.trim(), operator: personal ? null : (producer?.id ?? null) };
+    if (owner !== "unknown") {
+      body.ownership = { owner, owner_name: owner === "other" ? ownerName.trim() : "", tenure_type: tenure };
+      if (owner === "other" && (personal || producer)) body.arrangement_type = arrangement;
+    }
     if (mode === "position") {
       body.position = fix ? fix.position : null;
       body.capture_method = "gps_points";
@@ -184,6 +245,9 @@ export default function NewParcelScreen() {
             onPress={() => {
               setCreated(null);
               setName("");
+              setOwner("unknown");
+              setOwnerName("");
+              setTenure("unknown");
               reset();
             }}
           />
@@ -220,6 +284,45 @@ export default function NewParcelScreen() {
             <T style={styles.label}>Nom de la parcelle (facultatif)</T>
             <Input accessibilityLabel="Nom de la parcelle" placeholder="ex. Casier Nord" value={name} onChangeText={setName} />
           </View>
+        </Card>
+
+        <Card style={{ gap: 12 }}>
+          <T style={{ fontSize: 16, fontWeight: "700" }} accessibilityRole="header">
+            Foncier
+          </T>
+          <View style={{ gap: 6 }}>
+            <T style={styles.label}>Propriétaire de la parcelle</T>
+            <Chips
+              label="Propriétaire de la parcelle"
+              options={OWNERS.map((o) => [o.value, personal && o.personalLabel ? o.personalLabel : o.label] as const)}
+              value={owner}
+              onChange={setOwner}
+            />
+            {owner === "operator" && !operatorKnown ? (
+              <T style={{ color: colors.warning, fontSize: 13 }}>Choisissez d&apos;abord l&apos;exploitant.</T>
+            ) : null}
+          </View>
+          {owner === "other" ? (
+            <>
+              <View style={{ gap: 6 }}>
+                <T style={styles.label}>Nom du propriétaire</T>
+                <Input accessibilityLabel="Nom du propriétaire" placeholder="ex. Famille Diallo" value={ownerName} onChangeText={setOwnerName} autoCapitalize="words" />
+              </View>
+              {personal || producer ? (
+                <View style={{ gap: 6 }}>
+                  <T style={styles.label}>L&apos;exploitant la cultive en</T>
+                  <Chips label="Mode d'exploitation" options={ARRANGEMENTS} value={arrangement} onChange={setArrangement} />
+                </View>
+              ) : null}
+            </>
+          ) : null}
+          {owner !== "unknown" ? (
+            <View style={{ gap: 6 }}>
+              <T style={styles.label}>Type de droit</T>
+              <Chips label="Type de droit" options={TENURES} value={tenure} onChange={setTenure} />
+            </View>
+          ) : null}
+          <T style={{ color: colors.muted, fontSize: 13 }}>Déclaration du producteur : un document pourra la confirmer plus tard.</T>
         </Card>
 
         <View style={styles.segment} accessibilityRole="radiogroup">
@@ -308,6 +411,7 @@ export default function NewParcelScreen() {
           loading={busy}
           onPress={submit}
         />
+        {located && !ownerOk ? <T style={{ color: colors.muted, textAlign: "center" }}>Indiquez le nom du propriétaire.</T> : null}
         {mode !== "position" && points.length > 0 && points.length < 3 ? (
           <T style={{ color: colors.muted, textAlign: "center" }}>Il faut au moins 3 points pour former un contour.</T>
         ) : null}
@@ -318,6 +422,9 @@ export default function NewParcelScreen() {
 
 const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "700" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.canvas },
+  chipOn: { borderColor: colors.forest, backgroundColor: colors.brand50 },
   picked: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.brand50 },
   option: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: colors.surface },
   segment: { flexDirection: "row", gap: 6, padding: 4, borderRadius: radius.md, backgroundColor: colors.subtle },

@@ -11,17 +11,21 @@ export function ActivationCodePanel({
   firstName,
   phone,
   organization,
+  message: customMessage,
 }: {
   code: string;
   firstName: string;
   phone: string;
   organization: string;
+  /** Message à transmettre (par défaut : invitation au Web OS). */
+  message?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const origin = typeof window === "undefined" ? "https://app.pestai.africa" : window.location.origin;
   const message =
+    customMessage ??
     `Bonjour ${firstName}, ${organization} vous invite sur PEST AI OS. ` +
-    `Activez votre compte sur ${origin}/activer avec votre numéro et le code ${code} (valable 7 jours).`;
+      `Activez votre compte sur ${origin}/activer avec votre numéro et le code ${code} (valable 7 jours).`;
 
   return (
     <div className="rounded-lg border border-line bg-surface p-4">

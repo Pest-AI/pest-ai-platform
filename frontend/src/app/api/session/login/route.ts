@@ -6,6 +6,7 @@ import { isSameOrigin, seeOther } from "@/lib/http";
 import { API_BASE_URL } from "@/lib/config";
 import { toInternationalPhone } from "@/lib/phone";
 import { ACCESS_COOKIE, ACCESS_MAX_AGE, REFRESH_COOKIE, REFRESH_MAX_AGE, cookieOptions } from "@/lib/session";
+import { canUseWebOS } from "@/lib/spaces";
 
 export async function POST(request: NextRequest) {
   // Formulaire envoyé depuis un autre site : refusé (protection CSRF).
@@ -34,8 +35,40 @@ export async function POST(request: NextRequest) {
   if (!res.ok) return back("serveur");
 
   const tokens = (await res.json()) as { access: string; refresh: string };
+
+  // Web OS réservé aux rôles de gestion : un agent terrain est renvoyé vers l'application terrain.
+  let allowed = false;
+  try {
+    const meRes = await fetch(`${API_BASE_URL}/api/v1/me/`, {
+      headers: { Authorization: `Bearer ${tokens.access}` },
+      cache: "no-store",
+    });
+    if (!meRes.ok) return back("serveur");
+    allowed = canUseWebOS(await meRes.json());
+  } catch {
+    return back("serveur");
+  }
+  if (!allowed) {
+    await revokeRefresh(tokens.refresh);
+    return back("terrain");
+  }
+
   const response = seeOther(request, "/espaces");
   response.cookies.set(ACCESS_COOKIE, tokens.access, cookieOptions(ACCESS_MAX_AGE));
   response.cookies.set(REFRESH_COOKIE, tokens.refresh, cookieOptions(REFRESH_MAX_AGE));
   return response;
+}
+
+/** Invalide la session ouverte pour rien (accès refusé au Web OS). */
+async function revokeRefresh(refresh: string) {
+  try {
+    await fetch(`${API_BASE_URL}/api/v1/auth/logout/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+      cache: "no-store",
+    });
+  } catch {
+    // Sans effet sur le refus : aucun cookie n'est posé.
+  }
 }

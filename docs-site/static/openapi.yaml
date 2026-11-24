@@ -2744,6 +2744,160 @@ paths:
               schema:
                 $ref: '#/components/schemas/ParcelSummary'
           description: ''
+  /api/v1/platform/agents/:
+    get:
+      operationId: platform_agents_list
+      description: Adhésions portant le rôle agent terrain, toutes organisations.
+        Filtre `organization` (identifiant) facultatif. Les adhésions révoquées sont
+        exclues.
+      summary: Agents terrain
+      parameters:
+      - in: query
+        name: organization
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Un numéro de page de l'ensemble des résultats.
+        schema:
+          type: integer
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlatformAgentList'
+          description: ''
+    post:
+      operationId: platform_agents_create
+      description: Invite la personne comme agent terrain de l'organisation. Sans
+        compte existant, le compte est créé (prénom et nom requis) et un code d'activation
+        est renvoyé, une seule fois. Un agent peut être affecté à plusieurs organisations.
+      summary: Créer un agent et l'affecter
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformAgentCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlatformAgentCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlatformAgentCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAgentResult'
+          description: ''
+  /api/v1/platform/agents/{id}/activation-code/:
+    post:
+      operationId: platform_agents_activation_code_create
+      description: Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+      summary: Nouveau code d'activation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivationCode'
+          description: ''
+  /api/v1/platform/agents/{id}/reactivate/:
+    post:
+      operationId: platform_agents_reactivate_create
+      description: Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+      summary: Réactiver un agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAgent'
+          description: ''
+  /api/v1/platform/agents/{id}/revoke/:
+    post:
+      operationId: platform_agents_revoke_create
+      description: Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+      summary: Retirer l'agent de l'organisation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAgent'
+          description: ''
+  /api/v1/platform/agents/{id}/suspend/:
+    post:
+      operationId: platform_agents_suspend_create
+      description: Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+      summary: Suspendre un agent
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) adhésion.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAgent'
+          description: ''
   /api/v1/platform/organizations/:
     get:
       operationId: platform_organizations_list
@@ -3258,6 +3412,23 @@ components:
       required:
       - activation_code
       - expires_at
+    AgentOrganization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        short_name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - short_name
     AgricultureArchiveRequest:
       type: object
       properties:
@@ -4056,6 +4227,27 @@ components:
           format: date
       required:
       - end_date
+    EnrolmentOwnershipRequest:
+      type: object
+      description: 'Foncier déclaré à l''enrôlement (J18b) : l''exploitant est-il
+        le propriétaire ?'
+      properties:
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/OwnerEnum'
+          description: |-
+            `operator` : l'exploitant désigné est propriétaire ; `other` : `owner_name`.
+
+            * `operator` - L'exploitant
+            * `other` - Une autre personne
+        owner_name:
+          type: string
+          maxLength: 200
+        tenure_type:
+          $ref: '#/components/schemas/TenureTypeEnum'
+      required:
+      - owner
+      - tenure_type
     GeometryVersion:
       type: object
       properties:
@@ -5104,6 +5296,14 @@ components:
         * `institution` - Institution
         * `public_agency` - Agence publique
         * `pest_ai` - PEST AI
+    OwnerEnum:
+      enum:
+      - operator
+      - other
+      type: string
+      description: |-
+        * `operator` - L'exploitant
+        * `other` - Une autre personne
     Ownership:
       type: object
       properties:
@@ -5396,6 +5596,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ParcelList'
+    PaginatedPlatformAgentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformAgent'
     PaginatedPlatformOrganizationList:
       type: object
       required:
@@ -5482,6 +5705,24 @@ components:
           nullable: true
           description: Exploitant principal (producteur rattaché à l'organisation),
             désigné dès la création.
+        arrangement_type:
+          allOf:
+          - $ref: '#/components/schemas/ArrangementTypeEnum'
+          description: |-
+            Mode d'exploitation (location, métayage, prêt…) ; avec `operator`.
+
+            * `owner_operated` - Exploitée par le propriétaire
+            * `rental` - Location
+            * `sharecropping` - Métayage
+            * `loan` - Prêt
+            * `other` - Autre
+            * `unknown` - Inconnu
+        ownership:
+          allOf:
+          - $ref: '#/components/schemas/EnrolmentOwnershipRequest'
+          nullable: true
+          description: 'Foncier déclaré (statut « déclarée ») : enregistré avec la
+            parcelle.'
     ParcelDetail:
       type: object
       description: Fiche parcelle dans l'espace actif.
@@ -6113,6 +6354,143 @@ components:
       required:
       - first_name
       - last_name
+    PlatformAgent:
+      type: object
+      description: Adhésion d'un agent terrain, avec son organisation d'affectation.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/MemberUser'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MembershipStatusEnum'
+          readOnly: true
+          default: invited
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        invited_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/AgentOrganization'
+          readOnly: true
+      required:
+      - created_at
+      - ended_at
+      - id
+      - invited_by
+      - joined_at
+      - organization
+      - roles
+      - status
+      - user
+    PlatformAgentCreateRequest:
+      type: object
+      description: Création d'un agent terrain par PEST AI et affectation à une organisation.
+      properties:
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 32
+        first_name:
+          type: string
+          default: ''
+          maxLength: 100
+        last_name:
+          type: string
+          default: ''
+          maxLength: 100
+        organization:
+          type: string
+          format: uuid
+      required:
+      - organization
+      - phone_number
+    PlatformAgentResult:
+      type: object
+      description: Adhésion d'un agent terrain, avec son organisation d'affectation.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/MemberUser'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MembershipStatusEnum'
+          readOnly: true
+          default: invited
+        roles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        invited_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/AgentOrganization'
+          readOnly: true
+        activation_code:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - activation_code
+      - created_at
+      - ended_at
+      - id
+      - invited_by
+      - joined_at
+      - organization
+      - roles
+      - status
+      - user
     PlatformOrganization:
       type: object
       description: Création et gestion par le Super Admin (portée plateforme).

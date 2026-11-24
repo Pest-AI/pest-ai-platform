@@ -8,10 +8,12 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import createClient from "openapi-fetch";
+import { cache } from "react";
 
 import type { paths } from "@/lib/api/schema";
 import { API_BASE_URL } from "@/lib/config";
 import { ACCESS_COOKIE, WORKSPACE_COOKIE, isValidWorkspace } from "@/lib/session";
+import { isWebWorkspace } from "@/lib/spaces";
 
 export type { paths };
 
@@ -43,7 +45,20 @@ async function bufferedFetch(request: Request): Promise<Response> {
   });
 }
 
+/** Profil de l'utilisateur connecté, lu une fois par requête. */
+export const getMe = cache(async () => {
+  const api = await getApi();
+  const { data } = await api.GET("/api/v1/me/");
+  return data ?? null;
+});
+
+/**
+ * Espace de travail choisi, seulement s'il est ouvert dans le Web OS pour cet utilisateur
+ * (adhésion active avec un rôle du Web OS) ; sinon null, et la page renvoie vers /espaces.
+ */
 export async function currentWorkspace(): Promise<string | null> {
   const value = (await cookies()).get(WORKSPACE_COOKIE)?.value;
-  return isValidWorkspace(value) ? value : null;
+  if (!isValidWorkspace(value)) return null;
+  const me = await getMe();
+  return me && isWebWorkspace(me, value) ? value : null;
 }

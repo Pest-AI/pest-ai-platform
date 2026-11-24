@@ -304,6 +304,22 @@ class GeometryInputMixin(serializers.Serializer):
     captured_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
+class EnrolmentOwnershipSerializer(serializers.Serializer):
+    """Foncier déclaré à l'enrôlement (J18b) : l'exploitant est-il le propriétaire ?"""
+
+    owner = serializers.ChoiceField(
+        choices=[("operator", "L'exploitant"), ("other", "Une autre personne")],
+        help_text="`operator` : l'exploitant désigné est propriétaire ; `other` : `owner_name`.",
+    )
+    owner_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    tenure_type = serializers.ChoiceField(choices=TenureType.choices)
+
+    def validate(self, attrs):
+        if attrs["owner"] == "other" and not attrs.get("owner_name", "").strip():
+            raise serializers.ValidationError({"owner_name": "Indiquez le nom du propriétaire."})
+        return attrs
+
+
 class ParcelCreateSerializer(GeometryInputMixin):
     local_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
     geometry = serializers.JSONField(required=False, allow_null=True, help_text=GEOJSON_HELP)
@@ -320,6 +336,17 @@ class ParcelCreateSerializer(GeometryInputMixin):
         allow_null=True,
         help_text="Exploitant principal (producteur rattaché à l'organisation), désigné dès la "
         "création.",
+    )
+
+    arrangement_type = serializers.ChoiceField(
+        choices=ArrangementType.choices,
+        required=False,
+        help_text="Mode d'exploitation (location, métayage, prêt…) ; avec `operator`.",
+    )
+    ownership = EnrolmentOwnershipSerializer(
+        required=False,
+        allow_null=True,
+        help_text="Foncier déclaré (statut « déclarée ») : enregistré avec la parcelle.",
     )
 
     def validate_position(self, value):

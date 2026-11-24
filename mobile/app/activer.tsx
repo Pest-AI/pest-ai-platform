@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Eye, EyeOff, KeyRound, Lock } from "lucide-react-native";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
@@ -8,23 +8,26 @@ import { PhoneInput } from "@/components/phone-input";
 import { Alert, Button, Input, T } from "@/components/ui";
 import { ApiError, NetworkError } from "@/lib/api";
 import { api } from "@/lib/client";
-import { DEFAULT_COUNTRY, toInternationalPhone } from "@/lib/phone";
+import { DEFAULT_COUNTRY, splitPhone, toInternationalPhone } from "@/lib/phone";
 import { useSession } from "@/lib/session";
 import { colors } from "@/theme";
 
 const MIN_PASSWORD = 8; // même règle que l'API (MinimumLengthValidator)
 
 /**
- * Activation du compte d'un agent invité par son organisation : numéro, code d'activation
- * reçu, puis mot de passe choisi. L'app se connecte ensuite directement.
+ * Activation du compte d'un agent créé par PEST AI : numéro, code d'activation reçu, puis mot
+ * de passe choisi. L'app se connecte ensuite directement. Le lien envoyé à l'agent
+ * (/activer?tel=+221…) préremplit son numéro.
  * (Le code par SMS — OTP, D-14 — s'ajoutera à cette étape plus tard.)
  */
 export default function ActivationScreen() {
   const { status, signIn } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [country, setCountry] = useState(DEFAULT_COUNTRY);
-  const [phone, setPhone] = useState("");
+  const { tel } = useLocalSearchParams<{ tel?: string }>();
+  const prefill = typeof tel === "string" && /^\+\d{8,15}$/.test(tel) ? splitPhone(tel) : null;
+  const [country, setCountry] = useState(prefill?.country.iso ?? DEFAULT_COUNTRY);
+  const [phone, setPhone] = useState(prefill?.national ?? "");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");

@@ -12,7 +12,7 @@ import { currentWorkspace, getApi } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
 import { formatPhone } from "@/lib/phone";
-import { teamRights } from "@/lib/roles";
+import { managedByPestAi, teamRights } from "@/lib/roles";
 import { ORGANIZATION_TYPE_LABELS, ROLE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
 
@@ -241,7 +241,14 @@ export default async function TeamPage({
                         {formatDate(m.joined_at ?? m.created_at)}
                       </span>
                       <span className="col-start-2 row-span-2 row-start-1 text-right lg:col-start-auto lg:row-span-1 lg:row-start-auto">
-                        {canManage ? (
+                        {canManage && managedByPestAi(m.roles) ? (
+                          <span
+                            className="text-[13px] font-semibold text-muted"
+                            title="Les agents terrain sont recrutés et affectés par PEST AI."
+                          >
+                            Géré par PEST AI
+                          </span>
+                        ) : canManage ? (
                           <MemberDialog
                             isAdmin={isAdmin}
                             isSelf={isSelf}

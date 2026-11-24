@@ -25,12 +25,12 @@ def test_invitation_d_un_nouveau_numero_cree_le_compte_et_renvoie_un_code(
         phone_number="+221 78 111 22 33",
         first_name="Moussa",
         last_name="Diop",
-        roles=["field_agent"],
+        roles=["agronomist"],
     )
     assert response.status_code == 201, response.json()
     body = response.json()
     assert body["status"] == "invited"
-    assert body["roles"] == ["field_agent"]
+    assert body["roles"] == ["agronomist"]
     assert body["user"]["account_activated"] is False
     code = body["activation_code"]
     assert len(code) == 9 and code[4] == "-"
@@ -79,7 +79,7 @@ def test_nouveau_code_annule_le_precedent(make_member, make_org, api):
 def test_pas_de_code_pour_un_compte_deja_active(make_member, make_org, api):
     org = make_org()
     admin, _ = make_member(org, "organization_admin")
-    _, member = make_member(org, "field_agent")
+    _, member = make_member(org, "agronomist")
     response = api.as_user(admin, org).post(f"{MEMBERS_URL}{member.pk}/activation-code/")
     assert response.status_code == 400
 
@@ -94,7 +94,7 @@ def test_le_gerant_invite_et_attribue_des_roles(make_member, make_org, make_user
     )
     assert response.status_code == 201
 
-    _, member = make_member(org, "field_agent")
+    _, member = make_member(org, "program_manager")
     assert (
         client.post(
             f"{MEMBERS_URL}{member.pk}/roles/", {"role": "agronomist"}, format="json"
@@ -106,7 +106,7 @@ def test_le_gerant_invite_et_attribue_des_roles(make_member, make_org, make_user
 def test_le_gerant_ne_nomme_jamais_d_administrateur(make_member, make_org, api):
     org = make_org()
     manager, _ = make_member(org, "cooperative_manager")
-    _, member = make_member(org, "field_agent")
+    _, member = make_member(org, "program_manager")
     client = api.as_user(manager, org)
     assert (
         invite(

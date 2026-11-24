@@ -53,6 +53,7 @@ export const ADMIN_NAV: NavSection[] = [
   {
     items: [
       { label: "Organisations", icon: "building", href: "/admin/organisations" },
+      { label: "Agents terrain", icon: "route", href: "/admin/agents" },
       { label: "Utilisateurs", icon: "users" },
     ],
   },

@@ -11,7 +11,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { currentWorkspace, getApi } from "@/lib/api/client";
-import { ORGANIZATION_TYPE_LABELS, primaryRoleLabel } from "@/lib/spaces";
+import { ORGANIZATION_TYPE_LABELS, canUseWebOS, primaryRoleLabel, webMemberships } from "@/lib/spaces";
 import { cn } from "@/lib/utils";
 
 import panorama from "../../../public/brand/espaces-panorama.jpg";
@@ -82,9 +82,13 @@ export default async function WorkspacesPage({
   const { data: me, response } = await api.GET("/api/v1/me/");
   if (response.status === 401 || !me) redirect("/connexion?erreur=session");
 
+  // Agent terrain ou producteur seulement : pas d'accès au Web OS (session effacée).
+  if (!canUseWebOS(me)) redirect("/api/session/refus");
+
   const lastWorkspace = await currentWorkspace();
-  const memberships = me.memberships.filter((m) => m.status === "active");
-  const invitations = me.memberships.filter((m) => m.status === "invited");
+  const allowed = webMemberships(me.memberships);
+  const memberships = allowed.filter((m) => m.status === "active");
+  const invitations = allowed.filter((m) => m.status === "invited");
   const total = memberships.length + (me.is_platform_admin ? 1 : 0);
 
   return (

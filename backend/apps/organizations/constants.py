@@ -70,6 +70,11 @@ SYSTEM_ROLES = [
     ),
 ]
 ROLE_CODES = [code for code, *_ in SYSTEM_ROLES]
+
+# Rôles recrutés et affectés par PEST AI uniquement (décision du fondateur, 24/11/2026) :
+# une organisation ne les attribue, ne les retire ni ne modifie l'adhésion qui les porte.
+# Les agents terrain font partie de la prestation PEST AI auprès de la coopérative.
+PLATFORM_MANAGED_ROLES = (FIELD_AGENT,)
 ORGANIZATION_ROLE_CODES = [
     code for code, _, scope, _ in SYSTEM_ROLES if scope == SCOPE_ORGANIZATION
 ]

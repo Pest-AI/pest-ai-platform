@@ -33,6 +33,20 @@
 
 Limites assumées : l'enrôlement demande le réseau (message clair sinon ; la file hors ligne arrive au J20) ; le relevé GPS se fait dans l'app navigateur (`terrain.pestai.africa`), le module natif d'Expo viendra avec les stores ; **vérification OTP par SMS reportée** par le fondateur (D-14).
 
+## J18b — Accès, agents et foncier (livré)
+
+Décisions du fondateur du 24/11/2026.
+
+| Livré | Vérification |
+|---|---|
+| **Web OS réservé** à l'administration PEST AI, aux administrateurs et gérants d'organisation, aux agronomes et aux gestionnaires de programme. Agent terrain ou producteur : connexion refusée avec renvoi vers l'app terrain ; session existante effacée ; espaces sans rôle de gestion masqués | 2 tests unitaires, parcours navigateur |
+| **Agents terrain gérés par PEST AI seulement** : une organisation ne peut ni inviter un agent, ni lui attribuer ou retirer un rôle, ni le suspendre, ni lui renvoyer un code (403) ; elle voit ses agents (« Géré par PEST AI ») | 3 tests API |
+| Console d'administration : page **Agents terrain** (création et affectation à une coopérative, filtre par coopérative, nouveau code, suspension, retrait) ; message WhatsApp avec lien d'activation de l'app terrain qui préremplit le numéro. API `/api/v1/platform/agents/` | 5 tests API, parcours navigateur |
+| **Pays : Afrique de l'Ouest seulement** (16 pays, Mauritanie comprise). Côte d'Ivoire et Bénin : le 0 initial fait partie du numéro (10 chiffres). Un numéro étranger déjà enregistré reste conservé tel quel | 9 + 9 tests unitaires |
+| **Foncier à l'enrôlement** : propriétaire (l'exploitant, une autre personne, ne sait pas), type de droit, mode d'exploitation (location, métayage, prêt) ; enregistré avec la parcelle, statut « déclarée ». API : champs `ownership` et `arrangement_type` à la création | 3 tests API, parcours navigateur |
+
+Hors J18b (propositions à valider) : rôle d'administrateur plateforme distinct du super-administrateur ; code PIN à 6 chiffres pour les agents ; espace agronome ; données sol et eau (addendum v2.3 du Design).
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

@@ -3,7 +3,8 @@
  *
  * L'API attend un numéro international E.164 (+221771234567). L'écran propose un pays
  * (Sénégal par défaut) et la saisie du numéro national ; un numéro tapé avec son indicatif
- * (+33…, 0033…) est pris tel quel. Le « 0 » national initial (06…, 07…) est retiré.
+ * (+33…, 0033…) est pris tel quel. Pays proposés : Afrique de l'Ouest (countries.ts). Le « 0 »
+ * national initial est retiré, sauf là où il fait partie du numéro (Côte d'Ivoire, Bénin).
  */
 import { COUNTRIES, type Country } from "./countries";
 
@@ -31,25 +32,28 @@ export function toInternationalPhone(input: string, countryIso: string = DEFAULT
   if (cleaned.startsWith(country.dial) && country.length && cleaned.length === country.dial.length + country.length) {
     return `+${cleaned}`;
   }
-  const national = country.dial !== "39" ? cleaned.replace(/^0+/, "") : cleaned; // Italie : le 0 fait partie du numéro
+  const national = country.keepZero ? cleaned : cleaned.replace(/^0+/, "");
   return `+${country.dial}${national}`;
 }
 
-/** Pays d'un numéro E.164 (indicatif le plus long qui correspond) et numéro national. */
+/**
+ * Pays d'un numéro E.164 et numéro national. Hors des pays proposés (numéro étranger déjà
+ * enregistré), le numéro est rendu complet avec son « + » pour être conservé tel quel.
+ */
 export function splitPhone(e164: string): { country: Country; national: string } {
   const digits = (e164 || "").replace(/^\+/, "");
   let best: Country | null = null;
   for (const c of COUNTRIES) {
     if (digits.startsWith(c.dial) && (!best || c.dial.length > best.dial.length)) best = c;
   }
-  if (!best) return { country: findCountry(DEFAULT_COUNTRY), national: digits };
-  // Indicatifs partagés (+1, +7…) : le premier pays de la liste porte la valeur par défaut.
+  if (!best) return { country: findCountry(DEFAULT_COUNTRY), national: digits ? `+${digits}` : "" };
   return { country: best, national: digits.slice(best.dial.length) };
 }
 
 /** Indication de saisie : « 9 chiffres » ou rien si la longueur varie. */
 export function lengthHint(country: Country, national: string): string | null {
-  const digits = national.replace(/\D/g, "").replace(/^0+/, "");
+  const raw = national.replace(/\D/g, "");
+  const digits = country.keepZero ? raw : raw.replace(/^0+/, "");
   if (!country.length || !digits || national.trim().startsWith("+")) return null;
   return digits.length === country.length ? null : `${country.length} chiffres attendus pour ${country.name}`;
 }
@@ -60,5 +64,5 @@ export function formatPhone(e164: string): string {
   if (m) return `+221 ${m[1]} ${m[2]} ${m[3]} ${m[4]}`;
   if (!e164?.startsWith("+")) return e164;
   const { country, national } = splitPhone(e164);
-  return national ? `+${country.dial} ${national}` : e164;
+  return national && !national.startsWith("+") ? `+${country.dial} ${national}` : e164;
 }

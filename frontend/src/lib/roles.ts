@@ -1,4 +1,8 @@
-/** Rôles qu'un gérant ou un administrateur peut attribuer dans une organisation. */
+/**
+ * Rôles qu'un gérant ou un administrateur peut attribuer dans une organisation. Les agents
+ * terrain n'y figurent pas : PEST AI les recrute et les affecte (console d'administration).
+ */
+export const PLATFORM_MANAGED_ROLES = ["field_agent"];
 export const ASSIGNABLE_ROLES: { code: string; label: string; description: string; adminOnly?: boolean }[] = [
   {
     code: "organization_admin",
@@ -12,11 +16,6 @@ export const ASSIGNABLE_ROLES: { code: string; label: string; description: strin
     description: "Gère l'équipe, les producteurs, les parcelles et les campagnes.",
   },
   {
-    code: "field_agent",
-    label: "Agent terrain",
-    description: "Enregistre les parcelles et les observations sur l'application mobile.",
-  },
-  {
     code: "agronomist",
     label: "Agronome",
     description: "Valide les diagnostics et les conseils agronomiques.",
@@ -27,6 +26,11 @@ export const ASSIGNABLE_ROLES: { code: string; label: string; description: strin
     description: "Suit les indicateurs d'un programme (ONG, bailleur).",
   },
 ];
+
+/** Adhésion gérée par PEST AI (agent terrain) : la coopérative la voit sans la modifier. */
+export function managedByPestAi(roles: readonly string[]): boolean {
+  return roles.some((r) => PLATFORM_MANAGED_ROLES.includes(r));
+}
 
 /** Droits de gestion de l'équipe selon les rôles de l'utilisateur dans l'organisation active. */
 export function teamRights(roles: readonly string[]) {

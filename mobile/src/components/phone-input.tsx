@@ -4,7 +4,7 @@ import { FlatList, Modal, Pressable, StyleSheet, TextInput, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { T } from "@/components/ui";
-import { COUNTRIES, FIRST_COUNTRIES, type Country } from "@/lib/countries";
+import { COUNTRIES, type Country } from "@/lib/countries";
 import { findCountry, flag, lengthHint } from "@/lib/phone";
 import { colors, fonts, radius } from "@/theme";
 
@@ -116,8 +116,7 @@ export function PhoneInput({
             initialNumToRender={20}
             renderItem={({ item, index }) => (
               <>
-                {!query && index === FIRST_COUNTRIES ? <T style={styles.group}>Tous les pays</T> : null}
-                {!query && index === 0 ? <T style={styles.group}>Sénégal et Afrique de l&apos;Ouest</T> : null}
+                {!query && index === 0 ? <T style={styles.group}>Afrique de l&apos;Ouest</T> : null}
                 <Pressable
                   onPress={() => choose(item)}
                   accessibilityRole="button"

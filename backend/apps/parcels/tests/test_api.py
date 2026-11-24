@@ -472,3 +472,61 @@ def test_recherche_par_morceau_d_agroid(admin, created):
     assert admin.get(f"{URL}?q={part}").json()["count"] == 1
     assert admin.get(f"{URL}?q={created['agroid'][-4:].lower()}").json()["count"] == 1
     assert admin.get(f"{URL}?q=fleuve").json()["count"] == 1
+
+
+def test_enrolement_avec_foncier_exploitant_proprietaire(admin, farmer):
+    res = admin.post(
+        URL,
+        {
+            "geometry": square(),
+            "capture_method": "gps_walk",
+            "operator": str(farmer.pk),
+            "ownership": {"owner": "operator", "tenure_type": "customary_right"},
+        },
+        format="json",
+    )
+    assert res.status_code == 201, res.json()
+    body = res.json()
+    assert [o["owner_display"] for o in body["owners"]] == ["Awa Sow"]
+    assert body["owners"][0]["tenure_type"] == "customary_right"
+    assert body["owners"][0]["verification_status"] == "declared"
+    history = admin.get(f"{URL}{body['id']}/history/").json()
+    assert history["operators"][0]["arrangement_type"] == "owner_operated"
+
+
+def test_enrolement_parcelle_louee(admin, farmer):
+    res = admin.post(
+        URL,
+        {
+            "position": [LON, LAT],
+            "operator": str(farmer.pk),
+            "arrangement_type": "rental",
+            "ownership": {
+                "owner": "other",
+                "owner_name": "Famille Diallo",
+                "tenure_type": "family_land",
+            },
+        },
+        format="json",
+    )
+    assert res.status_code == 201, res.json()
+    assert res.json()["owners"][0]["owner_display"] == "Famille Diallo"
+    history = admin.get(f"{URL}{res.json()['id']}/history/").json()
+    assert history["operators"][0]["arrangement_type"] == "rental"
+
+
+def test_enrolement_foncier_incoherent_rien_n_est_cree(admin):
+    before = Parcel.objects.count()
+    no_operator = admin.post(
+        URL,
+        {"position": [LON, LAT], "ownership": {"owner": "operator", "tenure_type": "lease"}},
+        format="json",
+    )
+    assert no_operator.status_code == 400 and "ownership" in no_operator.json()
+    no_name = admin.post(
+        URL,
+        {"position": [LON, LAT], "ownership": {"owner": "other", "tenure_type": "lease"}},
+        format="json",
+    )
+    assert no_name.status_code == 400
+    assert Parcel.objects.count() == before

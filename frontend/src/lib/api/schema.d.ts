@@ -1228,6 +1228,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/agents/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agents terrain
+         * @description Adhésions portant le rôle agent terrain, toutes organisations. Filtre `organization` (identifiant) facultatif. Les adhésions révoquées sont exclues.
+         */
+        get: operations["platform_agents_list"];
+        put?: never;
+        /**
+         * Créer un agent et l'affecter
+         * @description Invite la personne comme agent terrain de l'organisation. Sans compte existant, le compte est créé (prénom et nom requis) et un code d'activation est renvoyé, une seule fois. Un agent peut être affecté à plusieurs organisations.
+         */
+        post: operations["platform_agents_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/agents/{id}/activation-code/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nouveau code d'activation
+         * @description Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+         */
+        post: operations["platform_agents_activation_code_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/agents/{id}/reactivate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Réactiver un agent
+         * @description Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+         */
+        post: operations["platform_agents_reactivate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/agents/{id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retirer l'agent de l'organisation
+         * @description Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+         */
+        post: operations["platform_agents_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/agents/{id}/suspend/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspendre un agent
+         * @description Agents terrain, gérés uniquement par PEST AI (décision du 24/11/2026).
+         */
+        post: operations["platform_agents_suspend_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/organizations/": {
         parameters: {
             query?: never;
@@ -1446,6 +1550,12 @@ export interface components {
             readonly activation_code: string;
             /** Format: date-time */
             readonly expires_at: string;
+        };
+        AgentOrganization: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            readonly short_name: string;
         };
         AgricultureArchiveRequest: {
             /** @description Motif de l'archivage. */
@@ -1761,6 +1871,18 @@ export interface components {
         EndRelationRequest: {
             /** Format: date */
             end_date: string;
+        };
+        /** @description Foncier déclaré à l'enrôlement (J18b) : l'exploitant est-il le propriétaire ? */
+        EnrolmentOwnershipRequest: {
+            /**
+             * @description `operator` : l'exploitant désigné est propriétaire ; `other` : `owner_name`.
+             *
+             *     * `operator` - L'exploitant
+             *     * `other` - Une autre personne
+             */
+            owner: components["schemas"]["OwnerEnum"];
+            owner_name?: string;
+            tenure_type: components["schemas"]["TenureTypeEnum"];
         };
         GeometryVersion: {
             /** Format: uuid */
@@ -2221,6 +2343,12 @@ export interface components {
          * @enum {string}
          */
         OrganizationTypeEnum: "cooperative" | "union" | "ngo" | "company" | "institution" | "public_agency" | "pest_ai";
+        /**
+         * @description * `operator` - L'exploitant
+         *     * `other` - Une autre personne
+         * @enum {string}
+         */
+        OwnerEnum: "operator" | "other";
         Ownership: {
             /** Format: uuid */
             readonly id: string;
@@ -2383,6 +2511,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["ParcelList"][];
         };
+        PaginatedPlatformAgentList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["PlatformAgent"][];
+        };
         PaginatedPlatformOrganizationList: {
             /** @example 123 */
             count: number;
@@ -2430,6 +2573,19 @@ export interface components {
              * @description Exploitant principal (producteur rattaché à l'organisation), désigné dès la création.
              */
             operator?: string | null;
+            /**
+             * @description Mode d'exploitation (location, métayage, prêt…) ; avec `operator`.
+             *
+             *     * `owner_operated` - Exploitée par le propriétaire
+             *     * `rental` - Location
+             *     * `sharecropping` - Métayage
+             *     * `loan` - Prêt
+             *     * `other` - Autre
+             *     * `unknown` - Inconnu
+             */
+            arrangement_type?: components["schemas"]["ArrangementTypeEnum"];
+            /** @description Foncier déclaré (statut « déclarée ») : enregistré avec la parcelle. */
+            ownership?: components["schemas"]["EnrolmentOwnershipRequest"] | null;
         };
         /** @description Fiche parcelle dans l'espace actif. */
         ParcelDetail: {
@@ -2675,6 +2831,53 @@ export interface components {
             birth_year?: number | null;
             locality_text?: string;
             preferred_language?: components["schemas"]["PreferredLanguageEnum"];
+        };
+        /** @description Adhésion d'un agent terrain, avec son organisation d'affectation. */
+        PlatformAgent: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly user: components["schemas"]["MemberUser"];
+            /** @default invited */
+            readonly status: components["schemas"]["MembershipStatusEnum"];
+            readonly roles: string[];
+            /** Format: uuid */
+            readonly invited_by: string | null;
+            /** Format: date-time */
+            readonly joined_at: string | null;
+            /** Format: date-time */
+            readonly ended_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly organization: components["schemas"]["AgentOrganization"];
+        };
+        /** @description Création d'un agent terrain par PEST AI et affectation à une organisation. */
+        PlatformAgentCreateRequest: {
+            phone_number: string;
+            /** @default  */
+            first_name: string;
+            /** @default  */
+            last_name: string;
+            /** Format: uuid */
+            organization: string;
+        };
+        /** @description Adhésion d'un agent terrain, avec son organisation d'affectation. */
+        PlatformAgentResult: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly user: components["schemas"]["MemberUser"];
+            /** @default invited */
+            readonly status: components["schemas"]["MembershipStatusEnum"];
+            readonly roles: string[];
+            /** Format: uuid */
+            readonly invited_by: string | null;
+            /** Format: date-time */
+            readonly joined_at: string | null;
+            /** Format: date-time */
+            readonly ended_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly organization: components["schemas"]["AgentOrganization"];
+            readonly activation_code: string | null;
         };
         /** @description Création et gestion par le Super Admin (portée plateforme). */
         PlatformOrganization: {
@@ -4987,6 +5190,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParcelSummary"];
+                };
+            };
+        };
+    };
+    platform_agents_list: {
+        parameters: {
+            query?: {
+                organization?: string;
+                /** @description Un numéro de page de l'ensemble des résultats. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedPlatformAgentList"];
+                };
+            };
+        };
+    };
+    platform_agents_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformAgentCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlatformAgentCreateRequest"];
+                "multipart/form-data": components["schemas"]["PlatformAgentCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformAgentResult"];
+                };
+            };
+        };
+    };
+    platform_agents_activation_code_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) adhésion. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivationCode"];
+                };
+            };
+        };
+    };
+    platform_agents_reactivate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) adhésion. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformAgent"];
+                };
+            };
+        };
+    };
+    platform_agents_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) adhésion. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformAgent"];
+                };
+            };
+        };
+    };
+    platform_agents_suspend_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) adhésion. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformAgent"];
                 };
             };
         };
