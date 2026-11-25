@@ -7,6 +7,7 @@ import type * as React from "react";
 
 import { NetworkError, SessionExpiredError } from "./api";
 import { api } from "./client";
+import { setOwner } from "./outbox";
 import { clearParcelCache } from "./parcel-cache";
 import type { Me } from "./types";
 
@@ -41,6 +42,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const profile = await api.request<Me>("/api/v1/me/");
+      await setOwner(profile.id); // saisies hors ligne rangées par compte
       const saved = await api.getWorkspace();
       const stillMember = profile.memberships.some((m) => m.workspace === saved && m.status === "active");
       setMe(profile);

@@ -3,14 +3,12 @@
  * actif, prise à la dernière synchronisation, avec sa date (indicateur de fraîcheur).
  *
  * - Navigateur (PWA) : IndexedDB, base « pestai-terrain ».
- * - Téléphone : en mémoire pour l'instant ; la base locale SQLite arrive avec la
- *   synchronisation hors ligne (J18).
+ * - Téléphone : en mémoire pour l'instant (voir local-db.ts).
  * - Effacée à la déconnexion (données personnelles des exploitants).
  */
-import { Platform } from "react-native";
-
 import type { ApiClient } from "./api";
 import type { Bbox, MultiPolygon, Position } from "./geo";
+import { localStore, memoryStore, type BlobStore } from "./local-db";
 
 export type CachedParcel = {
   id: string;
@@ -41,52 +39,9 @@ const KEY_PREFIX = "parcels:";
 
 // ── Stockage ────────────────────────────────────────────────────────────
 
-export type BlobStore = {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string): Promise<void>;
-  clear(): Promise<void>;
-};
+export { memoryStore, type BlobStore };
 
-export function memoryStore(): BlobStore {
-  const data = new Map<string, string>();
-  return {
-    get: async (k) => data.get(k) ?? null,
-    set: async (k, v) => void data.set(k, v),
-    clear: async () => data.clear(),
-  };
-}
-
-function indexedDbStore(): BlobStore {
-  const DB = "pestai-terrain";
-  const STORE = "cache";
-  const open = () =>
-    new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open(DB, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  const run = async <T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>) => {
-    const db = await open();
-    try {
-      return await new Promise<T>((resolve, reject) => {
-        const req = fn(db.transaction(STORE, mode).objectStore(STORE));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    } finally {
-      db.close();
-    }
-  };
-  return {
-    get: async (k) => ((await run("readonly", (s) => s.get(k))) as string | undefined) ?? null,
-    set: async (k, v) => void (await run("readwrite", (s) => s.put(v, k))),
-    clear: async () => void (await run("readwrite", (s) => s.clear())),
-  };
-}
-
-let store: BlobStore =
-  Platform.OS === "web" && typeof indexedDB !== "undefined" ? indexedDbStore() : memoryStore();
+let store: BlobStore = localStore("pestai-terrain");
 
 /** Pour les tests. */
 export function setParcelStore(next: BlobStore) {

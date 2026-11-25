@@ -19,7 +19,7 @@ export function OfflineBanner() {
       pointerEvents="none"
     >
       <WifiOff size={16} color={colors.night} />
-      <T style={styles.text}>Hors ligne : les données affichées peuvent ne pas être à jour.</T>
+      <T style={styles.text}>Hors ligne : vos saisies sont gardées sur le téléphone et partiront au retour du réseau.</T>
     </View>
   );
 }

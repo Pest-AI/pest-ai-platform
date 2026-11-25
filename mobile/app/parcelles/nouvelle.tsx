@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Check, Fingerprint, MapPin, Pause, Play, Plus, RotateCcw, Search, Undo2, X } from "lucide-react-native";
+import { ArrowLeft, Check, CloudUpload, Fingerprint, MapPin, Pause, Play, Plus, RotateCcw, Search, Undo2, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { TrackPreview } from "@/components/track-preview";
 import { Alert, Button, Card, Input, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { type PickedProducer, findLocalProducer, searchProducers } from "@/lib/field-data";
 import { formatArea, formatDistance } from "@/lib/geo";
 import {
   CLOSE_GAP_M,
@@ -23,9 +24,9 @@ import {
   toPolygon,
   useLiveFix,
 } from "@/lib/gps-track";
+import { submit as submitOp } from "@/lib/outbox";
 import { useSession } from "@/lib/session";
 import { type SiteValues, hasSiteData, siteBody, useSiteReferentials } from "@/lib/site";
-import type { Paginated, Producer } from "@/lib/types";
 import { colors, radius } from "@/theme";
 
 type Mode = "walk" | "corners" | "position";
@@ -60,7 +61,8 @@ const RENTS = [
   ["unknown", "Ne sait pas"],
 ] as const;
 
-type Created = { id: string; agroid: string | null; status: string; current_geometry?: { validation?: { status?: string } } | null };
+/** Parcelle créée (envoyée), ou gardée sur le téléphone (`pending`) : AgroID attribué à l'envoi. */
+type Created = { id: string; agroid: string | null; status: string; pending?: boolean };
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "walk", label: "Tour du champ", hint: "Démarrez au coin du champ et marchez le long de la limite ; les points s'ajoutent seuls." },
@@ -75,15 +77,14 @@ const TONE = {
   none: { color: colors.muted, label: "Recherche du signal GPS…" },
 } as const;
 
-function ProducerPicker({ workspace, value, onChange }: { workspace: string; value: Producer | null; onChange: (p: Producer | null) => void }) {
+function ProducerPicker({ workspace, value, onChange }: { workspace: string; value: PickedProducer | null; onChange: (p: PickedProducer | null) => void }) {
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<Producer[]>([]);
+  const [items, setItems] = useState<PickedProducer[]>([]);
   useEffect(() => {
     if (value || q.trim().length < 2) return;
     const t = setTimeout(() => {
-      api
-        .request<Paginated<Producer>>("/api/v1/producers/", { workspace, query: { q: q.trim() } })
-        .then((d) => setItems(d.results.slice(0, 6)))
+      searchProducers(api, workspace, q)
+        .then(setItems)
         .catch(() => setItems([]));
     }, 300);
     return () => clearTimeout(t);
@@ -95,6 +96,7 @@ function ProducerPicker({ workspace, value, onChange }: { workspace: string; val
         <T style={{ flex: 1, fontWeight: "700" }}>
           {value.first_name} {value.last_name}
           {value.locality_text ? <T style={{ color: colors.muted, fontWeight: "400" }}> · {value.locality_text}</T> : null}
+          {value.pending ? <T style={{ color: colors.warning, fontWeight: "400" }}> · en attente d&apos;envoi</T> : null}
         </T>
         <Pressable onPress={() => onChange(null)} accessibilityRole="button" accessibilityLabel="Retirer l'exploitant" hitSlop={10}>
           <X size={18} color={colors.muted} />
@@ -111,7 +113,11 @@ function ProducerPicker({ workspace, value, onChange }: { workspace: string; val
               <T style={{ fontWeight: "700" }}>
                 {p.first_name} {p.last_name}
               </T>
-              {p.locality_text ? <T style={{ color: colors.muted, fontSize: 13 }}>{p.locality_text}</T> : null}
+              {p.locality_text || p.pending ? (
+                <T style={{ color: colors.muted, fontSize: 13 }}>
+                  {[p.locality_text, p.pending ? "enrôlé hors ligne, en attente d'envoi" : ""].filter(Boolean).join(" · ")}
+                </T>
+              ) : null}
             </Pressable>
           ))
         : null}
@@ -128,7 +134,7 @@ export default function NewParcelScreen() {
   const params = useLocalSearchParams<{ producteur?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [producer, setProducer] = useState<Producer | null>(null);
+  const [producer, setProducer] = useState<PickedProducer | null>(null);
   const [name, setName] = useState("");
   const [owner, setOwner] = useState<Owner>("unknown");
   const [ownerName, setOwnerName] = useState("");
@@ -150,10 +156,15 @@ export default function NewParcelScreen() {
   // Exploitant prérempli depuis la fiche producteur.
   useEffect(() => {
     if (!params.producteur || !workspace || workspace === "personal") return;
-    api
-      .request<Producer>(`/api/v1/producers/${params.producteur}/`, { workspace })
-      .then(setProducer)
-      .catch(() => undefined);
+    const id = params.producteur;
+    void findLocalProducer(workspace, id).then((local) => {
+      if (local) setProducer(local);
+      else
+        api
+          .request<PickedProducer>(`/api/v1/producers/${id}/`, { workspace })
+          .then(setProducer)
+          .catch(() => undefined);
+    });
   }, [params.producteur, workspace]);
 
   // Tour du champ : chaque nouvelle position précise s'ajoute au tracé.
@@ -209,8 +220,20 @@ export default function NewParcelScreen() {
       body.gps_accuracy_m = medianAccuracy(points);
       body.captured_at = new Date((points[points.length - 1] as Fix).at).toISOString();
     }
+    const who = producer ? `${producer.first_name} ${producer.last_name}`.trim() : "";
     try {
-      setCreated(await api.request<Created>("/api/v1/parcels/", { method: "POST", workspace, body }));
+      const sent = await submitOp(api, {
+        workspace: workspace as string,
+        entity_type: "parcel",
+        params: {},
+        payload: body,
+        label: [name.trim() || "Parcelle sans nom", who].filter(Boolean).join(" · "),
+      });
+      setCreated(
+        sent.kind === "applied"
+          ? { id: sent.id, agroid: String(sent.result.agroid ?? ""), status: String(sent.result.status ?? "") }
+          : { id: `@op:${sent.op.id}`, agroid: null, status: "", pending: true },
+      );
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
       if (e instanceof NetworkError) setError("Pas de réseau : le relevé est conservé sur cet écran. Réessayez dès que le réseau revient.");
@@ -219,6 +242,43 @@ export default function NewParcelScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (created?.pending) {
+    const local = { id: created.id };
+    return (
+      <View style={[styles.done, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
+        <View style={styles.badge}>
+          <CloudUpload size={34} color={colors.forest} />
+        </View>
+        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: 18 }}>Parcelle gardée sur le téléphone</T>
+        <T style={{ color: colors.muted, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+          Pas de réseau : elle partira toute seule au retour du réseau, et recevra alors son AgroID. Vous pouvez continuer à
+          saisir : unités, cycle, sol et eau.
+        </T>
+        <View style={{ alignSelf: "stretch", gap: 10, marginTop: 28 }}>
+          <Button label="Ajouter une unité de culture" onPress={() => router.push({ pathname: "/parcelles/unite", params: local })} />
+          <Button label="Démarrer un cycle" variant="secondary" onPress={() => router.push({ pathname: "/cycles/nouveau", params: { parcelle: created.id } })} />
+          <Button label="Voir les envois" variant="secondary" onPress={() => router.push("/envois")} />
+          <Button
+            label="Enrôler une autre parcelle"
+            variant="secondary"
+            onPress={() => {
+              setCreated(null);
+              setName("");
+              setOwner("unknown");
+              setOwnerName("");
+              setTenure("unknown");
+              setRent("");
+              setRentAmount("");
+              setRentShare("");
+              setSite({ evidence: "declared" });
+              reset();
+            }}
+          />
+        </View>
+      </View>
+    );
   }
 
   if (created) {

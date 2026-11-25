@@ -8,6 +8,8 @@ import { SiteForm } from "@/components/site-form";
 import { Alert, Button, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { cachedGet } from "@/lib/offline-cache";
+import { isLocalRef, submit as submitOp } from "@/lib/outbox";
 import { useSession } from "@/lib/session";
 import { type SiteProfile, type SiteValues, fromProfile, hasSiteData, siteBody, useSiteReferentials } from "@/lib/site";
 import { colors } from "@/theme";
@@ -25,16 +27,23 @@ export default function SiteScreen() {
   const [values, setValues] = useState<SiteValues | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workspace || !id) return;
-    api
-      .request<{ current: SiteProfile | null }>(`/api/v1/parcels/${id}/site/`, { workspace })
-      .then((d) => setValues({ ...fromProfile(d.current), evidence: d.current?.evidence ?? "observed" }))
+    if (isLocalRef(id)) {
+      setValues({ evidence: "observed" }); // parcelle pas encore envoyée : pas d'historique
+      return;
+    }
+    cachedGet<{ current: SiteProfile | null }>(api, `/api/v1/parcels/${id}/site/`, { workspace })
+      .then(({ data: d, offline }) => {
+        setValues({ ...fromProfile(d.current), evidence: d.current?.evidence ?? "observed" });
+        if (offline) setInfo("Pas de réseau : valeurs de la dernière copie du téléphone ; l'enregistrement partira au retour du réseau.");
+      })
       .catch((e) => {
         if (e instanceof SessionExpiredError) return expire();
         setValues({ evidence: "observed" });
-        setError(e instanceof NetworkError ? "Pas de réseau : la mise à jour du sol et de l'eau demande le réseau pour l'instant." : null);
+        if (e instanceof NetworkError) setInfo("Pas de réseau : l'enregistrement partira au retour du réseau.");
       });
   }, [workspace, id, expire]);
 
@@ -46,8 +55,17 @@ export default function SiteScreen() {
     setError(null);
     setBusy(true);
     try {
-      await api.request(`/api/v1/parcels/${id}/site/`, { method: "POST", workspace, body: siteBody(values) });
-      router.back();
+      const sent = await submitOp(api, {
+        workspace: workspace as string,
+        entity_type: "parcel_site",
+        params: { parcel: id },
+        payload: siteBody(values),
+        label: `Sol et eau · ${agroid || "parcelle en attente d'envoi"}`,
+      });
+      if (sent.kind === "queued") {
+        setInfo("Pas de réseau : gardé sur le téléphone, envoi au retour du réseau.");
+        setTimeout(() => router.back(), 1200);
+      } else router.back();
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
       if (e instanceof NetworkError) setError("Pas de réseau : réessayez dès que le réseau revient (vos choix restent à l'écran).");
@@ -84,6 +102,7 @@ export default function SiteScreen() {
           Complétez ce que vous savez : « Ne sait pas » est une réponse. La version précédente reste dans l&apos;historique.
         </T>
         {error ? <Alert>{error}</Alert> : null}
+        {info ? <Alert tone="info">{info}</Alert> : null}
         {values ? (
           <>
             <SiteForm refs={refs} values={values} onChange={setValues} defaultOpen />

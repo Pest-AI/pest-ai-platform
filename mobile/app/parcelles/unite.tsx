@@ -8,14 +8,14 @@ import { TrackPreview } from "@/components/track-preview";
 import { Alert, Button, Card, Input, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
-import { type Position, formatArea } from "@/lib/geo";
+import { type FieldParcel, loadFieldParcel, rings } from "@/lib/field-data";
+import { formatArea } from "@/lib/geo";
 import { type Fix, acceptFix, medianAccuracy, ringAreaM2, toPolygon, useLiveFix } from "@/lib/gps-track";
-import type { components } from "@/lib/schema";
+import { submit as submitOp } from "@/lib/outbox";
 import { useSession } from "@/lib/session";
 import { colors, radius } from "@/theme";
 
-type Detail = components["schemas"]["ParcelDetail"];
-type Unit = components["schemas"]["CultivationUnit"];
+type Created = { code: string; area_m2: string | null; check: { status: string; labels: string[] } | null; pending: boolean };
 type Mode = "walk" | "corners" | "area";
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -23,14 +23,6 @@ const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "corners", label: "Coin par coin", hint: "Arrêtez-vous à chaque coin de la zone et ajoutez le point." },
   { value: "area", label: "Surface seule", hint: "Déclarez la surface sans relever le contour (D-16)." },
 ];
-
-function rings(geometry: unknown): Position[][] {
-  const g = geometry as { type?: string; coordinates?: unknown } | null;
-  if (!g?.coordinates) return [];
-  if (g.type === "Polygon") return [(g.coordinates as Position[][])[0] ?? []];
-  if (g.type === "MultiPolygon") return (g.coordinates as Position[][][]).map((p) => p[0] ?? []);
-  return [];
-}
 
 /**
  * Unité de culture (J19, D-16) : une zone de la parcelle consacrée à une culture. Contour
@@ -42,7 +34,7 @@ export default function NewUnitScreen() {
   const { status, workspace, expire } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [parcel, setParcel] = useState<Detail | null>(null);
+  const [parcel, setParcel] = useState<FieldParcel | null>(null);
   const [mode, setMode] = useState<Mode>("walk");
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
@@ -50,15 +42,14 @@ export default function NewUnitScreen() {
   const [points, setPoints] = useState<Fix[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<Unit | null>(null);
+  const [created, setCreated] = useState<Created | null>(null);
   const { fix, error: gpsError, supported } = useLiveFix(!created && mode !== "area" && status === "signedIn");
 
   useEffect(() => {
     if (!workspace || !id) return;
-    api
-      .request<Detail>(`/api/v1/parcels/${id}/`, { workspace })
+    loadFieldParcel(api, workspace, id)
       .then(setParcel)
-      .catch((e) => (e instanceof SessionExpiredError ? expire() : setError(e instanceof NetworkError ? "Pas de réseau : l'ajout d'une unité demande le réseau pour l'instant." : "Parcelle introuvable.")));
+      .catch((e) => (e instanceof SessionExpiredError ? expire() : setError(e instanceof NetworkError ? "Pas de réseau, et cette parcelle n'est pas encore sur le téléphone." : "Parcelle introuvable.")));
   }, [workspace, id, expire]);
 
   useEffect(() => {
@@ -66,7 +57,7 @@ export default function NewUnitScreen() {
   }, [fix, recording, mode]);
 
   const reference = useMemo(() => {
-    const parcelRings = rings(parcel?.current_geometry?.geometry);
+    const parcelRings = rings(parcel?.geometry);
     const unitRings = (parcel?.units ?? []).filter((u) => u.status === "active").flatMap((u) => rings(u.geometry));
     return [...parcelRings, ...unitRings];
   }, [parcel]);
@@ -87,7 +78,20 @@ export default function NewUnitScreen() {
       body.capture_method = mode === "walk" ? "gps_walk" : "gps_points";
     }
     try {
-      setCreated(await api.request<Unit>(`/api/v1/parcels/${id}/units/`, { method: "POST", workspace, body }));
+      const sent = await submitOp(api, {
+        workspace: workspace as string,
+        entity_type: "cultivation_unit",
+        params: { parcel: parcel?.id ?? id },
+        payload: body,
+        label: [name.trim() || "Unité", parcel?.agroid || parcel?.local_name || "parcelle en attente d'envoi"].join(" · "),
+      });
+      if (sent.kind === "applied") {
+        const r = sent.result as { code?: string; area_m2?: string | null; check?: Created["check"] };
+        setCreated({ code: r.code ?? "", area_m2: r.area_m2 ?? null, check: r.check ?? null, pending: false });
+      } else {
+        const declared = mode === "area" ? String(body.area_m2) : String(Math.round(ringAreaM2(ring)));
+        setCreated({ code: "", area_m2: declared, check: null, pending: true });
+      }
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
       if (e instanceof NetworkError) setError("Pas de réseau : le relevé reste à l'écran, réessayez dès que le réseau revient.");
@@ -101,13 +105,17 @@ export default function NewUnitScreen() {
   if (created) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.canvas, padding: 24, paddingTop: insets.top + 48, gap: 14 }}>
-        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>Unité {created.code} enregistrée</T>
+        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>
+          {created.pending ? "Unité gardée sur le téléphone" : `Unité ${created.code} enregistrée`}
+        </T>
         <T mono style={{ textAlign: "center", color: colors.muted }}>
           {formatArea(Number(created.area_m2 ?? 0))}
         </T>
-        {created.check.status === "flagged" ? (
+        {created.pending ? (
+          <Alert tone="info">Pas de réseau : elle partira au retour du réseau ; son code (U1, U2…) et le contrôle du contour seront faits à l&apos;envoi.</Alert>
+        ) : created.check?.status === "flagged" ? (
           <Alert tone="warning">{created.check.labels.join(" · ")}. L&apos;unité est enregistrée ; un responsable vérifiera.</Alert>
-        ) : created.check.status === "valid" ? (
+        ) : created.check?.status === "valid" ? (
           <Alert tone="info">Contour dans la parcelle.</Alert>
         ) : null}
         <Button label="Retour à la fiche" onPress={() => router.back()} />
@@ -120,7 +128,7 @@ export default function NewUnitScreen() {
             setName("");
             setArea("");
             setParcel(null);
-            api.request<Detail>(`/api/v1/parcels/${id}/`, { workspace }).then(setParcel).catch(() => undefined);
+            if (workspace) void loadFieldParcel(api, workspace, id).then(setParcel).catch(() => undefined);
           }}
         />
       </View>
@@ -142,6 +150,8 @@ export default function NewUnitScreen() {
               <T mono style={{ color: colors.muted }}>
                 {parcel.agroid}
               </T>
+            ) : parcel?.pending ? (
+              <T style={{ color: colors.warning }}>{parcel.local_name || "Parcelle"} · en attente d&apos;envoi</T>
             ) : null}
           </View>
         </View>

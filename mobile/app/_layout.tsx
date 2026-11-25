@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AutoSync } from "@/components/auto-sync";
 import { OfflineBanner } from "@/components/offline-banner";
 import { registerServiceWorker } from "@/lib/pwa";
 import { SessionProvider } from "@/lib/session";
@@ -26,6 +27,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <StatusBar style="dark" />
+        <AutoSync />
         <View style={{ flex: 1 }}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#F7FAF8" } }} />
           <OfflineBanner />

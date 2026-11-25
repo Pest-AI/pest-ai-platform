@@ -1,11 +1,12 @@
 import { Redirect, useRouter } from "expo-router";
 import { ChevronRight, CloudOff, Fingerprint, Footprints, ScanLine, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ParcelSvgMap } from "@/components/parcel-svg-map";
 import { SpaceHeader } from "@/components/space-header";
+import { SyncStrip } from "@/components/sync-strip";
 import { Alert, Button, Input, StatusPill, T } from "@/components/ui";
 import { matchesParcel } from "@/lib/agroid";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
@@ -13,6 +14,9 @@ import { api } from "@/lib/client";
 import { distanceM, formatArea, formatDistance } from "@/lib/geo";
 import { TYPE_LABELS, roleLabel } from "@/lib/labels";
 import { useOnline } from "@/lib/network";
+import { loadCropReferentials, syncProducers } from "@/lib/field-data";
+import { cachedGet, cachedOnly } from "@/lib/offline-cache";
+import { useOutbox } from "@/lib/outbox";
 import { PARCEL_STATUS_LABELS, STATUS_TONES } from "@/lib/parcel-labels";
 import { type CachedParcel, type ParcelSnapshot, freshness, isStale, loadSnapshot, syncParcels } from "@/lib/parcel-cache";
 import { usePosition } from "@/lib/position";
@@ -41,22 +45,32 @@ export default function ParcelsHome() {
   const [selected, setSelected] = useState<CachedParcel | null>(null);
   const [now, setNow] = useState(() => new Date());
 
+  const applyPermissions = useCallback((context: WorkspaceContext) => {
+    const allowed = context.permissions.some((c) => c === "parcels.view" || c === "personal.parcels.view");
+    setCanView(allowed);
+    setCanCreate(context.permissions.some((c) => c === "parcels.create" || c === "personal.parcels.register"));
+    return allowed;
+  }, []);
+
   const sync = useCallback(async () => {
     if (!workspace) return;
     setSyncing(true);
     setError(null);
     try {
-      const [organization, context] = await Promise.all([
-        api.request<Organization>("/api/v1/organization/", { workspace }),
-        api.request<WorkspaceContext>("/api/v1/workspace/", { workspace }),
+      const [{ data: organization }, { data: context }] = await Promise.all([
+        cachedGet<Organization>(api, "/api/v1/organization/", { workspace }),
+        cachedGet<WorkspaceContext>(api, "/api/v1/workspace/", { workspace }),
       ]);
       setOrg(organization);
-      const allowed = context.permissions.some((c) => c === "parcels.view" || c === "personal.parcels.view");
-      setCanView(allowed);
-      setCanCreate(context.permissions.some((c) => c === "parcels.create" || c === "personal.parcels.register"));
+      const allowed = applyPermissions(context);
       if (allowed) {
         setSnapshot(await syncParcels(api, workspace, new Date(), organization.short_name || organization.name));
       }
+      // Producteurs gardés pour choisir l'exploitant hors ligne (sans bloquer l'accueil).
+      if (context.permissions.includes("producers.view")) void syncProducers(api, workspace).catch(() => undefined);
+      // Listes des formulaires terrain (cultures, campagnes, sol et eau) gardées pour le hors-ligne.
+      void loadCropReferentials(api, workspace).catch(() => undefined);
+      void cachedGet(api, "/api/v1/parcels/site-referentials/", { workspace }).catch(() => undefined);
       setNow(new Date());
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
@@ -70,12 +84,19 @@ export default function ParcelsHome() {
     } finally {
       setSyncing(false);
     }
-  }, [workspace, expire]);
+  }, [workspace, expire, applyPermissions]);
 
   // Copie locale d'abord (hors ligne), puis mise à jour si elle date de plus de 10 minutes.
   useEffect(() => {
     if (!workspace) return;
     let cancelled = false;
+    // Droits et nom de l'espace gardés : l'enrôlement reste possible hors ligne.
+    void cachedOnly<WorkspaceContext>("/api/v1/workspace/", { workspace }).then((c) => {
+      if (!cancelled && c) applyPermissions(c);
+    });
+    void cachedOnly<Organization>("/api/v1/organization/", { workspace }).then((o) => {
+      if (!cancelled && o) setOrg(o);
+    });
     void loadSnapshot(workspace).then((cached) => {
       if (cancelled) return;
       if (cached) {
@@ -87,7 +108,16 @@ export default function ParcelsHome() {
     return () => {
       cancelled = true;
     };
-  }, [workspace, sync]);
+  }, [workspace, sync, applyPermissions]);
+
+  // Saisies terrain envoyées : la liste des parcelles est remise à jour.
+  const { ops } = useOutbox();
+  const appliedCount = ops.filter((o) => o.workspace === workspace && o.status === "applied").length;
+  const seenApplied = useRef<number | null>(null);
+  useEffect(() => {
+    if (seenApplied.current !== null && appliedCount > seenApplied.current && online) void sync();
+    seenApplied.current = appliedCount;
+  }, [appliedCount, online, sync]);
 
   // Fraîcheur affichée : rafraîchie chaque minute.
   useEffect(() => {
@@ -151,6 +181,8 @@ export default function ParcelsHome() {
             )}
           </Pressable>
         </View>
+
+        <SyncStrip workspace={workspace} />
 
         {canCreate ? (
           <Button label="Enrôler une parcelle" icon={<Footprints size={18} color="#fff" />} onPress={() => router.push("/parcelles/nouvelle")} />

@@ -5,8 +5,10 @@
  *   fraîches, rien de personnel stocké ici.
  * - Pages : réseau d'abord (mise à jour immédiate), cache si hors ligne.
  * - Fichiers versionnés (/_expo/, /assets/) : cache d'abord (leur nom change à chaque version).
+ * - Tous les écrans (un fichier par écran, liste « precache.json » écrite au build) sont
+ *   téléchargés dès la première visite : un écran jamais ouvert s'ouvre aussi hors ligne.
  */
-const VERSION = "terrain-v1";
+const VERSION = "terrain-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -58,7 +60,21 @@ self.addEventListener("message", (event) => {
       return false;
     }
   });
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(urls)).catch(() => undefined));
+  event.waitUntil(
+    caches
+      .open(VERSION)
+      .then(async (cache) => {
+        await cache.addAll(urls).catch(() => undefined);
+        // Tous les écrans de cette version (absent en développement : rien à faire).
+        const response = await fetch("/precache.json", { cache: "no-store" }).catch(() => null);
+        if (!response || !response.ok) return;
+        const screens = (await response.json()).filter((u) => typeof u === "string" && u.startsWith("/_expo/"));
+        const missing = [];
+        for (const u of screens) if (!(await cache.match(u))) missing.push(u);
+        await cache.addAll(missing);
+      })
+      .catch(() => undefined),
+  );
 });
 
 self.addEventListener("fetch", (event) => {

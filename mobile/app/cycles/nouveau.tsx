@@ -10,9 +10,10 @@ import { Alert, Button, Card, Input, T } from "@/components/ui";
 import { PLANTING_METHODS, SEED_SOURCES, todayIso } from "@/lib/agriculture";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { type FieldParcel, loadCropReferentials, loadFieldParcel } from "@/lib/field-data";
+import { submit as submitOp } from "@/lib/outbox";
 import type { components } from "@/lib/schema";
 import { useSession } from "@/lib/session";
-import type { Paginated } from "@/lib/types";
 import { colors } from "@/theme";
 
 type S = components["schemas"];
@@ -23,7 +24,7 @@ export default function NewCycleScreen() {
   const { status, workspace, expire } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [parcel, setParcel] = useState<S["ParcelDetail"] | null>(null);
+  const [parcel, setParcel] = useState<FieldParcel | null>(null);
   const [crops, setCrops] = useState<S["Crop"][]>([]);
   const [campaigns, setCampaigns] = useState<S["Campaign"][]>([]);
   const [crop, setCrop] = useState("");
@@ -41,20 +42,15 @@ export default function NewCycleScreen() {
 
   useEffect(() => {
     if (!workspace || !parcelle) return;
-    Promise.all([
-      api.request<S["ParcelDetail"]>(`/api/v1/parcels/${parcelle}/`, { workspace }),
-      api.request<S["Crop"][]>("/api/v1/crops/", { workspace }),
-      api.request<Paginated<S["Campaign"]>>("/api/v1/campaigns/", { workspace }),
-    ])
-      .then(([p, c, k]) => {
+    Promise.all([loadFieldParcel(api, workspace, parcelle), loadCropReferentials(api, workspace)])
+      .then(([p, refs]) => {
         setParcel(p);
-        setCrops(c);
-        const open = k.results.filter((x) => x.status !== "closed" && !x.is_archived);
-        setCampaigns(open);
-        const active = open.find((x) => x.status === "active");
+        setCrops(refs.crops);
+        setCampaigns(refs.campaigns);
+        const active = refs.campaigns.find((x) => x.status === "active");
         if (active) setCampaign(active.id);
       })
-      .catch((e) => (e instanceof SessionExpiredError ? expire() : setError(e instanceof NetworkError ? "Pas de réseau : démarrer un cycle demande le réseau pour l'instant." : "Chargement impossible.")));
+      .catch((e) => (e instanceof SessionExpiredError ? expire() : setError(e instanceof NetworkError ? "Pas de réseau, et les listes (cultures, campagnes) ne sont pas encore sur le téléphone : ouvrez une fois cet écran avec du réseau." : "Chargement impossible.")));
   }, [workspace, parcelle, expire]);
 
   const varieties = useMemo(() => crops.find((c) => c.code === crop)?.varieties ?? [], [crops, crop]);
@@ -68,11 +64,14 @@ export default function NewCycleScreen() {
     setBusy(true);
     const areaValue = Number(area.replace(",", "."));
     try {
-      const created = await api.request<S["CropCycleDetail"]>("/api/v1/crop-cycles/", {
-        method: "POST",
-        workspace,
-        body: {
-          parcel: parcelle,
+      const cropName = crops.find((c) => c.code === crop)?.name_fr ?? crop;
+      const sent = await submitOp(api, {
+        workspace: workspace as string,
+        entity_type: "crop_cycle",
+        params: {},
+        label: [cropName, parcel?.agroid || parcel?.local_name || "parcelle en attente d'envoi"].join(" · "),
+        payload: {
+          parcel: parcel?.id ?? parcelle,
           declared_crop: crop,
           variety: variety || null,
           cultivation_unit: unit || null,
@@ -87,7 +86,10 @@ export default function NewCycleScreen() {
           previous_fallow: previous === "fallow",
         },
       });
-      router.replace({ pathname: "/cycles/[id]", params: { id: created.id, nouveau: "1" } });
+      router.replace({
+        pathname: "/cycles/[id]",
+        params: sent.kind === "applied" ? { id: sent.id, nouveau: "1" } : { id: `@op:${sent.op.id}`, nouveau: "local" },
+      });
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
       if (e instanceof NetworkError) setError("Pas de réseau : réessayez dès que le réseau revient (vos choix restent à l'écran).");
@@ -110,8 +112,8 @@ export default function NewCycleScreen() {
               Nouveau cycle de culture
             </T>
             {parcel ? (
-              <T mono style={{ color: colors.muted }}>
-                {parcel.agroid} · {parcel.local_name || "Parcelle"}
+              <T mono style={{ color: parcel.pending ? colors.warning : colors.muted }}>
+                {parcel.agroid ?? "En attente d'envoi"} · {parcel.local_name || "Parcelle"}
               </T>
             ) : null}
           </View>
@@ -132,7 +134,7 @@ export default function NewCycleScreen() {
           {units.length ? (
             <View style={{ gap: 6 }}>
               <T style={styles.label}>Unité de culture (facultatif)</T>
-              <Chips label="Unité de culture" options={units.map((u) => [u.id, u.name ? `${u.code} · ${u.name}` : u.code] as const)} value={unit} onChange={setUnit} clearable />
+              <Chips label="Unité de culture" options={units.map((u) => [u.id, u.pending ? `${u.name || "Unité"} (en attente)` : u.name ? `${u.code} · ${u.name}` : u.code] as const)} value={unit} onChange={setUnit} clearable />
             </View>
           ) : null}
           <View style={{ gap: 6 }}>

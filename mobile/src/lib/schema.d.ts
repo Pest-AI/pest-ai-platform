@@ -1571,6 +1571,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync/push/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Envoyer les saisies hors ligne
+         * @description Lot de 50 opérations au plus, dans l'ordre de l'appareil. Chaque opération est rejouée par la vue de saisie en ligne (mêmes droits, mêmes contrôles) dans son propre point de sauvegarde. Idempotent : une opération déjà reçue renvoie `duplicate` et son résultat d'origine. Une valeur « @op:<uuid> » désigne l'objet créé par une opération précédente. Une modification sur une version dépassée devient un conflit (rien n'est écrasé). `pending` : à renvoyer après l'opération dont elle dépend.
+         */
+        post: operations["sync_push_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspace/": {
         parameters: {
             query?: never;
@@ -1947,6 +1967,17 @@ export interface components {
              */
             end_date?: string;
         };
+        DeviceInfoRequest: {
+            /**
+             * Format: uuid
+             * @description UUID tiré à l'installation de l'app.
+             */
+            installation_id: string;
+            platform: components["schemas"]["PlatformEnum"];
+            app_version?: string;
+            os_version?: string;
+            model?: string;
+        };
         /** @description Doublon probable, avec le minimum d'informations (minimisation, D-08). */
         DuplicateCandidate: {
             /** Format: uuid */
@@ -1981,6 +2012,17 @@ export interface components {
             owner_name?: string;
             tenure_type: components["schemas"]["TenureTypeEnum"];
         };
+        /**
+         * @description * `crop_cycle` - crop_cycle
+         *     * `crop_operation` - crop_operation
+         *     * `cultivation_unit` - cultivation_unit
+         *     * `harvest` - harvest
+         *     * `parcel` - parcel
+         *     * `parcel_site` - parcel_site
+         *     * `producer` - producer
+         * @enum {string}
+         */
+        EntityTypeEnum: "crop_cycle" | "crop_operation" | "cultivation_unit" | "harvest" | "parcel" | "parcel_site" | "producer";
         /**
          * @description * `declared` - Déclaré par le producteur
          *     * `observed` - Constaté par l'agent
@@ -2364,6 +2406,63 @@ export interface components {
             quantity_unit?: string;
             notes?: string;
         };
+        /**
+         * @description * `create` - create
+         *     * `update` - update
+         * @enum {string}
+         */
+        OperationEnum: "create" | "update";
+        OperationInputRequest: {
+            /**
+             * Format: uuid
+             * @description UUID tiré sur l'appareil : clé d'idempotence.
+             */
+            id: string;
+            entity_type: components["schemas"]["EntityTypeEnum"];
+            operation: components["schemas"]["OperationEnum"];
+            /** @description Objet modifié : UUID ou « @op:<uuid> ». */
+            entity_id?: string | null;
+            /** @description Paramètres de chemin (parcel, cycle) : UUID ou « @op:<uuid> ». */
+            params?: {
+                [key: string]: unknown;
+            };
+            /** @description Corps identique à la saisie en ligne. */
+            payload: {
+                [key: string]: unknown;
+            };
+            base_row_version?: number | null;
+            /** Format: date-time */
+            client_created_at: string;
+            client_sequence: number;
+        };
+        OperationResult: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description pending : dépend d'une opération pas encore appliquée ; retry : serveur occupé. Dans les deux cas rien n'est enregistré : à renvoyer.
+             *
+             *     * `applied` - applied
+             *     * `duplicate` - duplicate
+             *     * `conflict` - conflict
+             *     * `rejected` - rejected
+             *     * `pending` - pending
+             *     * `retry` - retry
+             */
+            status: components["schemas"]["OperationResultStatusEnum"];
+            original_status?: string;
+            error_code: string;
+            result?: unknown;
+        };
+        /**
+         * @description * `applied` - applied
+         *     * `duplicate` - duplicate
+         *     * `conflict` - conflict
+         *     * `rejected` - rejected
+         *     * `pending` - pending
+         *     * `retry` - retry
+         * @enum {string}
+         */
+        OperationResultStatusEnum: "applied" | "duplicate" | "conflict" | "rejected" | "pending" | "retry";
         /**
          * @description * `land_preparation` - Préparation du sol
          *     * `sowing` - Semis
@@ -3081,6 +3180,13 @@ export interface components {
             readonly organization: components["schemas"]["AgentOrganization"];
             readonly activation_code: string | null;
         };
+        /**
+         * @description * `android` - Android
+         *     * `ios` - iOS
+         *     * `web` - Navigateur (PWA)
+         * @enum {string}
+         */
+        PlatformEnum: "android" | "ios" | "web";
         /** @description Création et gestion par le Super Admin (portée plateforme). */
         PlatformOrganization: {
             /** Format: uuid */
@@ -3239,6 +3345,16 @@ export interface components {
          * @enum {string}
          */
         PumpAccessEnum: "individual" | "collective" | "rented" | "none" | "unknown";
+        PushRequestRequest: {
+            device: components["schemas"]["DeviceInfoRequest"];
+            operations: components["schemas"]["OperationInputRequest"][];
+        };
+        PushResponse: {
+            /** Format: uuid */
+            session: string;
+            status: string;
+            results: components["schemas"]["OperationResult"][];
+        };
         ReasonRequest: {
             reason: string;
         };
@@ -6192,6 +6308,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MembershipNumberProposal"];
+                };
+            };
+        };
+    };
+    sync_push_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PushRequestRequest"];
+                "multipart/form-data": components["schemas"]["PushRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushResponse"];
                 };
             };
         };

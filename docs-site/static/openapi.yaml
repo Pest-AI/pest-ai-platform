@@ -3482,6 +3482,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/MembershipNumberProposal'
           description: ''
+  /api/v1/sync/push/:
+    post:
+      operationId: sync_push_create
+      description: 'Lot de 50 opérations au plus, dans l''ordre de l''appareil. Chaque
+        opération est rejouée par la vue de saisie en ligne (mêmes droits, mêmes contrôles)
+        dans son propre point de sauvegarde. Idempotent : une opération déjà reçue
+        renvoie `duplicate` et son résultat d''origine. Une valeur « @op:<uuid> »
+        désigne l''objet créé par une opération précédente. Une modification sur une
+        version dépassée devient un conflit (rien n''est écrasé). `pending` : à renvoyer
+        après l''opération dont elle dépend.'
+      summary: Envoyer les saisies hors ligne
+      tags:
+      - sync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PushRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PushRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushResponse'
+          description: ''
   /api/v1/workspace/:
     get:
       operationId: workspace_retrieve
@@ -4413,6 +4447,27 @@ components:
           type: string
           format: date
           description: 'Fin du rattachement (défaut : aujourd''hui).'
+    DeviceInfoRequest:
+      type: object
+      properties:
+        installation_id:
+          type: string
+          format: uuid
+          description: UUID tiré à l'installation de l'app.
+        platform:
+          $ref: '#/components/schemas/PlatformEnum'
+        app_version:
+          type: string
+          maxLength: 32
+        os_version:
+          type: string
+          maxLength: 32
+        model:
+          type: string
+          maxLength: 100
+      required:
+      - installation_id
+      - platform
     DuplicateCandidate:
       type: object
       description: Doublon probable, avec le minimum d'informations (minimisation,
@@ -4483,6 +4538,24 @@ components:
       required:
       - owner
       - tenure_type
+    EntityTypeEnum:
+      enum:
+      - crop_cycle
+      - crop_operation
+      - cultivation_unit
+      - harvest
+      - parcel
+      - parcel_site
+      - producer
+      type: string
+      description: |-
+        * `crop_cycle` - crop_cycle
+        * `crop_operation` - crop_operation
+        * `cultivation_unit` - cultivation_unit
+        * `harvest` - harvest
+        * `parcel` - parcel
+        * `parcel_site` - parcel_site
+        * `producer` - producer
     EvidenceEnum:
       enum:
       - declared
@@ -5368,6 +5441,100 @@ components:
           type: string
       required:
       - operation_type
+    OperationEnum:
+      enum:
+      - create
+      - update
+      type: string
+      description: |-
+        * `create` - create
+        * `update` - update
+    OperationInputRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 'UUID tiré sur l''appareil : clé d''idempotence.'
+        entity_type:
+          $ref: '#/components/schemas/EntityTypeEnum'
+        operation:
+          $ref: '#/components/schemas/OperationEnum'
+        entity_id:
+          type: string
+          nullable: true
+          minLength: 1
+          description: 'Objet modifié : UUID ou « @op:<uuid> ».'
+        params:
+          type: object
+          additionalProperties: {}
+          description: 'Paramètres de chemin (parcel, cycle) : UUID ou « @op:<uuid>
+            ».'
+        payload:
+          type: object
+          additionalProperties: {}
+          description: Corps identique à la saisie en ligne.
+        base_row_version:
+          type: integer
+          minimum: 1
+          nullable: true
+        client_created_at:
+          type: string
+          format: date-time
+        client_sequence:
+          type: integer
+          minimum: 0
+      required:
+      - client_created_at
+      - client_sequence
+      - entity_type
+      - id
+      - operation
+      - payload
+    OperationResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OperationResultStatusEnum'
+          description: |-
+            pending : dépend d'une opération pas encore appliquée ; retry : serveur occupé. Dans les deux cas rien n'est enregistré : à renvoyer.
+
+            * `applied` - applied
+            * `duplicate` - duplicate
+            * `conflict` - conflict
+            * `rejected` - rejected
+            * `pending` - pending
+            * `retry` - retry
+        original_status:
+          type: string
+        error_code:
+          type: string
+        result:
+          nullable: true
+      required:
+      - error_code
+      - id
+      - status
+    OperationResultStatusEnum:
+      enum:
+      - applied
+      - duplicate
+      - conflict
+      - rejected
+      - pending
+      - retry
+      type: string
+      description: |-
+        * `applied` - applied
+        * `duplicate` - duplicate
+        * `conflict` - conflict
+        * `rejected` - rejected
+        * `pending` - pending
+        * `retry` - retry
     OperationTypeEnum:
       enum:
       - land_preparation
@@ -6962,6 +7129,16 @@ components:
       - roles
       - status
       - user
+    PlatformEnum:
+      enum:
+      - android
+      - ios
+      - web
+      type: string
+      description: |-
+        * `android` - Android
+        * `ios` - iOS
+        * `web` - Navigateur (PWA)
     PlatformOrganization:
       type: object
       description: Création et gestion par le Super Admin (portée plateforme).
@@ -7335,6 +7512,35 @@ components:
         * `rented` - Louée
         * `none` - Aucune
         * `unknown` - Ne sait pas
+    PushRequestRequest:
+      type: object
+      properties:
+        device:
+          $ref: '#/components/schemas/DeviceInfoRequest'
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationInputRequest'
+          maxItems: 50
+      required:
+      - device
+      - operations
+    PushResponse:
+      type: object
+      properties:
+        session:
+          type: string
+          format: uuid
+        status:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationResult'
+      required:
+      - results
+      - session
+      - status
     ReasonRequest:
       type: object
       properties:

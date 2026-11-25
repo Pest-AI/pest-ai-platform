@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "./client";
+import { cachedGet } from "./offline-cache";
 import type { components } from "./schema";
 
 type S = components["schemas"];
@@ -39,11 +40,10 @@ export function useSiteReferentials(workspace: string | null) {
   const [refs, setRefs] = useState<SiteReferentials | null>(cache);
   useEffect(() => {
     if (cache || !workspace) return;
-    api
-      .request<SiteReferentials>("/api/v1/parcels/site-referentials/", { workspace })
-      .then((d) => {
-        cache = d;
-        setRefs(d);
+    cachedGet<SiteReferentials>(api, "/api/v1/parcels/site-referentials/", { workspace })
+      .then(({ data, offline }) => {
+        if (!offline) cache = data;
+        setRefs(data);
       })
       .catch(() => undefined);
   }, [workspace]);

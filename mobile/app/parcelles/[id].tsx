@@ -10,6 +10,7 @@ import { QrCode } from "@/components/qr-code";
 import { Alert, StatusPill, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { cachedGet } from "@/lib/offline-cache";
 import { CYCLE_STATUS } from "@/lib/agriculture";
 import { formatArea } from "@/lib/geo";
 import { agroidUrl } from "@/lib/qr";
@@ -50,15 +51,19 @@ export default function ParcelScreen() {
         setSyncedAt(snapshot.synced_at);
       }
       try {
-        const data = await api.request<Detail>(`/api/v1/parcels/${id}/`, { workspace });
-        if (!cancelled) setDetail(data);
+        // Fiche, droits et cycles gardés sur le téléphone : la fiche reste utilisable hors ligne.
+        const { data, offline: fromCopy } = await cachedGet<Detail>(api, `/api/v1/parcels/${id}/`, { workspace });
+        if (!cancelled) {
+          setDetail(data);
+          setOffline(fromCopy);
+        }
         const [context, list] = await Promise.all([
-          api.request<{ permissions: string[] }>("/api/v1/workspace/", { workspace }).catch(() => null),
-          api.request<{ results: CycleRow[] }>("/api/v1/crop-cycles/", { workspace, query: { parcel: id } }).catch(() => null),
+          cachedGet<{ permissions: string[] }>(api, "/api/v1/workspace/", { workspace }).catch(() => null),
+          cachedGet<{ results: CycleRow[] }>(api, "/api/v1/crop-cycles/", { workspace, query: { parcel: id } }).catch(() => null),
         ]);
         if (!cancelled) {
-          setPerms(context?.permissions ?? []);
-          setCycles(list ? list.results : null);
+          setPerms(context?.data.permissions ?? []);
+          setCycles(list ? list.data.results : null);
         }
       } catch (e) {
         if (e instanceof SessionExpiredError) return expire();
@@ -183,8 +188,9 @@ export default function ParcelScreen() {
             <View style={styles.offline}>
               <CloudOff size={16} color={colors.warning} />
               <T style={{ flex: 1, fontSize: 13, color: colors.warning }}>
-                Hors ligne : copie {syncedAt ? `mise à jour ${freshness(syncedAt)}` : "locale"}. Propriété et contrôle
-                du contour s&apos;afficheront avec le réseau.
+                {detail
+                  ? "Hors ligne : fiche de la dernière consultation. Vos saisies partiront au retour du réseau."
+                  : `Hors ligne : copie ${syncedAt ? `mise à jour ${freshness(syncedAt)}` : "locale"}. Ouvrez une fois la fiche avec du réseau pour pouvoir y saisir hors ligne.`}
               </T>
             </View>
           ) : null}

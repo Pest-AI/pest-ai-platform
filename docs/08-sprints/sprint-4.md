@@ -89,13 +89,31 @@ Migrations : `actors 0003`, `parcels 0009`, `agriculture 0003` (ajouts seulement
 
 Dépendances ajoutées : `qrcode-generator` 2.0.4 (MIT, sans dépendance ; Web OS et app), `jsqr` 1.4.0 (Apache-2.0, sans dépendance ; app, chargé seulement si le navigateur n'a pas de détecteur de QR code). Aucune migration.
 
+## J20 — Hors ligne et synchronisation (livré)
+
+| Livré | Vérification |
+|---|---|
+| **App `sync`** (Database Design v2.2) : `Device`, `SyncSession`, `SyncOperation`, `SyncConflict`. Migration `sync 0001_appareils_et_synchronisation` (4 tables, aucune donnée existante touchée) | 12 tests API |
+| **`POST /api/v1/sync/push/`** : lot de 50 saisies au plus, dans l'ordre de l'appareil. Chaque saisie est **rejouée par la vue de saisie en ligne** (mêmes droits, mêmes contrôles, mêmes services), dans son propre point de sauvegarde : la synchronisation n'ouvre aucun chemin d'écriture parallèle. Saisies couvertes : producteur, parcelle (foncier, sol et eau compris), sol et eau, unité de culture, cycle (création, changement de statut), opération, récolte | Tests API |
+| **Idempotence** : l'identifiant de chaque saisie est tiré sur le téléphone ; une saisie renvoyée après une coupure (réponse perdue) renvoie `duplicate` et son résultat d'origine, rien n'est créé deux fois. Unicité (appareil, n° d'ordre) | Tests API et unitaires |
+| **Saisies en chaîne hors ligne** : « @op:<uuid> » désigne l'objet créé par une saisie précédente (producteur → parcelle → unité → cycle → opérations, récoltes). Une saisie qui attend une autre n'est pas enregistrée (`pending`) et repart ensuite | Tests API, parcours navigateur |
+| **Conflits** : un changement de statut de cycle fondé sur une version dépassée (`base_row_version`) ou sur un cycle archivé n'est pas appliqué ; il est enregistré en `SyncConflict` avec les deux versions (serveur et terrain), à trancher. Rien n'est écrasé | Test API, parcours navigateur |
+| **Refus** : contrôle non passé, droit insuffisant, fiche introuvable, doublon de producteur (avec les candidats) : enregistrés et renvoyés à l'appareil. Erreur imprévue ou serveur occupé : rien d'enregistré, l'appareil renvoie | Tests API |
+| **Appareil** : enregistré à la première synchronisation ; un appareil révoqué ou enregistré au nom d'un autre compte est refusé ; l'accès plateforme exceptionnel (lecture) ne peut pas envoyer | Tests API |
+| **App terrain — file d'envoi** : toute saisie passe par la file, avec ou sans réseau (enregistrée sur le téléphone, puis envoyée aussitôt). En ligne, un refus revient à l'écran comme avant. Envoi automatique au démarrage, au retour du réseau, au retour dans l'app et toutes les 30 s. Saisies rangées par compte, gardées à la déconnexion (avertissement) | 6 tests unitaires, parcours navigateur |
+| **Écran « Envois »** et bandeau sur l'accueil : en attente, envoyées (7 jours, avec AgroID et identifiant producteur), à reprendre. Doublon de producteur : « C'est lui » / « Rattacher » / « Créer une nouvelle fiche », les saisies qui en dépendent suivent ; refus : retirer la saisie et ses dépendantes ; conflit : retirer du téléphone (il reste enregistré au serveur) | Parcours navigateur |
+| **Lectures hors ligne** : droits et nom de l'espace, producteurs (1 000, pour choisir l'exploitant), cultures, campagnes, référentiels sol et eau, fiches parcelle et cycle déjà ouvertes ; parcelles, unités et cycles saisis hors ligne affichés depuis la file. **PWA** : tous les écrans téléchargés dès la première visite (`precache.json` écrit au build) | Parcours navigateur (hors ligne, rechargement hors ligne) |
+
+Parcours navigateur (PWA, réseau coupé par le navigateur de test) : producteur → parcelle (coin par coin) → unité → cycle → opération → récolte de 500 kg sans réseau ; rechargement de la page sans réseau (6 saisies conservées) ; retour du réseau : tout part seul, AgroID et identifiant producteur attribués, exploitant, unité U1, cycle en cours, 1 opération et 500 kg vérifiés en base ; conflit (statut changé au bureau pendant la coupure) signalé sans écrasement ; doublon de producteur signalé à l'envoi puis « créer une nouvelle fiche ».
+
+Limites connues : app native (stores) : file en mémoire tant que la base SQLite native n'est pas ajoutée (la version terrain est la PWA) ; écran de résolution des conflits dans le Web OS à faire ; réception des changements du serveur (`pull`) non incluse (l'app relit les fiches en ligne).
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.
 - `AgriculturalOperation.product` : avec le catalogue de produits (texte libre `product_text` en attendant).
-- `source_device` : avec la synchronisation (J20).
-- Unités de culture avec contour (relevé GPS, dessin Web OS, contrôle d'inclusion D-16) puis cycles, opérations et récoltes dans l'app terrain : J19.
-- Enrôlement hors ligne et synchronisation : J20.
+- `source_device` sur les données terrain : l'appareil est tracé dans `SyncOperation` ; la colonne sur chaque table viendra avec la réception (`pull`).
+- Résolution des conflits de synchronisation dans le Web OS ; réception des changements du serveur (`pull`).
 - Vérification OTP par SMS (D-14) : reportée par le fondateur.
 
 ## À valider par le fondateur

@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from "expo-router";
-import { ArrowLeft, Link2, UserPlus } from "lucide-react-native";
+import { ArrowLeft, CloudUpload, Link2, UserPlus } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,8 +10,8 @@ import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
 import { LANGUAGE_LABELS, SEX_LABELS } from "@/lib/labels";
 import { DEFAULT_COUNTRY, toInternationalPhone } from "@/lib/phone";
+import { submit as submitOp } from "@/lib/outbox";
 import { useSession } from "@/lib/session";
-import type { Producer } from "@/lib/types";
 import { colors, radius } from "@/theme";
 
 type Candidate = {
@@ -65,6 +65,7 @@ export default function NewProducerScreen() {
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [queued, setQueued] = useState<{ id: string; name: string } | null>(null);
 
   // Numéro d'adhérent proposé (attribué à l'enregistrement si le champ reste vide).
   useEffect(() => {
@@ -80,7 +81,7 @@ export default function NewProducerScreen() {
 
   async function fail(e: unknown) {
     if (e instanceof SessionExpiredError) return expire();
-    if (e instanceof NetworkError) return setError("Pas de réseau : l'enrôlement hors ligne arrive bientôt. Réessayez avec du réseau.");
+    if (e instanceof NetworkError) return setError("Cette action demande le réseau. Réessayez dès qu'il revient.");
     if (e instanceof ApiError && e.status === 403) return setError("Votre rôle ne permet pas d'enregistrer un producteur.");
     setError(e instanceof ApiError ? e.message : "Une erreur est survenue.");
   }
@@ -99,10 +100,12 @@ export default function NewProducerScreen() {
     if (size !== null && active !== null && active > size) return setError("Pas plus d'actifs que de personnes dans le ménage.");
     setBusy(true);
     try {
-      const created = await api.request<Producer>("/api/v1/producers/", {
-        method: "POST",
-        workspace,
-        body: {
+      const sent = await submitOp(api, {
+        workspace: workspace as string,
+        entity_type: "producer",
+        params: {},
+        label: [`${first.trim()} ${last.trim()}`, locality.trim()].filter(Boolean).join(" · "),
+        payload: {
           first_name: first.trim(),
           last_name: last.trim(),
           sex,
@@ -118,7 +121,8 @@ export default function NewProducerScreen() {
           confirm_new: confirmNew,
         },
       });
-      router.replace({ pathname: "/producteurs/[id]", params: { id: created.id, nouveau: "1" } });
+      if (sent.kind === "applied") router.replace({ pathname: "/producteurs/[id]", params: { id: sent.id, nouveau: "1" } });
+      else setQueued({ id: `@op:${sent.op.id}`, name: `${first.trim()} ${last.trim()}` });
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         setCandidates(((e.body as { candidates?: Candidate[] }) ?? {}).candidates ?? []);
@@ -145,6 +149,27 @@ export default function NewProducerScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (queued) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.canvas, padding: 24, paddingTop: insets.top + 48, gap: 14 }}>
+        <View style={{ alignSelf: "center", width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brand50, alignItems: "center", justifyContent: "center" }}>
+          <CloudUpload size={34} color={colors.forest} />
+        </View>
+        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>{queued.name} gardé sur le téléphone</T>
+        <T style={{ color: colors.muted, textAlign: "center", lineHeight: 20 }}>
+          Pas de réseau : la fiche partira toute seule au retour du réseau. Son identifiant PEST AI et son numéro d&apos;adhérent
+          seront attribués à l&apos;envoi. Vous pouvez déjà enrôler ses parcelles.
+        </T>
+        <Button
+          label="Enrôler une parcelle pour lui"
+          onPress={() => router.replace({ pathname: "/parcelles/nouvelle", params: { producteur: queued.id } })}
+        />
+        <Button label="Voir les envois" variant="secondary" onPress={() => router.replace("/envois")} />
+        <Button label="Retour" variant="secondary" onPress={() => router.back()} />
+      </View>
+    );
   }
 
   return (

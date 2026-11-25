@@ -21,12 +21,12 @@ import {
 } from "@/lib/agriculture";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { type FieldCycle, loadFieldCycle } from "@/lib/field-data";
 import { formatArea } from "@/lib/geo";
-import type { components } from "@/lib/schema";
+import { type EntityType, submit as submitOp } from "@/lib/outbox";
 import { useSession } from "@/lib/session";
 import { colors, radius } from "@/theme";
 
-type Cycle = components["schemas"]["CropCycleDetail"];
 type Panel = "operation" | "harvest" | null;
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -44,9 +44,12 @@ export default function CycleScreen() {
   const { status, workspace, expire } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [cycle, setCycle] = useState<Cycle | null>(null);
+  const [field, setField] = useState<FieldCycle | null>(null);
+  const cycle = field?.cycle ?? null;
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(nouveau ? "Cycle enregistré." : null);
+  const [notice, setNotice] = useState<string | null>(
+    nouveau === "1" ? "Cycle enregistré." : nouveau === "local" ? "Pas de réseau : cycle gardé sur le téléphone, envoi au retour du réseau." : null,
+  );
   const [busy, setBusy] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   // Opération
@@ -65,10 +68,10 @@ export default function CycleScreen() {
   const load = useCallback(async () => {
     if (!workspace || !id) return;
     try {
-      setCycle(await api.request<Cycle>(`/api/v1/crop-cycles/${id}/`, { workspace }));
+      setField(await loadFieldCycle(api, workspace, id));
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
-      setError(e instanceof NetworkError ? "Pas de réseau : le cycle s'affichera avec le réseau." : "Cycle introuvable.");
+      setError(e instanceof NetworkError ? "Pas de réseau, et ce cycle n'est pas encore sur le téléphone." : "Cycle introuvable.");
     }
   }, [workspace, id, expire]);
 
@@ -79,13 +82,32 @@ export default function CycleScreen() {
   if (status !== "signedIn") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
 
-  async function send(path: string, method: "POST" | "PATCH", body: Record<string, unknown>, done: string) {
+  async function send(
+    entity: EntityType,
+    operation: "create" | "update",
+    body: Record<string, unknown>,
+    label: string,
+    done: string,
+  ) {
+    if (!field || !workspace) return;
     setError(null);
     setNotice(null);
     setBusy(true);
+    const update = operation === "update";
     try {
-      await api.request(path, { method, workspace, body });
-      setNotice(done);
+      const sent = await submitOp(api, {
+        workspace,
+        entity_type: entity,
+        operation,
+        params: update ? {} : { cycle: field.ref },
+        entity_id: update ? field.ref : null,
+        // Version connue du téléphone : un changement fait entre-temps au bureau devient un conflit.
+        base_row_version: update && !field.pending && !field.statusPending ? field.cycle.row_version : null,
+        payload: body,
+        label: `${label} · ${field.cycle.crop.name_fr}${field.cycle.parcel.agroid ? ` · ${field.cycle.parcel.agroid}` : ""}`,
+      });
+      if (sent.kind === "conflict") setError("Ce cycle a été modifié entre-temps au bureau : votre changement n'a pas été appliqué.");
+      else setNotice(sent.kind === "queued" ? `${done.replace(".", "")} sur le téléphone : envoi au retour du réseau.` : done);
       setPanel(null);
       await load();
     } catch (e) {
@@ -105,8 +127,8 @@ export default function CycleScreen() {
   function addOperation() {
     const qty = Number(opQty.replace(",", "."));
     void send(
-      `/api/v1/crop-cycles/${id}/operations/`,
-      "POST",
+      "crop_operation",
+      "create",
       {
         operation_type: opType,
         performed_date: opDate || null,
@@ -115,14 +137,15 @@ export default function CycleScreen() {
         quantity: opQty.trim() && qty > 0 ? qty.toFixed(2) : null,
         quantity_unit: opUnit.trim(),
       },
+      OPERATION_TYPES[opType] ?? "Opération",
       "Opération enregistrée.",
     );
   }
 
   function addHarvest() {
     void send(
-      `/api/v1/crop-cycles/${id}/harvests/`,
-      "POST",
+      "harvest",
+      "create",
       {
         harvest_date: hDate,
         quantity_kg: harvestKg.toFixed(2),
@@ -130,6 +153,7 @@ export default function CycleScreen() {
         original_unit: bags.trim() ? `sac de ${bagKgN} kg` : "kg",
         measurement_method: method,
       },
+      `Récolte ${formatKg(harvestKg)}`,
       "Récolte enregistrée.",
     );
   }
@@ -172,8 +196,15 @@ export default function CycleScreen() {
               {cycle.cultivation_unit ? ` · unité ${cycle.cultivation_unit.code}` : ""}
             </T>
             <T mono style={{ color: colors.muted, fontSize: 13 }}>
-              {cycle.parcel.agroid}
+              {cycle.parcel.agroid || "Parcelle en attente d'envoi"}
             </T>
+            {field?.pending || field?.statusPending ? (
+              <T style={styles.waiting}>
+                {field.pending ? "Cycle gardé sur le téléphone : envoi au retour du réseau." : "Changement de statut en attente d'envoi."}
+              </T>
+            ) : field?.offline ? (
+              <T style={{ color: colors.muted, fontSize: 13 }}>Copie du téléphone (pas de réseau).</T>
+            ) : null}
             <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6 }}>
               <Fact label={cycle.sowing_date ? "Semis" : "Semis prévu"} value={shortDate(cycle.sowing_date ?? cycle.planned_sowing_date)} />
               <Fact label="Surface" value={cycle.declared_area_m2 ? formatArea(Number(cycle.declared_area_m2)) : "—"} />
@@ -192,9 +223,10 @@ export default function CycleScreen() {
                     loading={busy}
                     onPress={() =>
                       void send(
-                        `/api/v1/crop-cycles/${id}/`,
-                        "PATCH",
+                        "crop_cycle",
+                        "update",
                         n.status === "in_progress" && !cycle.sowing_date ? { status: n.status, sowing_date: todayIso() } : { status: n.status },
+                        n.label,
                         "Cycle mis à jour.",
                       )
                     }
@@ -266,7 +298,10 @@ export default function CycleScreen() {
             {operations.length ? (
               operations.map((o) => (
                 <View key={o.id} style={styles.row}>
-                  <T style={{ fontWeight: "700", flex: 1 }}>{OPERATION_TYPES[o.operation_type] ?? o.operation_type}</T>
+                  <T style={{ fontWeight: "700", flex: 1 }}>
+                    {OPERATION_TYPES[o.operation_type] ?? o.operation_type}
+                    {field?.pendingIds.has(o.id) ? <T style={styles.waiting}> · en attente d&apos;envoi</T> : null}
+                  </T>
                   <T mono style={{ color: colors.muted, fontSize: 13 }}>
                     {shortDate(o.performed_date ?? o.planned_date)}
                   </T>
@@ -281,7 +316,10 @@ export default function CycleScreen() {
             {cycle.harvests.length ? (
               cycle.harvests.map((h) => (
                 <View key={h.id} style={styles.row}>
-                  <T style={{ fontWeight: "700", flex: 1 }}>{formatKg(h.quantity_kg)}</T>
+                  <T style={{ fontWeight: "700", flex: 1 }}>
+                    {formatKg(h.quantity_kg)}
+                    {field?.pendingIds.has(h.id) ? <T style={styles.waiting}> · en attente d&apos;envoi</T> : null}
+                  </T>
                   <T mono style={{ color: colors.muted, fontSize: 13 }}>
                     {shortDate(h.harvest_date)}
                   </T>
@@ -301,5 +339,6 @@ const styles = StyleSheet.create({
   top: { backgroundColor: colors.forest, paddingHorizontal: 8, paddingBottom: 12, flexDirection: "row", alignItems: "center", gap: 6 },
   h2: { fontSize: 17, fontWeight: "700" },
   label: { fontSize: 14, fontWeight: "700" },
+  waiting: { color: colors.warning, fontSize: 13, fontWeight: "400" },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.line, borderRadius: radius.sm },
 });
