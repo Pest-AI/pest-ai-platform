@@ -1163,7 +1163,7 @@ export interface paths {
         put?: never;
         /**
          * Ajouter une unité de culture
-         * @description Code unique dans la parcelle (U1, U2…), surface facultative (D-16).
+         * @description Code unique dans la parcelle (U1, U2… proposé si vide), surface facultative ; contour facultatif relevé au GPS ou dessiné (D-16) : mesuré, puis contrôlé (inclusion dans la parcelle à 1 m près, chevauchement avec une autre unité) — signalé, jamais refusé. Agent terrain compris (`parcels.create`).
          */
         post: operations["parcels_units_create"];
         delete?: never;
@@ -1915,6 +1915,12 @@ export interface components {
             readonly valid_from: string | null;
             /** Format: date */
             readonly valid_to: string | null;
+            /** @description Contour GeoJSON (MultiPolygon), ou null si l'unité est déclarée sans contour. */
+            readonly geometry: {
+                [key: string]: unknown;
+            };
+            /** @description Contrôle D-16 : inclusion dans la parcelle à 1 m près, chevauchement d'unités. */
+            readonly check: components["schemas"]["UnitCheck"];
         };
         /**
          * @description * `active` - Active
@@ -3469,8 +3475,39 @@ export interface components {
         TokenRefreshRequest: {
             refresh: string;
         };
+        UnitCheck: {
+            status: components["schemas"]["UnitCheckStatusEnum"];
+            flags: string[];
+            labels: string[];
+        };
+        /**
+         * @description * `valid` - valid
+         *     * `flagged` - flagged
+         *     * `not_applicable` - not_applicable
+         * @enum {string}
+         */
+        UnitCheckStatusEnum: "valid" | "flagged" | "not_applicable";
         UnitCreateRequest: {
-            code: string;
+            /** @description Vide : U1, U2… proposé. */
+            code?: string;
+            /** @description Contour facultatif (GeoJSON Polygon) ; sa surface remplace `area_m2`. */
+            geometry?: unknown;
+            /**
+             * @description Méthode de relevé (information).
+             *
+             *     * `gps_walk` - Contour marché au GPS
+             *     * `gps_points` - Points GPS
+             *     * `manual_drawing` - Tracé sur la carte
+             *     * `manual_coordinates` - Coordonnées saisies
+             *     * `import_geojson` - Import GeoJSON
+             *     * `import_kml` - Import KML
+             *     * `import_shapefile` - Import Shapefile
+             *     * `import_csv` - Import CSV
+             *     * `import_xlsx` - Import Excel
+             *     * `import_json` - Import JSON
+             *     * `import_gpx` - Import GPX
+             */
+            capture_method?: components["schemas"]["CaptureMethodEnum"];
             name?: string;
             /** Format: decimal */
             area_m2?: string | null;
@@ -5511,7 +5548,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["UnitCreateRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["UnitCreateRequest"];

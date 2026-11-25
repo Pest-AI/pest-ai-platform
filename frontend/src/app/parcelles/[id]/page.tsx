@@ -4,12 +4,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { AgroIdBadge } from "@/components/agroid-badge";
+import { QrCode } from "@/components/qr-code";
 import { AppShell } from "@/components/app-shell";
 import { StatusPill } from "@/components/list-toolbar";
 import { ParcelShape } from "@/components/parcel-shape";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { currentWorkspace, getApi } from "@/lib/api/client";
+import { agroidUrl } from "@/lib/qr";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
 import {
   CAPTURE_METHODS,
@@ -60,7 +62,9 @@ export default async function ParcelPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { id } = await params;
-  const justCreated = (await searchParams).nouvelle === "1";
+  const query = await searchParams;
+  const justCreated = query.nouvelle === "1";
+  const unitAdded = query.unite === "1";
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const workspace = await currentWorkspace();
   if (!workspace) redirect("/espaces");
@@ -101,6 +105,7 @@ export default async function ParcelPage({
   };
   const siteRows = [...SITE_WATER_FIELDS, ...SITE_SOIL_FIELDS, "road_access"].filter((f) => siteValue(f));
   const canEditSite = p.access === "manage" && p.status !== "retired";
+  const canAddUnit = canEditSite && permissions.includes("parcels.create");
 
   return (
     <AppShell
@@ -116,6 +121,11 @@ export default async function ParcelPage({
         Parcelles
       </Link>
 
+      {unitAdded ? (
+        <Alert tone="info" className="mt-3">
+          Unité de culture enregistrée.
+        </Alert>
+      ) : null}
       {justCreated ? (
         <Alert tone="info" className="mt-3">
           Parcelle enregistrée : son AgroID est attribué et définitif.
@@ -382,18 +392,48 @@ export default async function ParcelPage({
             {p.units.length ? (
               <ul className="divide-y divide-line">
                 {p.units.map((u) => (
-                  <li key={u.id} className="flex items-center gap-3 py-2">
-                    <span className="tabular font-mono text-[13px] font-semibold">{u.code}</span>
-                    <span className="min-w-0 flex-1 truncate text-[13px]">{u.name || "—"}</span>
-                    <span className="tabular font-mono text-[12px] text-muted">{formatArea(u.area_m2)}</span>
-                    {u.status === "retired" ? <StatusPill tone="neutral">Retirée</StatusPill> : null}
+                  <li key={u.id} className="py-2">
+                    <div className="flex items-center gap-3">
+                      <span className="tabular font-mono text-[13px] font-semibold">{u.code}</span>
+                      <span className="min-w-0 flex-1 truncate text-[13px]">{u.name || "—"}</span>
+                      <span className="tabular font-mono text-[12px] text-muted">{formatArea(u.area_m2)}</span>
+                      {u.status === "retired" ? (
+                        <StatusPill tone="neutral">Retirée</StatusPill>
+                      ) : u.check.status === "flagged" ? (
+                        <StatusPill tone="warning">Signalée</StatusPill>
+                      ) : u.geometry ? (
+                        <StatusPill tone="success">Contour</StatusPill>
+                      ) : null}
+                    </div>
+                    {u.check.labels.length ? <p className="mt-0.5 text-[12px] text-warning">{u.check.labels.join(" · ")}</p> : null}
                   </li>
                 ))}
               </ul>
             ) : (
               <Empty>Pas d&apos;unité de culture.</Empty>
             )}
+            {canAddUnit ? (
+              <Link href={`/parcelles/${p.id}/unite`} className="mt-3 inline-block text-[13px] font-semibold text-brand-700 hover:underline">
+                Ajouter une unité de culture
+              </Link>
+            ) : null}
           </Section>
+
+          {p.agroid ? (
+            <Card className="flex items-center gap-4 rounded-2xl p-5">
+              <QrCode value={agroidUrl(p.agroid)} size={112} label={`QR code de l'AgroID ${p.agroid}`} />
+              <div className="min-w-0">
+                <h2 className="text-[16px] font-semibold">QR code AgroID</h2>
+                <p className="mt-1 text-[13px] text-muted">À poser au champ : l&apos;agent le scanne pour ouvrir la parcelle.</p>
+                <Link
+                  href={`/parcelles/${p.id}/fiche`}
+                  className="mt-2 inline-block text-[13px] font-semibold text-brand-700 hover:underline"
+                >
+                  Imprimer la fiche AgroID
+                </Link>
+              </div>
+            </Card>
+          ) : null}
 
           <Section title="Identité" icon={CalendarDays}>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">

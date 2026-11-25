@@ -10,9 +10,25 @@ import { colors, radius } from "@/theme";
 const MIN_SPAN_DEG = 0.0004; // ~40 m : un premier point ne remplit pas tout l'écran
 
 /** Aperçu vectoriel du contour en cours de relevé, avec la position actuelle de l'agent. */
-export function TrackPreview({ points, current, closed, height = 260 }: { points: Fix[]; current: Fix | null; closed: boolean; height?: number }) {
+export function TrackPreview({
+  points,
+  current,
+  closed,
+  height = 260,
+  reference = [],
+}: {
+  points: Fix[];
+  current: Fix | null;
+  closed: boolean;
+  height?: number;
+  /** Repères (J19) : anneaux du contour de la parcelle, dessinés en blanc. */
+  reference?: Position[][];
+}) {
   const [width, setWidth] = useState(0);
-  const all = useMemo(() => [...points.map((p) => p.position), ...(current ? [current.position] : [])], [points, current]);
+  const all = useMemo(
+    () => [...points.map((p) => p.position), ...(current ? [current.position] : []), ...reference.flat()],
+    [points, current, reference],
+  );
   const proj = useMemo(() => {
     if (!all.length || !width) return null;
     let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
@@ -43,6 +59,9 @@ export function TrackPreview({ points, current, closed, height = 260 }: { points
     >
       {proj ? (
         <Svg width={width} height={height}>
+          {reference.map((ring, i) => (
+            <Polygon key={`ref-${i}`} points={ring.map((p) => xy(p).join(",")).join(" ")} fill="#ffffff" fillOpacity={0.06} stroke="#ffffff" strokeWidth={2} />
+          ))}
           {closed && points.length >= 3 ? (
             <Polygon points={path} fill={colors.gold} fillOpacity={0.28} stroke={colors.gold} strokeWidth={3} />
           ) : (

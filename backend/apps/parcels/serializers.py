@@ -178,11 +178,44 @@ class OperatorSerializer(serializers.ModelSerializer):
         return obj.end_date is None
 
 
+class UnitCheckSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["valid", "flagged", "not_applicable"])
+    flags = serializers.ListField(child=serializers.CharField())
+    labels = serializers.ListField(child=serializers.CharField())
+
+
 class CultivationUnitSerializer(serializers.ModelSerializer):
+    geometry = serializers.SerializerMethodField(
+        help_text="Contour GeoJSON (MultiPolygon), ou null si l'unité est déclarée sans contour."
+    )
+    check = serializers.SerializerMethodField(
+        help_text="Contrôle D-16 : inclusion dans la parcelle à 1 m près, chevauchement d'unités."
+    )
+
     class Meta:
         model = CultivationUnit
-        fields = ["id", "code", "name", "area_m2", "status", "valid_from", "valid_to"]
+        fields = [
+            "id",
+            "code",
+            "name",
+            "area_m2",
+            "status",
+            "valid_from",
+            "valid_to",
+            "geometry",
+            "check",
+        ]
         read_only_fields = fields
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_geometry(self, obj):
+        return geo.to_geojson(obj.geometry) if obj.geometry is not None else None
+
+    @extend_schema_field(UnitCheckSerializer)
+    def get_check(self, obj):
+        if obj.status != "active":
+            return {"status": "not_applicable", "flags": [], "labels": []}
+        return validation.check_unit(obj)
 
 
 class ParcelListSerializer(serializers.ModelSerializer):
@@ -553,7 +586,17 @@ class OperatorCreateSerializer(LeaseTermsSerializer):
 
 
 class UnitCreateSerializer(serializers.Serializer):
-    code = serializers.CharField(max_length=16)
+    code = serializers.CharField(
+        max_length=16, required=False, allow_blank=True, help_text="Vide : U1, U2… proposé."
+    )
+    geometry = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="Contour facultatif (GeoJSON Polygon) ; sa surface remplace `area_m2`.",
+    )
+    capture_method = serializers.ChoiceField(
+        choices=CaptureMethod.choices, required=False, help_text="Méthode de relevé (information)."
+    )
     name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     area_m2 = serializers.DecimalField(
         max_digits=14, decimal_places=2, min_value=Decimal("0.01"), required=False, allow_null=True

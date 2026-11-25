@@ -2,7 +2,7 @@
   "name": "pest-ai-os-web",
   "version": "0.0.1",
   "private": true,
-  "description": "Web OS de PEST AI OS : Console Admin, Espace Coop\u00e9rative, Espace Agronome, Espace ONG.",
+  "description": "Web OS de PEST AI OS : Console Admin, Espace Coopérative, Espace Agronome, Espace ONG.",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=20.9"
@@ -29,6 +29,7 @@
     "maplibre-gl": "5.24.1",
     "next": "16.4.6",
     "openapi-fetch": "0.17.0",
+    "qrcode-generator": "2.0.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "0.0.1",

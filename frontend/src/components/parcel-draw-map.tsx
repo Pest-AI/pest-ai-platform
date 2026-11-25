@@ -45,11 +45,19 @@ export function ParcelDrawMap({
   points,
   onAdd,
   bbox,
+  reference,
+  label = "Carte de saisie de la parcelle",
+  maxZoom = 16,
 }: {
   mode: DrawMode;
   points: LonLat[];
   onAdd: (point: LonLat) => void;
   bbox: Bbox | null;
+  /** Repères fixes (J19) : contour de la parcelle et unités existantes, en GeoJSON. */
+  reference?: { type: "FeatureCollection"; features: unknown[] };
+  label?: string;
+  /** Zoom maximal du cadrage initial (une unité se trace de plus près qu'une parcelle). */
+  maxZoom?: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -70,7 +78,7 @@ export function ParcelDrawMap({
       const m = new Map({
         container: container.current,
         ...(bbox
-          ? { bounds: [[bbox[0], bbox[1]], [bbox[2], bbox[3]]] as [[number, number], [number, number]], fitBoundsOptions: { padding: 30, maxZoom: 16 } }
+          ? { bounds: [[bbox[0], bbox[1]], [bbox[2], bbox[3]]] as [[number, number], [number, number]], fitBoundsOptions: { padding: 30, maxZoom } }
           : { center: DEFAULT_CENTER, zoom: 8 }),
         attributionControl: false,
         style: {
@@ -84,6 +92,7 @@ export function ParcelDrawMap({
               attribution: "Imagerie © Esri, Maxar, Earthstar Geographics",
             },
             existing: { type: "geojson", data: EMPTY },
+            reference: { type: "geojson", data: (reference ?? EMPTY) as never },
             shape: { type: "geojson", data: EMPTY },
           },
           layers: [
@@ -94,6 +103,22 @@ export function ParcelDrawMap({
               type: "line",
               source: "existing",
               paint: { "line-color": "#ffffff", "line-width": 1.5, "line-opacity": 0.8, "line-dasharray": [3, 2] },
+            },
+            {
+              id: "reference-fill",
+              type: "fill",
+              source: "reference",
+              filter: ["==", ["get", "kind"], "unit"],
+              paint: { "fill-color": "#7fc58f", "fill-opacity": 0.25 },
+            },
+            {
+              id: "reference-line",
+              type: "line",
+              source: "reference",
+              paint: {
+                "line-color": ["case", ["==", ["get", "kind"], "parcel"], "#ffffff", "#7fc58f"],
+                "line-width": ["case", ["==", ["get", "kind"], "parcel"], 3, 1.5],
+              },
             },
             {
               id: "shape-fill",
@@ -190,7 +215,7 @@ export function ParcelDrawMap({
       <div
         ref={container}
         role="application"
-        aria-label="Carte de saisie de la parcelle"
+        aria-label={label}
         style={{ position: "relative" }}
         className="h-[360px] overflow-hidden rounded-2xl bg-[#16301f] sm:h-[480px]"
       />

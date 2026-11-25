@@ -78,6 +78,17 @@ Addendum v2.3 au Database Design. **Listes proposées, en attente de validation 
 
 Migrations : `actors 0003`, `parcels 0009`, `agriculture 0003` (ajouts seulement).
 
+## J19 — Unités de culture, cycles dans l'app terrain, QR code AgroID (livré)
+
+| Livré | Vérification |
+|---|---|
+| **Unités de culture avec contour** (D-16) : relevé au GPS dans l'app (tour de la zone, coin par coin) avec le contour de la parcelle en repère, ou tracé sur l'image satellite dans le Web OS ; ou surface seule. Code U1, U2… proposé ; surface mesurée par PostGIS. **Contrôle** : inclusion dans la parcelle à 1 m près (`ST_Within(ST_Buffer(unité, −1 m), parcelle)`), chevauchement de plus de 5 % avec une autre unité ; signalé, jamais refusé. Ajout ouvert à l'agent terrain (`parcels.create`) | 5 tests API, parcours navigateur |
+| **Cycles dans l'app terrain** : depuis la fiche parcelle, démarrer un cycle (culture, variété, unité, campagne ouverte, semis fait ou prévu, surface, semence, implantation, saison précédente) ; fiche cycle : démarrer, marquer récolté, abandonner ; opérations (type, date, produit, quantité) ; récoltes en sacs × kg ou en kg, mesure déclarée/pesée/estimée ; total et rendement | Parcours navigateur |
+| **QR code AgroID** : sur la fiche (app et Web OS) ; **fiche AgroID imprimable** (QR, AgroID en clair, parcelle, exploitant, surface) à plastifier ; lien `terrain.pestai.africa/a/PAI-SN-…` (et `/a/…` dans le Web OS) qui ouvre la fiche si la parcelle est suivie par l'espace | 2 + 1 tests unitaires, parcours navigateur |
+| **Scanner** dans l'app : caméra arrière du téléphone (détecteur du navigateur, sinon jsQR), saisie de l'AgroID en secours ; copie locale d'abord (hors ligne), puis l'API | Parcours navigateur (saisie ; caméra non testable en automatique) |
+
+Dépendances ajoutées : `qrcode-generator` 2.0.4 (MIT, sans dépendance ; Web OS et app), `jsqr` 1.4.0 (Apache-2.0, sans dépendance ; app, chargé seulement si le navigateur n'a pas de détecteur de QR code). Aucune migration.
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from "expo-router";
-import { ChevronRight, CloudOff, Fingerprint, Footprints, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
+import { ChevronRight, CloudOff, Fingerprint, Footprints, ScanLine, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -154,6 +154,14 @@ export default function ParcelsHome() {
 
         {canCreate ? (
           <Button label="Enrôler une parcelle" icon={<Footprints size={18} color="#fff" />} onPress={() => router.push("/parcelles/nouvelle")} />
+        ) : null}
+        {canView ? (
+          <Button
+            label="Scanner un AgroID"
+            variant="secondary"
+            icon={<ScanLine size={18} color={colors.ink} />}
+            onPress={() => router.push("/scanner")}
+          />
         ) : null}
 
         {error ? <Alert tone={snapshot ? "info" : "danger"}>{error}</Alert> : null}

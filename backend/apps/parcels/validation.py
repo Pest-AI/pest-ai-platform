@@ -139,3 +139,71 @@ def evaluate(version) -> tuple[str, dict]:
         "thresholds": limits,
     }
     return ("flagged" if flags else "valid"), report
+
+
+# ── Unités de culture (D-16) ─────────────────────────────────────────────
+
+UNIT_OUTSIDE_PARCEL = "unit_outside_parcel"
+UNIT_OVERLAP = "unit_overlap"
+UNIT_NO_PARCEL_CONTOUR = "unit_no_parcel_contour"
+UNIT_FLAG_LABELS = {
+    UNIT_OUTSIDE_PARCEL: "Déborde de la parcelle (au-delà de 1 m)",
+    UNIT_OVERLAP: "Chevauche une autre unité de la parcelle",
+    UNIT_NO_PARCEL_CONTOUR: "La parcelle n'a pas encore de contour : inclusion non vérifiée",
+}
+UNIT_TOLERANCE_M = 1.0  # D-16
+UNIT_MAX_OVERLAP_PERCENT = 5.0
+
+
+def check_unit(unit) -> dict:
+    """Contrôle d'une unité qui a un contour (D-16) : signalée, jamais refusée.
+
+    - incluse dans le contour courant de la parcelle à 1 m près :
+      ST_Within(ST_Buffer(unité, -1 m), parcelle) ;
+    - pas de chevauchement de plus de 5 % avec une autre unité active de la parcelle.
+    Sans contour d'unité : rien à contrôler (unité déclarée par code et surface).
+    """
+    if unit.geometry is None:
+        return {"status": "not_applicable", "flags": [], "labels": []}
+    flags: list[str] = []
+    parcel_geom = (
+        unit.parcel.geometries.filter(is_current=True).values_list("geometry", flat=True).first()
+    )
+    with connection.cursor() as cursor:
+        if parcel_geom is None:
+            flags.append(UNIT_NO_PARCEL_CONTOUR)
+        else:
+            cursor.execute(
+                """
+                SELECT ST_Within(
+                    ST_Buffer(ST_GeomFromEWKB(%s)::geography, %s)::geometry,
+                    ST_GeomFromEWKB(%s)
+                )
+                """,
+                [bytes(unit.geometry.ewkb), -UNIT_TOLERANCE_M, bytes(parcel_geom.ewkb)],
+            )
+            (within,) = cursor.fetchone()
+            if not within:
+                flags.append(UNIT_OUTSIDE_PARCEL)
+        others = (
+            unit.parcel.units.filter(status="active", geometry__isnull=False, is_archived=False)
+            .exclude(pk=unit.pk)
+            .values_list("geometry", flat=True)
+        )
+        for other in others:
+            cursor.execute(
+                """
+                SELECT ST_Area(ST_Intersection(a, b)::geography) / NULLIF(ST_Area(a::geography), 0)
+                FROM (SELECT ST_GeomFromEWKB(%s) AS a, ST_GeomFromEWKB(%s) AS b) AS t
+                """,
+                [bytes(unit.geometry.ewkb), bytes(other.ewkb)],
+            )
+            (ratio,) = cursor.fetchone()
+            if ratio and 100 * ratio > UNIT_MAX_OVERLAP_PERCENT:
+                flags.append(UNIT_OVERLAP)
+                break
+    return {
+        "status": "flagged" if flags else "valid",
+        "flags": flags,
+        "labels": [UNIT_FLAG_LABELS[f] for f in flags],
+    }

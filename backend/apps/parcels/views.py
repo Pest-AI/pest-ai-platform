@@ -103,7 +103,7 @@ ORG_PERMISSIONS = {
     "end_owner": "parcels.manage",
     "operators": "parcels.manage",
     "end_operator": "parcels.manage",
-    "units": "parcels.manage",
+    "units": "parcels.create",
     "retire_unit": "parcels.manage",
     "link_request": "parcels.manage",
     "review": "parcels.validate_geometry",
@@ -930,7 +930,10 @@ class ParcelViewSet(
     @extend_schema(
         tags=["parcels"],
         summary="Ajouter une unité de culture",
-        description="Code unique dans la parcelle (U1, U2…), surface facultative (D-16).",
+        description="Code unique dans la parcelle (U1, U2… proposé si vide), surface facultative ; "
+        "contour facultatif relevé au GPS ou dessiné (D-16) : mesuré, puis contrôlé (inclusion "
+        "dans la parcelle à 1 m près, chevauchement avec une autre unité) — signalé, jamais "
+        "refusé. Agent terrain compris (`parcels.create`).",
         request=serializers.UnitCreateSerializer,
         responses={201: serializers.CultivationUnitSerializer},
     )
@@ -940,9 +943,9 @@ class ParcelViewSet(
         self._writable(parcel)
         serializer = serializers.UnitCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        unit = _run(
-            services.create_cultivation_unit, parcel, by=request.user, **serializer.validated_data
-        )
+        data = dict(serializer.validated_data)
+        data.pop("capture_method", None)
+        unit = _run(services.create_cultivation_unit, parcel, by=request.user, **data)
         return Response(
             serializers.CultivationUnitSerializer(unit).data, status=status.HTTP_201_CREATED
         )

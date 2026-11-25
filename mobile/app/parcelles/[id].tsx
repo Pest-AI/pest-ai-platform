@@ -1,15 +1,18 @@
 import * as Linking from "expo-linking";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CheckCircle2, Circle, CloudOff, Droplets, Fingerprint, Navigation, ShieldCheck, TriangleAlert, UserRound } from "lucide-react-native";
+import { ArrowLeft, CheckCircle2, ChevronRight, Circle, CloudOff, Droplets, Fingerprint, Navigation, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ParcelSvgMap } from "@/components/parcel-svg-map";
+import { QrCode } from "@/components/qr-code";
 import { Alert, StatusPill, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
+import { CYCLE_STATUS } from "@/lib/agriculture";
 import { formatArea } from "@/lib/geo";
+import { agroidUrl } from "@/lib/qr";
 import { CAPTURE_LABELS, PARCEL_STATUS_LABELS, STATUS_TONES, VALIDATION_LABELS } from "@/lib/parcel-labels";
 import { type CachedParcel, freshness, loadSnapshot } from "@/lib/parcel-cache";
 import { useSession } from "@/lib/session";
@@ -18,6 +21,7 @@ import type { components } from "@/lib/schema";
 import { colors, radius } from "@/theme";
 
 type Detail = components["schemas"]["ParcelDetail"];
+type CycleRow = components["schemas"]["CropCycle"];
 
 /** Fiche parcelle : copie locale (hors ligne) complétée par l'API quand le réseau est là. */
 export default function ParcelScreen() {
@@ -32,6 +36,8 @@ export default function ParcelScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
+  const [cycles, setCycles] = useState<CycleRow[] | null>(null);
+  const [perms, setPerms] = useState<string[]>([]);
   const refs = useSiteReferentials(workspace);
 
   useEffect(() => {
@@ -46,6 +52,14 @@ export default function ParcelScreen() {
       try {
         const data = await api.request<Detail>(`/api/v1/parcels/${id}/`, { workspace });
         if (!cancelled) setDetail(data);
+        const [context, list] = await Promise.all([
+          api.request<{ permissions: string[] }>("/api/v1/workspace/", { workspace }).catch(() => null),
+          api.request<{ results: CycleRow[] }>("/api/v1/crop-cycles/", { workspace, query: { parcel: id } }).catch(() => null),
+        ]);
+        if (!cancelled) {
+          setPerms(context?.permissions ?? []);
+          setCycles(list ? list.results : null);
+        }
       } catch (e) {
         if (e instanceof SessionExpiredError) return expire();
         if (cancelled) return;
@@ -88,6 +102,9 @@ export default function ParcelScreen() {
   const site = detail?.site_profile ?? null;
   const completeness = detail?.completeness ?? null;
   const canEdit = detail?.access === "manage";
+  const canAddUnit = canEdit && (perms.includes("parcels.create") || perms.includes("personal.parcels.manage"));
+  const canStartCycle = perms.includes("crop_cycles.manage") || perms.includes("personal.crop_cycles.manage");
+  const units = detail?.units ?? [];
   const siteLines = site
     ? [...WATER_FIELDS, ...SOIL_FIELDS]
         .filter((f) => (site as Record<string, unknown>)[f])
@@ -124,7 +141,12 @@ export default function ParcelScreen() {
                 {agroid ?? "AgroID en attente"}
               </T>
             </View>
-            <T style={{ fontSize: 24, fontWeight: "700", marginTop: 10 }}>{name || "Parcelle sans nom"}</T>
+            <T style={{ fontSize: 24, fontWeight: "700", marginTop: 10, marginRight: 84 }}>{name || "Parcelle sans nom"}</T>
+            {agroid ? (
+              <View style={{ position: "absolute", top: 12, right: 12 }}>
+                <QrCode value={agroidUrl(agroid)} size={72} label={`QR code de l'AgroID ${agroid}`} />
+              </View>
+            ) : null}
             <View style={{ flexDirection: "row", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
               {parcelStatus ? (
                 <StatusPill tone={STATUS_TONES[parcelStatus] ?? "neutral"} label={PARCEL_STATUS_LABELS[parcelStatus] ?? parcelStatus} />
@@ -204,6 +226,92 @@ export default function ParcelScreen() {
                   Version {detail.current_geometry.version} ·{" "}
                   {CAPTURE_LABELS[detail.current_geometry.capture_method] ?? detail.current_geometry.capture_method}
                 </T>
+              ) : null}
+            </View>
+          ) : null}
+
+          {detail ? (
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ruler size={18} color={colors.forest} />
+                <T style={styles.h2}>Unités de culture</T>
+              </View>
+              {units.length ? (
+                units.map((u) => (
+                  <View key={u.id} style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <T mono style={{ fontWeight: "700" }}>
+                        {u.code}
+                      </T>
+                      <T style={{ flex: 1 }}>{u.name || ""}</T>
+                      <T mono style={{ color: colors.muted, fontSize: 13 }}>
+                        {formatArea(Number(u.area_m2 ?? 0) || null)}
+                      </T>
+                    </View>
+                    {u.status === "retired" ? (
+                      <T style={{ fontSize: 13, color: colors.muted }}>Retirée</T>
+                    ) : u.check.labels.length ? (
+                      <T style={{ fontSize: 13, color: colors.warning }}>{u.check.labels.join(" · ")}</T>
+                    ) : u.geometry ? (
+                      <T style={{ fontSize: 13, color: colors.success }}>Contour dans la parcelle</T>
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <T style={{ color: colors.muted, marginTop: 6 }}>Pas d&apos;unité : la parcelle est cultivée d&apos;un seul tenant.</T>
+              )}
+              {canAddUnit ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: "/parcelles/unite", params: { id: id ?? "" } })}
+                  accessibilityRole="button"
+                  style={[styles.cta, { marginTop: 12, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.forest }]}
+                >
+                  <T style={{ color: colors.forest, fontWeight: "700" }}>Ajouter une unité</T>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+
+          {detail && cycles ? (
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Sprout size={18} color={colors.forest} />
+                <T style={styles.h2}>Cycles de culture</T>
+              </View>
+              {cycles.length ? (
+                cycles.slice(0, 8).map((c) => {
+                  const st = CYCLE_STATUS[c.status] ?? { label: c.status, tone: "neutral" as const };
+                  return (
+                    <Pressable
+                      key={c.id}
+                      onPress={() => router.push({ pathname: "/cycles/[id]", params: { id: c.id } })}
+                      accessibilityRole="button"
+                      style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 8 }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <T style={{ fontWeight: "700" }}>
+                          {c.crop.name_fr}
+                          {c.cultivation_unit ? ` · ${c.cultivation_unit.code}` : ""}
+                        </T>
+                        <T style={{ fontSize: 13, color: colors.muted }}>
+                          {c.campaign?.name ?? "Hors campagne"} · {st.label}
+                        </T>
+                      </View>
+                      <ChevronRight size={18} color={colors.muted} />
+                    </Pressable>
+                  );
+                })
+              ) : (
+                <T style={{ color: colors.muted, marginTop: 6 }}>Aucun cycle de culture.</T>
+              )}
+              {canStartCycle && parcelStatus !== "retired" ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: "/cycles/nouveau", params: { parcelle: id ?? "" } })}
+                  accessibilityRole="button"
+                  style={[styles.cta, { marginTop: 12 }]}
+                >
+                  <T style={{ color: "#fff", fontWeight: "700" }}>Démarrer un cycle</T>
+                </Pressable>
               ) : null}
             </View>
           ) : null}

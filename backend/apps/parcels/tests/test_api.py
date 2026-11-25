@@ -186,8 +186,11 @@ def test_matrice_des_roles(
     assert (client.get(url).status_code == 200) is can_view
     created_status = client.post(URL, {"local_name": "x"}, format="json").status_code
     assert (created_status == 201) is can_create
-    manage = client.post(f"{url}units/", {"code": f"U-{role[:3]}"}, format="json").status_code
-    assert (manage == 201) is can_manage
+    # J19 : l'agent terrain ajoute des unités de culture (relevé au champ).
+    unit = client.post(f"{url}units/", {"code": f"U-{role[:3]}"}, format="json").status_code
+    assert (unit == 201) is can_create
+    manage = client.patch(url, {"local_name": f"Parcelle {role}"}, format="json").status_code
+    assert (manage == 200) is can_manage
     review = client.post(
         f"{url}geometries/{created['current_geometry']['id']}/review/",
         {"decision": "valid"},

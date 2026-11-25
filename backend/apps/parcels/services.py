@@ -600,27 +600,40 @@ def revoke_personal_access(access: ProducerParcelAccess, *, by, reason: str):
 # ── Unités de culture (F-10, D-16) ───────────────────────────────────────
 
 
+def next_unit_code(parcel: Parcel) -> str:
+    """Code suivant : U1, U2… (les codes retirés ne sont pas réutilisés)."""
+    used = {
+        int(c[1:])
+        for c in parcel.units.values_list("code", flat=True)
+        if c.startswith("U") and c[1:].isdigit()
+    }
+    return f"U{max(used, default=0) + 1}"
+
+
 @transaction.atomic
 def create_cultivation_unit(
-    parcel: Parcel, *, by, code: str, name: str = "", area_m2=None
+    parcel: Parcel, *, by, code: str = "", name: str = "", area_m2=None, geometry=None
 ) -> CultivationUnit:
-    """Déclare une unité de culture par son code (U1, U2…) et sa surface (D-16).
+    """Déclare une unité de culture : code (U1, U2… proposé si vide), surface, contour facultatif.
 
-    Le contour de l'unité (facultatif au MVP) arrivera avec la saisie sur la carte ;
-    il devra être inclus dans celui de la parcelle, à 1 m près.
+    D-16 : un contour est mesuré par PostGIS (sa surface remplace la surface déclarée) et
+    contrôlé (inclusion dans la parcelle à 1 m près, chevauchement d'unités) : signalé,
+    jamais refusé.
     """
-    code = (code or "").strip().upper()
-    if not code:
-        raise ValidationError({"code": "Code obligatoire, par exemple U1."})
+    code = (code or "").strip().upper() or next_unit_code(parcel)
     if parcel.status == ParcelStatus.RETIRED:
         raise ValidationError("Parcelle retirée.")
     if CultivationUnit.objects.filter(parcel=parcel, code=code).exists():
         raise ValidationError({"code": "Ce code existe déjà sur cette parcelle."})
+    if geometry is not None:
+        measured = geo.measure(geo.from_geojson(geometry))
+        geometry, area_m2 = measured.geometry, measured.area_m2
     return CultivationUnit.objects.create(
         parcel=parcel,
         code=code,
         name=(name or "").strip(),
         area_m2=area_m2,
+        geometry=geometry,
         valid_from=timezone.localdate(),
         created_by=by,
         updated_by=by,
