@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -12,6 +13,7 @@ from apps.core import services as core_services
 from apps.parcels import agroid as agroid_format
 from apps.parcels import geometry as geo
 from apps.parcels import site_referentials as site_ref
+from apps.parcels import soil_parameters as soil_ref
 from apps.parcels import validation
 from apps.parcels.models import (
     AccessBasis,
@@ -34,6 +36,8 @@ from apps.parcels.models import (
     ParcelSiteProfile,
     ParcelStatus,
     ProducerParcelAccess,
+    SoilTest,
+    SoilTestValue,
 )
 
 AGROID_ATTEMPTS = 8  # avec 32^8 combinaisons, une seule collision est déjà improbable
@@ -701,6 +705,86 @@ def record_site_profile(
     return profile
 
 
+def record_soil_test(
+    parcel: Parcel,
+    *,
+    by,
+    values: dict,
+    method: str = soil_ref.SoilTestMethod.FIELD_KIT,
+    measured_at=None,
+    depth_cm: int | None = None,
+    device_model: str = "",
+    position=None,
+    cultivation_unit=None,
+    notes: str = "",
+    recorded_by_organization=None,
+    recorded_by_producer=None,
+) -> SoilTest:
+    """Ajoute une mesure du sol (J20c). Valeur hors limites physiques : refusée (erreur de
+    saisie) ; hors de la plage habituelle : enregistrée et signalée à la lecture."""
+    if parcel.status == ParcelStatus.RETIRED:
+        raise ValidationError("Parcelle retirée.")
+    clean = {k: v for k, v in (values or {}).items() if v is not None and v != ""}
+    if not clean:
+        raise ValidationError({"values": "Saisissez au moins une valeur mesurée."})
+    errors = {}
+    for code, raw in clean.items():
+        param = soil_ref.BY_CODE.get(code)
+        if param is None:
+            errors[code] = "Paramètre inconnu."
+            continue
+        value = Decimal(str(raw))
+        if value < param.min or value > param.max:
+            unit = f" {param.unit}" if param.unit else ""
+            errors[code] = f"Valeur impossible : entre {param.min} et {param.max}{unit}."
+        clean[code] = value.quantize(Decimal(1).scaleb(-param.decimals))
+    if errors:
+        raise ValidationError(
+            {
+                "values": [
+                    f"{soil_ref.BY_CODE[c].label if c in soil_ref.BY_CODE else c} : {m}"
+                    for c, m in errors.items()
+                ]
+            }
+        )
+    if cultivation_unit is not None and cultivation_unit.parcel_id != parcel.pk:
+        raise ValidationError({"cultivation_unit": "Cette unité n'est pas sur la parcelle."})
+    now = timezone.now()
+    if measured_at is not None and measured_at > now + timedelta(minutes=10):
+        raise ValidationError({"measured_at": "La mesure ne peut pas être dans le futur."})
+    test = SoilTest(
+        parcel=parcel,
+        cultivation_unit=cultivation_unit,
+        method=method,
+        device_model=device_model.strip(),
+        measured_at=measured_at or now,
+        depth_cm=depth_cm,
+        position=position,
+        notes=notes,
+        created_by=by,
+        updated_by=by,
+        server_received_at=now,
+        **_recorder(recorded_by_organization, recorded_by_producer),
+    )
+    test.full_clean()
+    test.save()
+    SoilTestValue.objects.bulk_create(
+        [
+            SoilTestValue(
+                soil_test=test, parameter=code, value=value, unit=soil_ref.BY_CODE[code].unit
+            )
+            for code, value in clean.items()
+        ]
+    )
+    return test
+
+
+def latest_soil_test(parcel: Parcel) -> SoilTest | None:
+    return (
+        parcel.soil_tests.prefetch_related("values").order_by("-measured_at", "-created_at").first()
+    )
+
+
 def current_site_profile(parcel: Parcel) -> ParcelSiteProfile | None:
     return parcel.site_profiles.order_by("-created_at").first()
 
@@ -724,7 +808,9 @@ def completeness(parcel: Parcel) -> dict:
         "operator": parcel.operators.filter(end_date__isnull=True).exists(),
         "tenure": parcel.ownerships.filter(end_date__isnull=True).exists(),
         "water": bool(profile and profile.water_regime),
-        "soil": bool(profile and (profile.soil_local_type or profile.soil_texture)),
+        # Sol : décrit (type, texture) ou mesuré au kit.
+        "soil": bool(profile and (profile.soil_local_type or profile.soil_texture))
+        or parcel.soil_tests.exists(),
         "cycle": parcel.crop_cycles.filter(is_archived=False).exists(),
     }
     blocks = [{"key": k, "label": label, "done": done[k]} for k, label in COMPLETENESS_BLOCKS]

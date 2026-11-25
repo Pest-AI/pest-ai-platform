@@ -3,6 +3,7 @@ import {
   ChevronRight,
   CloudUpload,
   Fingerprint,
+  FlaskConical,
   Layers,
   Map as MapIcon,
   MapPin,
@@ -34,6 +35,7 @@ const STEPS = [
   { label: "Contour", Icon: MapPin },
   { label: "Foncier", Icon: Layers },
   { label: "Sol et eau", Icon: Droplets },
+  { label: "Mesures", Icon: FlaskConical },
   { label: "AgroID", Icon: Fingerprint },
 ];
 
@@ -91,8 +93,8 @@ export default function Home() {
             <T style={styles.heroTitle}>{draft ? "Un enrôlement est en cours" : "Enrôler une parcelle"}</T>
             <T style={styles.heroText}>
               {draft
-                ? `${draft.label || "Parcelle"} · étape ${draft.step + 1} sur 5 · enregistré ${freshness(draft.saved_at, now)}`
-                : "Cinq étapes guidées, avec ou sans réseau, jusqu'à l'identifiant AgroID."}
+                ? `${draft.label || "Parcelle"} · étape ${draft.step + 1} sur ${STEPS.length} · enregistré ${freshness(draft.saved_at, now)}`
+                : "Étapes guidées, avec ou sans réseau, jusqu'à l'identifiant AgroID."}
             </T>
             <View style={styles.path}>
               {STEPS.map(({ label, Icon }, i) => {

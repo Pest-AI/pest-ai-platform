@@ -44,6 +44,7 @@ from apps.parcels import agroid as agroid_format
 from apps.parcels import geometry as geo
 from apps.parcels import imports, selectors, serializers, services
 from apps.parcels import site_referentials as site_ref
+from apps.parcels import soil_parameters as soil_ref
 from apps.parcels.importers import MAX_BYTES, ImportFileError
 from apps.parcels.models import (
     AccessLevel,
@@ -95,6 +96,8 @@ ORG_PERMISSIONS = {
     "site_referentials": "parcels.view",
     "site": "parcels.view",
     "record_site": "parcels.create",
+    "soil_tests": "parcels.view",
+    "record_soil_test": "parcels.create",
     "create": "parcels.create",
     "geometries": "parcels.create",
     "partial_update": "parcels.manage",
@@ -120,6 +123,8 @@ PERSONAL_PERMISSIONS = {
     "site_referentials": "personal.parcels.view",
     "site": "personal.parcels.view",
     "record_site": "personal.parcels.manage",
+    "soil_tests": "personal.parcels.view",
+    "record_soil_test": "personal.parcels.manage",
     "create": "personal.parcels.register",
     "geometries": "personal.parcels.manage",
     "partial_update": "personal.parcels.manage",
@@ -489,6 +494,9 @@ class ParcelViewSet(
                     **site,
                     **self._recorder(),
                 )
+            soil_test = data.get("soil_test")
+            if soil_test and any(v is not None for v in soil_test.get("values", {}).values()):
+                self._record_soil_test(parcel, soil_test)
         return self._detail(parcel, status.HTTP_201_CREATED)
 
     def retrieve(self, request, *args, **kwargs):
@@ -634,6 +642,8 @@ class ParcelViewSet(
                 "evidence": items(site_ref.Evidence),
                 "tenure_types": items(TenureType),
                 "rent_types": items(RentType),
+                "soil_parameters": soil_ref.catalog(),
+                "soil_test_methods": items(soil_ref.SoilTestMethod),
             }
         )
 
@@ -677,6 +687,61 @@ class ParcelViewSet(
         return Response(
             serializers.SiteProfileSerializer(profile).data, status=status.HTTP_201_CREATED
         )
+
+    def _record_soil_test(self, parcel, data: dict):
+        data = dict(data)
+        position = data.pop("position", None)
+        unit_id = data.pop("cultivation_unit", None)
+        unit = None
+        if unit_id:
+            unit = parcel.units.filter(pk=unit_id).first()
+            if unit is None:
+                raise ValidationError({"cultivation_unit": "Unité introuvable sur cette parcelle."})
+        return _run(
+            services.record_soil_test,
+            parcel,
+            by=self.request.user,
+            position=Point(*position, srid=4326) if position else None,
+            cultivation_unit=unit,
+            **data,
+            **self._recorder(),
+        )
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Mesures du sol",
+        description="Mesures faites au kit de terrain (ou au laboratoire, par un capteur), de la "
+        "plus récente à la plus ancienne. Chaque valeur indique si elle sort de la plage "
+        "habituelle (à vérifier).",
+        responses=serializers.SoilTestSerializer(many=True),
+    )
+    @action(detail=True, methods=["get"], url_path="soil-tests", pagination_class=None)
+    def soil_tests(self, request, pk=None):
+        parcel = self.get_object()
+        tests = parcel.soil_tests.select_related("cultivation_unit").prefetch_related("values")
+        return Response(
+            serializers.SoilTestSerializer(
+                tests.order_by("-measured_at", "-created_at"), many=True
+            ).data
+        )
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Ajouter une mesure du sol",
+        description="Valeurs du kit de terrain (pH, conductivité, N, P, K, humidité, "
+        "température…), unités du référentiel. Valeur impossible : refusée ; inhabituelle : "
+        "enregistrée et signalée. Les mesures s'ajoutent, aucune ne se modifie.",
+        request=serializers.SoilTestWriteSerializer,
+        responses={201: serializers.SoilTestSerializer},
+    )
+    @soil_tests.mapping.post
+    def record_soil_test(self, request, pk=None):
+        parcel = self.get_object()
+        self._writable(parcel)
+        serializer = serializers.SoilTestWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        test = self._record_soil_test(parcel, serializer.validated_data)
+        return Response(serializers.SoilTestSerializer(test).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
         tags=["parcels"],

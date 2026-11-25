@@ -2577,6 +2577,87 @@ paths:
               schema:
                 $ref: '#/components/schemas/SiteProfile'
           description: ''
+  /api/v1/parcels/{id}/soil-tests/:
+    get:
+      operationId: parcels_soil_tests_list
+      description: Mesures faites au kit de terrain (ou au laboratoire, par un capteur),
+        de la plus récente à la plus ancienne. Chaque valeur indique si elle sort
+        de la plage habituelle (à vérifier).
+      summary: Mesures du sol
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilTest'
+          description: ''
+    post:
+      operationId: parcels_soil_tests_create
+      description: 'Valeurs du kit de terrain (pH, conductivité, N, P, K, humidité,
+        température…), unités du référentiel. Valeur impossible : refusée ; inhabituelle
+        : enregistrée et signalée. Les mesures s''ajoutent, aucune ne se modifie.'
+      summary: Ajouter une mesure du sol
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoilTestWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SoilTestWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SoilTestWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoilTest'
+          description: ''
   /api/v1/parcels/{id}/units/:
     post:
       operationId: parcels_units_create
@@ -4547,6 +4628,7 @@ components:
       - parcel
       - parcel_site
       - producer
+      - soil_test
       type: string
       description: |-
         * `crop_cycle` - crop_cycle
@@ -4556,6 +4638,7 @@ components:
         * `parcel` - parcel
         * `parcel_site` - parcel_site
         * `producer` - producer
+        * `soil_test` - soil_test
     EvidenceEnum:
       enum:
       - declared
@@ -5278,6 +5361,16 @@ components:
         * `active` - Active
         * `suspended` - Suspendue
         * `revoked` - Révoquée
+    MethodEnum:
+      enum:
+      - field_kit
+      - laboratory
+      - sensor
+      type: string
+      description: |-
+        * `field_kit` - Kit de terrain
+        * `laboratory` - Laboratoire
+        * `sensor` - Capteur installé
     MyMembership:
       type: object
       description: Une adhésion de l'utilisateur connecté, avec la valeur X-Workspace
@@ -6258,6 +6351,11 @@ components:
           nullable: true
           description: 'Sol, eau et irrigation, accès : première version du profil
             de site.'
+        soil_test:
+          allOf:
+          - $ref: '#/components/schemas/SoilTestWriteRequest'
+          nullable: true
+          description: Mesure du kit de sol faite à l'enrôlement (facultative).
     ParcelDetail:
       type: object
       description: Fiche parcelle dans l'espace actif.
@@ -6348,6 +6446,15 @@ components:
           - $ref: '#/components/schemas/Completeness'
           readOnly: true
           description: Taux de complétude de la fiche AgroID et blocs renseignés.
+        latest_soil_test:
+          allOf:
+          - $ref: '#/components/schemas/SoilTest'
+          nullable: true
+          readOnly: true
+          description: Dernière mesure du sol (kit, laboratoire ou capteur), ou null.
+        soil_test_count:
+          type: integer
+          readOnly: true
         updated_at:
           type: string
           format: date-time
@@ -6366,6 +6473,7 @@ components:
       - current_area_m2
       - current_geometry
       - id
+      - latest_soil_test
       - local_name
       - operators
       - owners
@@ -6373,6 +6481,7 @@ components:
       - registration_channel
       - row_version
       - site_profile
+      - soil_test_count
       - status
       - units
       - updated_at
@@ -7930,10 +8039,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReferentialItem'
+        soil_parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoilParameter'
+        soil_test_methods:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferentialItem'
       required:
       - evidence
       - fields
       - rent_types
+      - soil_parameters
+      - soil_test_methods
       - tenure_types
     SlopeEnum:
       enum:
@@ -7969,6 +8088,142 @@ components:
         * `deck_dior` - Deck-dior
         * `other` - Autre
         * `unknown` - Ne sait pas
+    SoilParameter:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        unit:
+          type: string
+        min:
+          type: string
+        max:
+          type: string
+        usual_min:
+          type: string
+        usual_max:
+          type: string
+        decimals:
+          type: integer
+        kit:
+          type: boolean
+          description: Mesuré par le kit de terrain.
+      required:
+      - code
+      - decimals
+      - kit
+      - label
+      - max
+      - min
+      - unit
+      - usual_max
+      - usual_min
+    SoilTest:
+      type: object
+      description: Mesure du sol (J20c) avec ses valeurs, dans l'ordre du référentiel.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/MethodEnum'
+          readOnly: true
+        device_model:
+          type: string
+          readOnly: true
+          description: Modèle du kit ou du capteur.
+        measured_at:
+          type: string
+          format: date-time
+          readOnly: true
+        depth_cm:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Profondeur de la sonde ou du prélèvement.
+        position:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          readOnly: true
+        cultivation_unit:
+          allOf:
+          - $ref: '#/components/schemas/SoilUnitRef'
+          nullable: true
+          readOnly: true
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoilValue'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - cultivation_unit
+      - depth_cm
+      - device_model
+      - id
+      - measured_at
+      - method
+      - notes
+      - position
+      - values
+    SoilTestWriteRequest:
+      type: object
+      description: |-
+        Nouvelle mesure du sol. `values` : {code du paramètre: valeur}, unités du référentiel
+        (`/parcels/site-referentials/`, clé `soil_parameters`).
+      properties:
+        values:
+          type: object
+          additionalProperties:
+            type: string
+            format: decimal
+            pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
+            nullable: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/MethodEnum'
+          default: field_kit
+        device_model:
+          type: string
+          maxLength: 100
+        measured_at:
+          type: string
+          format: date-time
+        depth_cm:
+          type: integer
+          maximum: 200
+          minimum: 0
+          nullable: true
+        position:
+          type: array
+          items:
+            type: number
+            format: double
+          nullable: true
+          maxItems: 2
+          minItems: 2
+        cultivation_unit:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+      required:
+      - values
     SoilTextureEnum:
       enum:
       - sandy
@@ -7985,6 +8240,38 @@ components:
         * `clay_loam` - Argilo-limoneuse
         * `clay` - Argileuse
         * `unknown` - Ne sait pas
+    SoilUnitRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+      required:
+      - code
+      - id
+    SoilValue:
+      type: object
+      properties:
+        parameter:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+          description: Valeur décimale, au nombre de décimales du paramètre.
+        unit:
+          type: string
+        unusual:
+          type: boolean
+          description: Hors de la plage habituelle (à vérifier).
+      required:
+      - label
+      - parameter
+      - unit
+      - unusual
+      - value
     TenureTypeEnum:
       enum:
       - titled_property

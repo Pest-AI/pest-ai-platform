@@ -25,6 +25,7 @@ export type EntityType =
   | "producer"
   | "parcel"
   | "parcel_site"
+  | "soil_test"
   | "cultivation_unit"
   | "crop_cycle"
   | "crop_operation"

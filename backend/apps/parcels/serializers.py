@@ -12,6 +12,7 @@ from rest_framework import serializers
 
 from apps.parcels import geometry as geo
 from apps.parcels import site_referentials as site_ref
+from apps.parcels import soil_parameters as soil_ref
 from apps.parcels import validation
 from apps.parcels.models import (
     AccessLevel,
@@ -27,6 +28,7 @@ from apps.parcels.models import (
     ParcelOwnership,
     ParcelSiteProfile,
     RentType,
+    SoilTest,
     TenureType,
 )
 
@@ -314,6 +316,111 @@ SiteProfileWriteSerializer = type(
 )
 
 
+def _soil_value(code, value) -> str:
+    param = soil_ref.BY_CODE.get(code)
+    if param is None:
+        return str(value.normalize())
+    return str(value.quantize(Decimal(1).scaleb(-param.decimals)))
+
+
+class SoilUnitRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    code = serializers.CharField()
+
+
+class SoilValueSerializer(serializers.Serializer):
+    parameter = serializers.CharField()
+    label = serializers.CharField()
+    value = serializers.CharField(help_text="Valeur décimale, au nombre de décimales du paramètre.")
+    unit = serializers.CharField(allow_blank=True)
+    unusual = serializers.BooleanField(help_text="Hors de la plage habituelle (à vérifier).")
+
+
+class SoilTestSerializer(serializers.ModelSerializer):
+    """Mesure du sol (J20c) avec ses valeurs, dans l'ordre du référentiel."""
+
+    values = serializers.SerializerMethodField()
+    position = serializers.SerializerMethodField()
+    cultivation_unit = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SoilTest
+        fields = [
+            "id",
+            "method",
+            "device_model",
+            "measured_at",
+            "depth_cm",
+            "position",
+            "cultivation_unit",
+            "values",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(SoilValueSerializer(many=True))
+    def get_values(self, obj):
+        order = {p.code: i for i, p in enumerate(soil_ref.PARAMETERS)}
+        rows = sorted(obj.values.all(), key=lambda v: order.get(v.parameter, 99))
+        return [
+            {
+                "parameter": v.parameter,
+                "label": (
+                    soil_ref.BY_CODE[v.parameter].label
+                    if v.parameter in soil_ref.BY_CODE
+                    else v.parameter
+                ),
+                "value": _soil_value(v.parameter, v.value),
+                "unit": v.unit,
+                "unusual": v.parameter in soil_ref.BY_CODE
+                and soil_ref.is_unusual(v.parameter, v.value),
+            }
+            for v in rows
+        ]
+
+    @extend_schema_field(serializers.ListField(child=serializers.FloatField(), allow_null=True))
+    def get_position(self, obj):
+        return [obj.position.x, obj.position.y] if obj.position else None
+
+    @extend_schema_field(SoilUnitRefSerializer(allow_null=True))
+    def get_cultivation_unit(self, obj):
+        unit = obj.cultivation_unit
+        return {"id": unit.pk, "code": unit.code} if unit else None
+
+
+class SoilTestWriteSerializer(serializers.Serializer):
+    """Nouvelle mesure du sol. `values` : {code du paramètre: valeur}, unités du référentiel
+    (`/parcels/site-referentials/`, clé `soil_parameters`)."""
+
+    values = serializers.DictField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=3, allow_null=True)
+    )
+    method = serializers.ChoiceField(
+        choices=soil_ref.SoilTestMethod.choices, default=soil_ref.SoilTestMethod.FIELD_KIT
+    )
+    device_model = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    measured_at = serializers.DateTimeField(required=False)
+    depth_cm = serializers.IntegerField(min_value=0, max_value=200, required=False, allow_null=True)
+    position = serializers.ListField(
+        child=serializers.FloatField(), min_length=2, max_length=2, required=False, allow_null=True
+    )
+    cultivation_unit = serializers.UUIDField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class SoilParameterSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    label = serializers.CharField()
+    unit = serializers.CharField(allow_blank=True)
+    min = serializers.CharField()
+    max = serializers.CharField()
+    usual_min = serializers.CharField()
+    usual_max = serializers.CharField()
+    decimals = serializers.IntegerField()
+    kit = serializers.BooleanField(help_text="Mesuré par le kit de terrain.")
+
+
 class SiteHistorySerializer(serializers.Serializer):
     current = SiteProfileSerializer(allow_null=True)
     history = SiteProfileSerializer(many=True)
@@ -331,6 +438,8 @@ class SiteReferentialsSerializer(serializers.Serializer):
     evidence = ReferentialItemSerializer(many=True)
     tenure_types = ReferentialItemSerializer(many=True)
     rent_types = ReferentialItemSerializer(many=True)
+    soil_parameters = SoilParameterSerializer(many=True)
+    soil_test_methods = ReferentialItemSerializer(many=True)
 
 
 class CompletenessBlockSerializer(serializers.Serializer):
@@ -378,6 +487,10 @@ class ParcelDetailSerializer(ParcelListSerializer):
     completeness = serializers.SerializerMethodField(
         help_text="Taux de complétude de la fiche AgroID et blocs renseignés."
     )
+    latest_soil_test = serializers.SerializerMethodField(
+        help_text="Dernière mesure du sol (kit, laboratoire ou capteur), ou null."
+    )
+    soil_test_count = serializers.SerializerMethodField()
 
     class Meta(ParcelListSerializer.Meta):
         fields = [
@@ -391,6 +504,8 @@ class ParcelDetailSerializer(ParcelListSerializer):
             "access",
             "site_profile",
             "completeness",
+            "latest_soil_test",
+            "soil_test_count",
             "updated_at",
             "row_version",
         ]
@@ -402,6 +517,16 @@ class ParcelDetailSerializer(ParcelListSerializer):
 
         current = current_site_profile(obj)
         return SiteProfileSerializer(current).data if current else None
+
+    @extend_schema_field(SoilTestSerializer(allow_null=True))
+    def get_latest_soil_test(self, obj):
+        from apps.parcels.services import latest_soil_test
+
+        latest = latest_soil_test(obj)
+        return SoilTestSerializer(latest).data if latest else None
+
+    def get_soil_test_count(self, obj) -> int:
+        return obj.soil_tests.count()
 
     @extend_schema_field(CompletenessSerializer)
     def get_completeness(self, obj):
@@ -521,6 +646,11 @@ class ParcelCreateSerializer(GeometryInputMixin):
         required=False,
         allow_null=True,
         help_text="Sol, eau et irrigation, accès : première version du profil de site.",
+    )
+    soil_test = SoilTestWriteSerializer(
+        required=False,
+        allow_null=True,
+        help_text="Mesure du kit de sol faite à l'enrôlement (facultative).",
     )
 
     def validate_position(self, value):

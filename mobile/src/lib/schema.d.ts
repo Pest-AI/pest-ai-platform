@@ -1152,6 +1152,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parcels/{id}/soil-tests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mesures du sol
+         * @description Mesures faites au kit de terrain (ou au laboratoire, par un capteur), de la plus récente à la plus ancienne. Chaque valeur indique si elle sort de la plage habituelle (à vérifier).
+         */
+        get: operations["parcels_soil_tests_list"];
+        put?: never;
+        /**
+         * Ajouter une mesure du sol
+         * @description Valeurs du kit de terrain (pH, conductivité, N, P, K, humidité, température…), unités du référentiel. Valeur impossible : refusée ; inhabituelle : enregistrée et signalée. Les mesures s'ajoutent, aucune ne se modifie.
+         */
+        post: operations["parcels_soil_tests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parcels/{id}/units/": {
         parameters: {
             query?: never;
@@ -2020,9 +2044,10 @@ export interface components {
          *     * `parcel` - parcel
          *     * `parcel_site` - parcel_site
          *     * `producer` - producer
+         *     * `soil_test` - soil_test
          * @enum {string}
          */
-        EntityTypeEnum: "crop_cycle" | "crop_operation" | "cultivation_unit" | "harvest" | "parcel" | "parcel_site" | "producer";
+        EntityTypeEnum: "crop_cycle" | "crop_operation" | "cultivation_unit" | "harvest" | "parcel" | "parcel_site" | "producer" | "soil_test";
         /**
          * @description * `declared` - Déclaré par le producteur
          *     * `observed` - Constaté par l'agent
@@ -2341,6 +2366,13 @@ export interface components {
          * @enum {string}
          */
         MembershipStatusEnum: "invited" | "active" | "suspended" | "revoked";
+        /**
+         * @description * `field_kit` - Kit de terrain
+         *     * `laboratory` - Laboratoire
+         *     * `sensor` - Capteur installé
+         * @enum {string}
+         */
+        MethodEnum: "field_kit" | "laboratory" | "sensor";
         /** @description Une adhésion de l'utilisateur connecté, avec la valeur X-Workspace à utiliser. */
         MyMembership: {
             /** Format: uuid */
@@ -2845,6 +2877,8 @@ export interface components {
             lease?: components["schemas"]["LeaseTermsRequest"] | null;
             /** @description Sol, eau et irrigation, accès : première version du profil de site. */
             site?: components["schemas"]["SiteProfileWriteRequest"] | null;
+            /** @description Mesure du kit de sol faite à l'enrôlement (facultative). */
+            soil_test?: components["schemas"]["SoilTestWriteRequest"] | null;
         };
         /** @description Fiche parcelle dans l'espace actif. */
         ParcelDetail: {
@@ -2877,6 +2911,9 @@ export interface components {
             readonly site_profile: components["schemas"]["SiteProfile"] | null;
             /** @description Taux de complétude de la fiche AgroID et blocs renseignés. */
             readonly completeness: components["schemas"]["Completeness"];
+            /** @description Dernière mesure du sol (kit, laboratoire ou capteur), ou null. */
+            readonly latest_soil_test: components["schemas"]["SoilTest"] | null;
+            readonly soil_test_count: number;
             /** Format: date-time */
             readonly updated_at: string;
             readonly row_version: number;
@@ -3529,6 +3566,8 @@ export interface components {
             evidence: components["schemas"]["ReferentialItem"][];
             tenure_types: components["schemas"]["ReferentialItem"][];
             rent_types: components["schemas"]["ReferentialItem"][];
+            soil_parameters: components["schemas"]["SoilParameter"][];
+            soil_test_methods: components["schemas"]["ReferentialItem"][];
         };
         /**
          * @description * `flat` - Plate
@@ -3551,6 +3590,55 @@ export interface components {
          * @enum {string}
          */
         SoilLocalTypeEnum: "hollalde" | "fonde" | "falo" | "dieri" | "dior" | "deck" | "deck_dior" | "other" | "unknown";
+        SoilParameter: {
+            code: string;
+            label: string;
+            unit: string;
+            min: string;
+            max: string;
+            usual_min: string;
+            usual_max: string;
+            decimals: number;
+            /** @description Mesuré par le kit de terrain. */
+            kit: boolean;
+        };
+        /** @description Mesure du sol (J20c) avec ses valeurs, dans l'ordre du référentiel. */
+        SoilTest: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly method: components["schemas"]["MethodEnum"];
+            /** @description Modèle du kit ou du capteur. */
+            readonly device_model: string;
+            /** Format: date-time */
+            readonly measured_at: string;
+            /** @description Profondeur de la sonde ou du prélèvement. */
+            readonly depth_cm: number | null;
+            readonly position: number[] | null;
+            readonly cultivation_unit: components["schemas"]["SoilUnitRef"] | null;
+            readonly values: components["schemas"]["SoilValue"][];
+            readonly notes: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description Nouvelle mesure du sol. `values` : {code du paramètre: valeur}, unités du référentiel
+         *     (`/parcels/site-referentials/`, clé `soil_parameters`).
+         */
+        SoilTestWriteRequest: {
+            values: {
+                [key: string]: string | null;
+            };
+            /** @default field_kit */
+            method: components["schemas"]["MethodEnum"];
+            device_model?: string;
+            /** Format: date-time */
+            measured_at?: string;
+            depth_cm?: number | null;
+            position?: number[] | null;
+            /** Format: uuid */
+            cultivation_unit?: string | null;
+            notes?: string;
+        };
         /**
          * @description * `sandy` - Sableuse
          *     * `sandy_loam` - Sablo-limoneuse
@@ -3561,6 +3649,20 @@ export interface components {
          * @enum {string}
          */
         SoilTextureEnum: "sandy" | "sandy_loam" | "loam" | "clay_loam" | "clay" | "unknown";
+        SoilUnitRef: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+        };
+        SoilValue: {
+            parameter: string;
+            label: string;
+            /** @description Valeur décimale, au nombre de décimales du paramètre. */
+            value: string;
+            unit: string;
+            /** @description Hors de la plage habituelle (à vérifier). */
+            unusual: boolean;
+        };
         /**
          * @description * `titled_property` - Titre foncier
          *     * `communal_allocation` - Affectation communale (domaine national)
@@ -5647,6 +5749,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteProfile"];
+                };
+            };
+        };
+    };
+    parcels_soil_tests_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoilTest"][];
+                };
+            };
+        };
+    };
+    parcels_soil_tests_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SoilTestWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SoilTestWriteRequest"];
+                "multipart/form-data": components["schemas"]["SoilTestWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoilTest"];
                 };
             };
         };

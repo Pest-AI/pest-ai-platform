@@ -1,6 +1,6 @@
 import * as Linking from "expo-linking";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CheckCircle2, ChevronRight, Circle, CloudOff, Droplets, Fingerprint, Navigation, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react-native";
+import { ArrowLeft, CheckCircle2, ChevronRight, Circle, CloudOff, Droplets, Fingerprint, Navigation, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound, FlaskConical } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ import { agroidUrl } from "@/lib/qr";
 import { CAPTURE_LABELS, PARCEL_STATUS_LABELS, STATUS_TONES, VALIDATION_LABELS } from "@/lib/parcel-labels";
 import { type CachedParcel, freshness, loadSnapshot } from "@/lib/parcel-cache";
 import { useSession } from "@/lib/session";
+import { formatSoilValue } from "@/lib/soil";
 import { FIELD_LABELS, SOIL_FIELDS, WATER_FIELDS, labelOf, useSiteReferentials } from "@/lib/site";
 import type { components } from "@/lib/schema";
 import { colors, radius } from "@/theme";
@@ -80,7 +81,7 @@ export default function ParcelScreen() {
     };
   }, [workspace, id, expire, reload]);
 
-  // Retour de l'écran « Sol, eau et accès » : fiche rechargée.
+  // Retour des écrans « Sol, eau et accès » ou « Mesurer le sol » : fiche rechargée.
   const firstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
@@ -351,6 +352,51 @@ export default function ParcelScreen() {
             </View>
           ) : null}
 
+          {detail ? (
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <FlaskConical size={18} color={colors.forest} />
+                <T style={[styles.h2, { flex: 1 }]}>Mesures du sol</T>
+                {detail.soil_test_count > 1 ? (
+                  <T style={{ color: colors.muted, fontSize: 13 }}>{detail.soil_test_count} mesures</T>
+                ) : null}
+              </View>
+              {detail.latest_soil_test ? (
+                <>
+                  <T style={{ color: colors.muted, fontSize: 13, marginTop: 4 }}>
+                    {new Date(detail.latest_soil_test.measured_at).toLocaleDateString("fr-FR")}
+                    {detail.latest_soil_test.depth_cm ? ` · sonde à ${detail.latest_soil_test.depth_cm} cm` : ""}
+                    {detail.latest_soil_test.device_model ? ` · ${detail.latest_soil_test.device_model}` : ""}
+                  </T>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                    {detail.latest_soil_test.values.map((v) => (
+                      <View key={v.parameter} style={[styles.measure, v.unusual && { backgroundColor: colors.warningBg }]}>
+                        <T style={{ fontSize: 12, color: v.unusual ? colors.warning : colors.muted }}>{v.label}</T>
+                        <T mono style={{ fontSize: 16 }}>
+                          {formatSoilValue(v.value, v.unit)}
+                        </T>
+                      </View>
+                    ))}
+                  </View>
+                  {detail.latest_soil_test.values.some((v) => v.unusual) ? (
+                    <T style={{ color: colors.warning, fontSize: 13, marginTop: 8 }}>En orange : valeur inhabituelle, à vérifier à la prochaine mesure.</T>
+                  ) : null}
+                </>
+              ) : (
+                <T style={{ color: colors.muted, marginTop: 6 }}>Pas encore mesuré au kit.</T>
+              )}
+              {canAddUnit ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: "/parcelles/mesure-sol", params: { id: id ?? "", agroid: agroid ?? "" } })}
+                  accessibilityRole="button"
+                  style={[styles.cta, { marginTop: 12, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.forest }]}
+                >
+                  <T style={{ color: colors.forest, fontWeight: "700" }}>Mesurer le sol</T>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={styles.card}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <UserRound size={18} color={colors.forest} />
@@ -386,6 +432,7 @@ export default function ParcelScreen() {
 }
 
 const styles = StyleSheet.create({
+  measure: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.subtle, minWidth: "30%" },
   top: { backgroundColor: colors.forest, paddingHorizontal: 12, paddingBottom: 14, flexDirection: "row", alignItems: "center", gap: 8 },
   back: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   card: { backgroundColor: colors.canvas, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 16 },

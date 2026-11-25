@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { Check, CloudUpload, Droplets, Fingerprint, Layers, MapPin, Pencil, Users } from "lucide-react-native";
+import { Check, CloudUpload, Droplets, Fingerprint, FlaskConical, Layers, MapPin, Pencil, Users } from "lucide-react-native";
 import type * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -11,6 +11,7 @@ import { type NewProducer, ProducerStep } from "@/components/enrolment/producer-
 import { StepShell } from "@/components/enrolment/step-shell";
 import { QrCode } from "@/components/qr-code";
 import { SiteForm } from "@/components/site-form";
+import { SoilTestForm } from "@/components/soil-test-form";
 import { Alert, Avatar, Button, Card, T, initialsOf } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
@@ -24,6 +25,7 @@ import { toInternationalPhone } from "@/lib/phone";
 import { agroidUrl } from "@/lib/qr";
 import { useSession } from "@/lib/session";
 import { type SiteValues, hasSiteData, labelOf, siteBody, useSiteReferentials } from "@/lib/site";
+import { EMPTY_SOIL, type SoilDraft, checkSoil, formatSoilValue, lastKitModel, rememberKitModel, soilBody } from "@/lib/soil";
 import { colors, radius } from "@/theme";
 
 type Candidate = { id: string; display_name: string; locality: string; phone_hint: string; in_organization: boolean; can_attach: boolean };
@@ -41,6 +43,7 @@ type Draft = {
   position: Fix | null;
   land: Land;
   site: SiteValues;
+  soil: SoilDraft;
 };
 
 const EMPTY: Draft = {
@@ -54,6 +57,7 @@ const EMPTY: Draft = {
   position: null,
   land: EMPTY_LAND,
   site: { evidence: "declared" },
+  soil: EMPTY_SOIL,
 };
 
 type Done = { id: string; agroid: string | null; status: string; pending: boolean; area: number | null; who: string };
@@ -81,6 +85,7 @@ export default function EnrolmentScreen() {
   const personal = workspace === "personal";
   const { fix, error: gpsError, supported } = useLiveFix(ready && !done && d.step === 1 && status === "signedIn");
   const refs = useSiteReferentials(workspace);
+  const soilParams = refs?.soil_parameters ?? null;
   const update = useCallback((patch: Partial<Draft>) => setD((cur) => ({ ...cur, ...patch })), []);
   const setPoints = useCallback((fn: (pts: Fix[]) => Fix[]) => setD((cur) => ({ ...cur, points: fn(cur.points) })), []);
 
@@ -101,7 +106,7 @@ export default function EnrolmentScreen() {
         if (!cancelled) setD({ ...EMPTY, producer, step: producer ? 1 : 0 });
       } else if (saved) {
         const { meta: _meta, ...rest } = saved;
-        setD({ ...EMPTY, ...rest });
+        setD({ ...EMPTY, ...rest, soil: rest.soil ?? EMPTY_SOIL });
         setResumed(true);
       } else if (personal) {
         setD({ ...EMPTY, step: 1 });
@@ -112,6 +117,12 @@ export default function EnrolmentScreen() {
       cancelled = true;
     };
   }, [workspace, params.producteur, personal]);
+
+  // Modèle du kit prérempli avec le dernier utilisé sur ce téléphone.
+  useEffect(() => {
+    if (!ready || d.step !== 4 || d.soil.device) return;
+    void lastKitModel().then((m) => m && setD((cur) => (cur.soil.device ? cur : { ...cur, soil: { ...cur.soil, device: m } })));
+  }, [ready, d.step, d.soil.device]);
 
   // Numéro d'adhérent proposé pour un nouveau producteur.
   useEffect(() => {
@@ -190,6 +201,8 @@ export default function EnrolmentScreen() {
   const located = d.mode === "position" ? Boolean(d.position) : d.points.length >= 3;
   const ownerOk = d.land.owner !== "other" || d.land.ownerName.trim().length > 1;
   const area = d.mode === "position" ? null : ringAreaM2(ring);
+  const soilCheck = soilParams ? checkSoil(soilParams.filter((p) => p.kit), d.soil) : { errors: {}, unusual: {}, filled: 0 };
+  const soilOk = Object.keys(soilCheck.errors).length === 0;
 
   // ── Envoi ─────────────────────────────────────────────────────────────
   async function ensureProducer(confirmNew = false): Promise<string | null> {
@@ -234,6 +247,11 @@ export default function EnrolmentScreen() {
       }
       const body: Record<string, unknown> = { local_name: d.name.trim(), operator, ...landBody(d.land, true) };
       if (hasSiteData(d.site)) body.site = siteBody(d.site);
+      const soil = soilParams ? soilBody(soilParams, d.soil, d.mode === "position" ? (d.position?.position as [number, number]) : null) : null;
+      if (soil) {
+        body.soil_test = soil;
+        void rememberKitModel(d.soil.device);
+      }
       if (d.mode === "position") {
         body.position = d.position?.position ?? null;
         body.capture_method = "gps_points";
@@ -445,11 +463,31 @@ export default function EnrolmentScreen() {
     );
   }
 
+  if (d.step === 4) {
+    return (
+      <StepShell
+        step={4}
+        title="Mesures du sol"
+        hint="Avec le kit de terrain : pH, conductivité, azote, phosphore, potassium… Facultatif : passez si vous n'avez pas le kit."
+        onBack={goBack}
+        onClose={close}
+        next={{
+          label: soilCheck.filled ? "Continuer" : "Pas de kit : passer",
+          onPress: () => go(5),
+          disabled: !soilOk,
+          reason: "Corrigez les valeurs impossibles (en rouge).",
+        }}
+      >
+        <SoilTestForm params={soilParams} value={d.soil} onChange={(soil) => update({ soil })} />
+      </StepShell>
+    );
+  }
+
   // Récapitulatif
   const siteFilled = Object.entries(d.site).filter(([k, v]) => v && k !== "evidence" && k !== "distance_to_village_km" && k !== "scheme_name" && k !== "other_detail");
   return (
     <StepShell
-      step={4}
+      step={5}
       title="Récapitulatif"
       hint="Vérifiez avec le producteur avant d'attribuer l'AgroID."
       onBack={goBack}
@@ -459,7 +497,7 @@ export default function EnrolmentScreen() {
         icon: <Fingerprint size={18} color="#fff" />,
         onPress: () => void finish(false),
         loading: busy,
-        disabled: !producerOk || !located || !ownerOk || Boolean(candidates),
+        disabled: !producerOk || !located || !ownerOk || !soilOk || Boolean(candidates),
         reason: candidates ? "Choisissez d'abord ci-dessus." : "Une étape est incomplète.",
       }}
     >
@@ -567,6 +605,24 @@ export default function EnrolmentScreen() {
           {siteFilled.length ? siteFilled.map(([k, v]) => labelOf(refs, k, v)).join(" · ") : "Rien de renseigné (à compléter plus tard)"}
         </T>
       </Section>
+      <Section Icon={FlaskConical} title="Mesures du sol" onEdit={() => go(4)}>
+        {soilParams && soilCheck.filled ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {soilParams
+              .filter((p) => (d.soil.values[p.code] ?? "").trim())
+              .map((p) => (
+                <View key={p.code} style={[styles.measure, soilCheck.unusual[p.code] ? { backgroundColor: colors.warningBg } : null]}>
+                  <T style={{ fontSize: 12, color: colors.muted }}>{p.label}</T>
+                  <T mono style={{ fontSize: 15 }}>
+                    {formatSoilValue(d.soil.values[p.code]!.trim(), p.unit)}
+                  </T>
+                </View>
+              ))}
+          </View>
+        ) : (
+          <T style={{ color: colors.muted }}>Pas de mesure (à faire plus tard depuis la fiche)</T>
+        )}
+      </Section>
     </StepShell>
   );
 }
@@ -594,4 +650,5 @@ const styles = StyleSheet.create({
   candidate: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: radius.sm, backgroundColor: colors.subtle },
   doneBadge: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
   agroid: { fontSize: 26, letterSpacing: 1, color: colors.forest },
+  measure: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: colors.subtle, minWidth: "30%" },
 });

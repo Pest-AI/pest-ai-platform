@@ -30,6 +30,7 @@ const KIND_LABELS: Record<string, string> = {
   producer: "Producteur",
   parcel: "Parcelle",
   parcel_site: "Sol et eau",
+  soil_test: "Mesure du sol",
   cultivation_unit: "Unité de culture",
   crop_cycle: "Cycle",
   crop_operation: "Opération",

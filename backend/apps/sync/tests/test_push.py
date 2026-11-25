@@ -246,3 +246,18 @@ def test_espace_requis_et_lot_borne(agent_user):
     client.force_authenticate(user=agent_user)
     res = client.post(PUSH, {"device": device(), "operations": []}, format="json")
     assert res.status_code == 400  # pas d'espace X-Workspace
+
+
+def test_mesure_du_sol_hors_ligne_avec_la_parcelle(agent):
+    dev = device()
+    parcel = op("parcel", {"geometry": square(), "capture_method": "gps_walk"}, 1)
+    soil = op(
+        "soil_test",
+        {"values": {"ph": "6.9", "ec": "380"}},
+        2,
+        params={"parcel": f"@op:{parcel['id']}"},
+    )
+    results = push(agent, dev, parcel, soil)["results"]
+    assert [r["status"] for r in results] == ["applied", "applied"]
+    detail = agent.get(f"/api/v1/parcels/{results[0]['result']['id']}/").json()
+    assert detail["soil_test_count"] == 1

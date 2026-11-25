@@ -120,6 +120,20 @@ Limites connues : app native (stores) : file en mémoire tant que la base SQLite
 
 Parcours navigateur (19 contrôles) : onglets ; enrôlement complet nouveau producteur → contour coin par coin → location en argent → irrigué → récapitulatif → modification d'une étape → AgroID et QR code (vérifiés en base) ; autre parcelle du même producteur ; fermeture puis reprise du brouillon avec ses points ; fin d'enrôlement hors ligne, puis AgroID attribué au retour du réseau et affiché sur l'accueil.
 
+## J20c — Mesures du sol au kit de terrain (livré)
+
+| Livré | Vérification |
+|---|---|
+| **Mesure du sol** (`SoilTest` + une valeur par paramètre) : kit de terrain (par défaut), laboratoire ou capteur ; modèle du kit, date, profondeur de la sonde, position, unité de culture éventuelle. **Historisée** : chaque mesure s'ajoute, aucune ne se modifie ni ne se supprime (garanti par PostgreSQL). Migration `parcels 0010_mesures_du_sol` (2 tables, rien de modifié) | 5 tests API |
+| **Paramètres servis par l'API** (`/parcels/site-referentials/`, clé `soil_parameters`), testeur « 7 en 1 » par défaut : pH, conductivité (µS/cm), azote, phosphore, potassium (mg/kg), humidité (%), température (°C) ; matière organique (laboratoire). Unité fixe par paramètre ; **valeur impossible refusée** (ex. pH 15), **valeur hors plage habituelle enregistrée et signalée**. Ajouter un paramètre ne demande pas de migration | Tests API, 2 tests unitaires |
+| API : `GET`/`POST /parcels/{id}/soil-tests/` ; mesure facultative à la création de la parcelle (`soil_test`) ; fiche : dernière mesure et nombre de mesures ; **bloc « Sol » de la complétude rempli par une mesure** ; synchronisation hors ligne (`soil_test`) | Tests API (dont synchro) |
+| **App terrain** : étape **facultative « Mesures du sol »** dans l'enrôlement (6 étapes ; « Pas de kit : passer ») ; écran **« Mesurer le sol »** depuis la fiche parcelle, hors ligne ; valeurs inhabituelles en orange ; dernier modèle de kit prérempli | Parcours navigateur |
+| **Web OS** : carte « Mesures du sol » sur la fiche parcelle (dernière mesure, historique en tableau) | Parcours navigateur |
+
+Parcours navigateur (11 contrôles) : enrôlement en 6 étapes avec mesures (pH 15 refusé, conductivité 5 200 µS/cm signalée), récapitulatif, AgroID ; fiche avec mesures ; deuxième mesure hors ligne depuis la fiche, envoyée au retour du réseau ; Web OS avec historique.
+
+À valider par l'agronome : liste des paramètres, unités et plages habituelles du kit (`backend/apps/parcels/soil_parameters.py`), et le modèle exact du kit des agents.
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

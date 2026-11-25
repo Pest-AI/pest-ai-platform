@@ -19,6 +19,8 @@ Reportés :
 
 from __future__ import annotations
 
+import uuid
+
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
@@ -27,6 +29,7 @@ from django.db.models import Q
 from apps.core.models import ArchivableModel, BaseModel, ImmutableFieldsMixin, SyncModel
 from apps.parcels import agroid as agroid_format
 from apps.parcels import site_referentials as ref
+from apps.parcels import soil_parameters as soil_ref
 
 
 class ParcelRegistrationChannel(models.TextChoices):
@@ -903,3 +906,78 @@ class ParcelImport(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.file_name} ({self.get_status_display()})"
+
+
+class SoilTest(BaseModel, SyncModel):
+    """Mesure du sol sur une parcelle (J20c) : kit de terrain de l'agent, laboratoire ou
+    capteur. Historisée : chaque mesure s'ajoute, aucune ne se modifie ni ne se supprime
+    (garanti par PostgreSQL). Les valeurs sont dans `SoilTestValue`, une par paramètre."""
+
+    Method = soil_ref.SoilTestMethod
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="soil_tests")
+    cultivation_unit = models.ForeignKey(
+        "parcels.CultivationUnit",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="soil_tests",
+    )
+    method = models.CharField(max_length=32, choices=soil_ref.SoilTestMethod.choices)
+    device_model = models.CharField(
+        max_length=100, blank=True, default="", help_text="Modèle du kit ou du capteur."
+    )
+    measured_at = models.DateTimeField()
+    depth_cm = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Profondeur de la sonde ou du prélèvement."
+    )
+    position = models.PointField(srid=4326, null=True, blank=True)
+    recorded_by_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    recorded_by_producer = models.ForeignKey(
+        "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "parcels_soil_test"
+        verbose_name = "mesure du sol"
+        verbose_name_plural = "mesures du sol"
+        constraints = [
+            models.CheckConstraint(condition=_one_recorder(), name="soil_test_one_recorder"),
+            models.CheckConstraint(
+                condition=Q(method__in=soil_ref.SoilTestMethod.values),
+                name="soil_test_method_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(depth_cm__isnull=True) | Q(depth_cm__lte=200),
+                name="soil_test_depth_range",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["parcel", "-measured_at"], name="soil_test_parcel_recent_idx")
+        ]
+
+
+class SoilTestValue(models.Model):
+    """Valeur d'un paramètre pour une mesure du sol ; unité fixée par le référentiel."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    soil_test = models.ForeignKey(SoilTest, on_delete=models.PROTECT, related_name="values")
+    parameter = models.CharField(max_length=32)
+    value = models.DecimalField(max_digits=10, decimal_places=3)
+    unit = models.CharField(max_length=16, blank=True, default="")
+
+    class Meta:
+        db_table = "parcels_soil_test_value"
+        verbose_name = "valeur mesurée du sol"
+        constraints = [
+            models.UniqueConstraint(fields=["soil_test", "parameter"], name="soil_value_once"),
+        ]
+        # Paramètre contrôlé par le service (référentiel) : un nouveau paramètre ne demande pas
+        # de migration.

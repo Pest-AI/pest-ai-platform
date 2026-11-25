@@ -46,6 +46,7 @@ ROUTES = {
     ("parcel", "create"): ("POST", "/api/v1/parcels/"),
     ("parcel_site", "create"): ("POST", "/api/v1/parcels/{parcel}/site/"),
     ("cultivation_unit", "create"): ("POST", "/api/v1/parcels/{parcel}/units/"),
+    ("soil_test", "create"): ("POST", "/api/v1/parcels/{parcel}/soil-tests/"),
     ("crop_cycle", "create"): ("POST", "/api/v1/crop-cycles/"),
     ("crop_cycle", "update"): ("PATCH", "/api/v1/crop-cycles/{entity}/"),
     ("crop_operation", "create"): ("POST", "/api/v1/crop-cycles/{cycle}/operations/"),

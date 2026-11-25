@@ -27,3 +27,25 @@ describe("enrôlement en étapes", () => {
     });
   });
 });
+
+import { checkSoil, soilBody } from "../soil";
+
+const PARAMS = [
+  { code: "ph", label: "pH", unit: "", min: "0", max: "14", usual_min: "4.5", usual_max: "9", decimals: 1, kit: true },
+  { code: "ec", label: "Conductivité", unit: "µS/cm", min: "0", max: "20000", usual_min: "0", usual_max: "4000", decimals: 0, kit: true },
+];
+
+describe("mesures du kit de sol", () => {
+  it("valeur impossible bloquante, inhabituelle signalée, virgule acceptée", () => {
+    const c = checkSoil(PARAMS, { values: { ph: "15", ec: "6 000" }, depth: "", device: "" });
+    expect(Object.keys(c.errors)).toEqual(["ph"]);
+    expect(Object.keys(c.unusual)).toEqual(["ec"]);
+    expect(checkSoil(PARAMS, { values: { ph: "6,8" }, depth: "", device: "" })).toMatchObject({ errors: {}, unusual: {}, filled: 1 });
+  });
+
+  it("corps d'envoi : champs vides omis, rien si aucune valeur", () => {
+    expect(soilBody(PARAMS, { values: { ph: " " }, depth: "", device: "" })).toBeNull();
+    const body = soilBody(PARAMS, { values: { ph: "6,84", ec: "" }, depth: "20", device: " Testeur 7 en 1 " });
+    expect(body).toMatchObject({ values: { ph: "6.8" }, method: "field_kit", device_model: "Testeur 7 en 1", depth_cm: 20 });
+  });
+});

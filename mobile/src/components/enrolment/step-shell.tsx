@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, T } from "@/components/ui";
 import { colors, radius } from "@/theme";
 
-export const ENROLMENT_STEPS = ["Producteur", "Contour", "Foncier", "Sol et eau", "Récapitulatif"] as const;
+export const ENROLMENT_STEPS = ["Producteur", "Contour", "Foncier", "Sol et eau", "Mesures du sol", "Récapitulatif"] as const;
 
 /**
  * Cadre d'une étape de l'enrôlement : en-tête (retour, étape, barre de progression), contenu

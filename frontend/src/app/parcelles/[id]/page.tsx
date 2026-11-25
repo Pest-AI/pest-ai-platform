@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, CheckCircle2, Circle, Droplets, History, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Circle, Droplets, FlaskConical, History, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -36,6 +36,8 @@ import { CYCLE_STATUS } from "@/lib/agriculture";
 
 export const metadata: Metadata = { title: "Fiche parcelle" };
 
+const SOIL_METHOD_LABELS: Record<string, string> = { field_kit: "Kit de terrain", laboratory: "Laboratoire", sensor: "Capteur" };
+
 type Geometry = { type: string; coordinates: unknown };
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
@@ -70,7 +72,7 @@ export default async function ParcelPage({
   if (!workspace) redirect("/espaces");
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult, cyclesResult, refsResult] = await Promise.all([
+  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult, cyclesResult, refsResult, soilResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/parcels/{id}/", { params: { header, path: { id } } }),
@@ -78,6 +80,7 @@ export default async function ParcelPage({
     api.GET("/api/v1/workspace/", { headers: header }),
     api.GET("/api/v1/crop-cycles/", { params: { header, query: { parcel: id } } }),
     api.GET("/api/v1/parcels/site-referentials/", { params: { header } }),
+    api.GET("/api/v1/parcels/{id}/soil-tests/", { params: { header, path: { id } } }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -98,6 +101,8 @@ export default async function ParcelPage({
   const previous = (history?.geometries ?? []).filter((g) => !g.is_current).slice(0, 3).map((g) => g.geometry as Geometry);
   const needsReview = current && ["flagged", "pending"].includes(current.validation.status);
   const siteRefs = refsResult.data?.fields ?? {};
+  const soilTests = soilResult.data ?? [];
+  const soilParams = (refsResult.data?.soil_parameters ?? []).filter((sp) => soilTests.some((t) => t.values.some((v) => v.parameter === sp.code)));
   const site = p.site_profile;
   const siteValue = (f: string) => {
     const raw = site ? (site as unknown as Record<string, string>)[f] : "";
@@ -313,6 +318,73 @@ export default async function ParcelPage({
                 </>
               ) : (
                 <Empty>Sol et eau pas encore renseignés.</Empty>
+              )}
+            </div>
+          </Card>
+
+          <Card className="rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-[16px] font-semibold">
+                <FlaskConical className="size-4 text-leaf" aria-hidden />
+                Mesures du sol
+              </h2>
+              {soilTests.length ? <span className="text-[12px] text-muted">{soilTests.length} mesure{soilTests.length > 1 ? "s" : ""}</span> : null}
+            </div>
+            <div className="mt-3">
+              {soilTests.length ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {soilTests[0]!.values.map((v) => (
+                      <div key={v.parameter} className={`rounded-xl px-3 py-2 ${v.unusual ? "bg-warning-bg" : "bg-surface"}`}>
+                        <p className={`text-[11px] ${v.unusual ? "text-warning" : "text-muted"}`}>{v.label}</p>
+                        <p className="tabular font-mono text-[15px]">
+                          {v.value.replace(".", ",")}
+                          {v.unit ? <span className="text-[11px] text-muted"> {v.unit}</span> : null}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[12px] text-muted">
+                    {SOIL_METHOD_LABELS[soilTests[0]!.method] ?? soilTests[0]!.method}
+                    {soilTests[0]!.device_model ? ` (${soilTests[0]!.device_model})` : ""} · le {formatDate(soilTests[0]!.measured_at)}
+                    {soilTests[0]!.depth_cm ? ` · sonde à ${soilTests[0]!.depth_cm} cm` : ""}
+                    {soilTests[0]!.values.some((v) => v.unusual) ? " · en orange : valeur inhabituelle, à vérifier" : ""}
+                  </p>
+                  {soilTests.length > 1 ? (
+                    <div className="mt-4 overflow-x-auto">
+                      <table className="w-full text-[12px]">
+                        <caption className="sr-only">Historique des mesures du sol</caption>
+                        <thead>
+                          <tr className="text-left text-muted">
+                            <th className="py-1 pr-3 font-medium">Date</th>
+                            {soilParams.map((sp) => (
+                              <th key={sp.code} className="py-1 pr-3 font-medium">
+                                {sp.code === "ph" ? "pH" : sp.label.replace(/ \(.*\)/, "")}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {soilTests.map((t) => (
+                            <tr key={t.id} className="border-t border-line">
+                              <td className="py-1.5 pr-3">{formatDate(t.measured_at)}</td>
+                              {soilParams.map((sp) => {
+                                const v = t.values.find((x) => x.parameter === sp.code);
+                                return (
+                                  <td key={sp.code} className={`tabular py-1.5 pr-3 font-mono ${v?.unusual ? "text-warning" : ""}`}>
+                                    {v ? v.value.replace(".", ",") : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <Empty>Pas encore mesuré. Les agents mesurent le sol au kit depuis l&apos;app terrain.</Empty>
               )}
             </div>
           </Card>
