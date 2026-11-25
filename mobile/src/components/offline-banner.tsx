@@ -1,7 +1,9 @@
+import { usePathname } from "expo-router";
 import { WifiOff } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { TAB_ROUTES } from "@/components/bottom-nav";
 import { T } from "@/components/ui";
 import { useOnline } from "@/lib/network";
 import { colors } from "@/theme";
@@ -10,16 +12,18 @@ import { colors } from "@/theme";
 export function OfflineBanner() {
   const online = useOnline();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   if (online) return null;
+  const aboveNav = TAB_ROUTES.includes(pathname); // la barre d'onglets porte déjà la marge du bas
   return (
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      style={[styles.banner, { paddingBottom: insets.bottom + 10 }]}
+      style={[styles.banner, { paddingBottom: aboveNav ? 10 : insets.bottom + 10 }]}
       pointerEvents="none"
     >
       <WifiOff size={16} color={colors.night} />
-      <T style={styles.text}>Hors ligne : vos saisies sont gardées sur le téléphone et partiront au retour du réseau.</T>
+      <T style={styles.text}>Hors ligne : vos saisies sont gardées et partiront au retour du réseau.</T>
     </View>
   );
 }

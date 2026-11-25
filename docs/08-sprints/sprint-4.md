@@ -108,6 +108,18 @@ Parcours navigateur (PWA, réseau coupé par le navigateur de test) : producteur
 
 Limites connues : app native (stores) : file en mémoire tant que la base SQLite native n'est pas ajoutée (la version terrain est la PWA) ; écran de résolution des conflits dans le Web OS à faire ; réception des changements du serveur (`pull`) non incluse (l'app relit les fiches en ligne).
 
+## J20b — App terrain mobile-first et enrôlement en étapes (livré)
+
+| Livré | Vérification |
+|---|---|
+| **Barre d'onglets en bas**, avec icônes : Accueil, Parcelles, **bouton central « Enrôler »**, Producteurs, Envois (pastille du nombre de saisies à envoyer ou à reprendre). Fiches et formulaires s'ouvrent par-dessus, sans la barre. Sur un écran d'ordinateur, l'app garde un format de téléphone, centrée | Parcours navigateur |
+| **Accueil** (tableau de bord) : salutation et rôle, carte « Enrôler une parcelle » avec les 5 étapes, **reprise d'un enrôlement en cours** (étape, heure), compteurs (parcelles, producteurs, à envoyer), raccourcis (nouveau producteur, scanner, carte, envois), dernières parcelles enrôlées (AgroID ou « en attente d'envoi ») | Parcours navigateur |
+| **Enrôlement en 5 étapes**, un écran chacune, barre de progression, bouton d'action toujours visible en bas : 1. **Producteur** (recherche en ligne ou dans la copie du téléphone, ou nouveau producteur sur place, n° d'adhérent proposé) ; 2. **Contour** (nom, tour du champ, coin par coin ou position) ; 3. **Foncier** ; 4. **Sol et eau** (facultatif, « Passer ») ; 5. **Récapitulatif** avec « Modifier » par section ; puis **écran AgroID** avec QR code, et suites (fiche, unité, cycle, autre parcelle du même producteur) | Parcours navigateur, 2 tests unitaires |
+| **Brouillon** gardé sur le téléphone à chaque changement (points GPS compris) et repris à la réouverture ; un relevé commencé n'est jamais écrasé ; « Recommencer » efface ; retour Android = étape précédente | Parcours navigateur, test unitaire |
+| Doublon de producteur détecté à l'envoi : « C'est lui », « Rattacher » ou « Créer une nouvelle fiche » dans le récapitulatif ; le producteur et la parcelle partent ensemble (avec ou sans réseau) | Revue de code (même règles que J20) |
+
+Parcours navigateur (19 contrôles) : onglets ; enrôlement complet nouveau producteur → contour coin par coin → location en argent → irrigué → récapitulatif → modification d'une étape → AgroID et QR code (vérifiés en base) ; autre parcelle du même producteur ; fermeture puis reprise du brouillon avec ses points ; fin d'enrôlement hors ligne, puis AgroID attribué au retour du réseau et affiché sur l'accueil.
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

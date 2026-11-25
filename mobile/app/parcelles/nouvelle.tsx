@@ -1,242 +1,264 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Check, CloudUpload, Fingerprint, MapPin, Pause, Play, Plus, RotateCcw, Search, Undo2, X } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Check, CloudUpload, Droplets, Fingerprint, Layers, MapPin, Pencil, Users } from "lucide-react-native";
+import type * as React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Chips } from "@/components/chips";
+import { type CaptureMode, CaptureStep } from "@/components/enrolment/capture-step";
+import { EMPTY_LAND, type Land, LandStep, OWNERS, TENURES, landBody, ARRANGEMENTS, RENTS } from "@/components/enrolment/land-step";
+import { type NewProducer, ProducerStep } from "@/components/enrolment/producer-step";
+import { StepShell } from "@/components/enrolment/step-shell";
+import { QrCode } from "@/components/qr-code";
 import { SiteForm } from "@/components/site-form";
-import { TrackPreview } from "@/components/track-preview";
-import { Alert, Button, Card, Input, T } from "@/components/ui";
+import { Alert, Avatar, Button, Card, T, initialsOf } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
 import { api } from "@/lib/client";
-import { type PickedProducer, findLocalProducer, searchProducers } from "@/lib/field-data";
-import { formatArea, formatDistance } from "@/lib/geo";
-import {
-  CLOSE_GAP_M,
-  type Fix,
-  acceptFix,
-  accuracyTone,
-  closingGapM,
-  medianAccuracy,
-  perimeterM,
-  ringAreaM2,
-  toPolygon,
-  useLiveFix,
-} from "@/lib/gps-track";
+import { confirmAction } from "@/lib/confirm";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/enrolment-draft";
+import { type PickedProducer, findLocalProducer } from "@/lib/field-data";
+import { formatArea } from "@/lib/geo";
+import { type Fix, medianAccuracy, ringAreaM2, toPolygon, useLiveFix } from "@/lib/gps-track";
 import { submit as submitOp } from "@/lib/outbox";
+import { toInternationalPhone } from "@/lib/phone";
+import { agroidUrl } from "@/lib/qr";
 import { useSession } from "@/lib/session";
-import { type SiteValues, hasSiteData, siteBody, useSiteReferentials } from "@/lib/site";
+import { type SiteValues, hasSiteData, labelOf, siteBody, useSiteReferentials } from "@/lib/site";
 import { colors, radius } from "@/theme";
 
-type Mode = "walk" | "corners" | "position";
-type Owner = "operator" | "other" | "unknown";
+type Candidate = { id: string; display_name: string; locality: string; phone_hint: string; in_organization: boolean; can_attach: boolean };
 
-const OWNERS: { value: Owner; label: string; personalLabel?: string }[] = [
-  { value: "operator", label: "L'exploitant", personalLabel: "Moi-même" },
-  { value: "other", label: "Une autre personne" },
-  { value: "unknown", label: "Ne sait pas" },
-];
-const TENURES = [
-  ["communal_allocation", "Affectation communale"],
-  ["customary_right", "Droit coutumier"],
-  ["family_land", "Terre familiale"],
-  ["titled_property", "Titre foncier"],
-  ["lease", "Bail"],
-  ["communal", "Terre communautaire"],
-  ["other", "Autre"],
-  ["unknown", "Inconnu"],
-] as const;
-const ARRANGEMENTS = [
-  ["rental", "Location"],
-  ["sharecropping", "Métayage"],
-  ["loan", "Prêt"],
-  ["other", "Autre"],
-] as const;
-const RENTS = [
-  ["cash", "En argent"],
-  ["harvest_share", "Part de récolte"],
-  ["in_kind", "En nature"],
-  ["free", "Gratuit"],
-  ["unknown", "Ne sait pas"],
-] as const;
+/** Tout ce que l'agent a saisi : gardé sur le téléphone à chaque changement (brouillon). */
+type Draft = {
+  step: number;
+  producer: PickedProducer | null;
+  newProducer: NewProducer | null;
+  /** Producteur déjà envoyé ou mis en file pendant cet enrôlement (évite un doublon au 2e essai). */
+  producerRef: string | null;
+  name: string;
+  mode: CaptureMode;
+  points: Fix[];
+  position: Fix | null;
+  land: Land;
+  site: SiteValues;
+};
 
-/** Parcelle créée (envoyée), ou gardée sur le téléphone (`pending`) : AgroID attribué à l'envoi. */
-type Created = { id: string; agroid: string | null; status: string; pending?: boolean };
+const EMPTY: Draft = {
+  step: 0,
+  producer: null,
+  newProducer: null,
+  producerRef: null,
+  name: "",
+  mode: "walk",
+  points: [],
+  position: null,
+  land: EMPTY_LAND,
+  site: { evidence: "declared" },
+};
 
-const MODES: { value: Mode; label: string; hint: string }[] = [
-  { value: "walk", label: "Tour du champ", hint: "Démarrez au coin du champ et marchez le long de la limite ; les points s'ajoutent seuls." },
-  { value: "corners", label: "Coin par coin", hint: "Arrêtez-vous à chaque coin du champ et ajoutez le point." },
-  { value: "position", label: "Position", hint: "Seulement la position : le contour sera relevé plus tard." },
-];
+type Done = { id: string; agroid: string | null; status: string; pending: boolean; area: number | null; who: string };
 
-const TONE = {
-  good: { color: colors.success, label: "Bonne précision" },
-  fair: { color: colors.warning, label: "Précision moyenne" },
-  poor: { color: colors.danger, label: "Précision faible : attendez" },
-  none: { color: colors.muted, label: "Recherche du signal GPS…" },
-} as const;
-
-function ProducerPicker({ workspace, value, onChange }: { workspace: string; value: PickedProducer | null; onChange: (p: PickedProducer | null) => void }) {
-  const [q, setQ] = useState("");
-  const [items, setItems] = useState<PickedProducer[]>([]);
-  useEffect(() => {
-    if (value || q.trim().length < 2) return;
-    const t = setTimeout(() => {
-      searchProducers(api, workspace, q)
-        .then(setItems)
-        .catch(() => setItems([]));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q, value, workspace]);
-
-  if (value) {
-    return (
-      <View style={styles.picked}>
-        <T style={{ flex: 1, fontWeight: "700" }}>
-          {value.first_name} {value.last_name}
-          {value.locality_text ? <T style={{ color: colors.muted, fontWeight: "400" }}> · {value.locality_text}</T> : null}
-          {value.pending ? <T style={{ color: colors.warning, fontWeight: "400" }}> · en attente d&apos;envoi</T> : null}
-        </T>
-        <Pressable onPress={() => onChange(null)} accessibilityRole="button" accessibilityLabel="Retirer l'exploitant" hitSlop={10}>
-          <X size={18} color={colors.muted} />
-        </Pressable>
-      </View>
-    );
-  }
-  return (
-    <View style={{ gap: 6 }}>
-      <Input accessibilityLabel="Rechercher l'exploitant" icon={<Search size={18} color={colors.muted} />} placeholder="Nom, téléphone, n° d'adhérent" value={q} onChangeText={setQ} />
-      {q.trim().length >= 2
-        ? items.map((p) => (
-            <Pressable key={p.id} onPress={() => onChange(p)} accessibilityRole="button" style={({ pressed }) => [styles.option, pressed && { opacity: 0.7 }]}>
-              <T style={{ fontWeight: "700" }}>
-                {p.first_name} {p.last_name}
-              </T>
-              {p.locality_text || p.pending ? (
-                <T style={{ color: colors.muted, fontSize: 13 }}>
-                  {[p.locality_text, p.pending ? "enrôlé hors ligne, en attente d'envoi" : ""].filter(Boolean).join(" · ")}
-                </T>
-              ) : null}
-            </Pressable>
-          ))
-        : null}
-    </View>
-  );
-}
+const label = (pairs: readonly (readonly [string, string])[], v: string) => pairs.find(([k]) => k === v)?.[1] ?? v;
 
 /**
- * Enrôlement d'une parcelle sur le terrain : exploitant, nom, contour relevé au GPS
- * (tour du champ ou coin par coin) ou simple position. L'AgroID est attribué à l'envoi.
+ * Enrôlement d'une parcelle, étape par étape : producteur, contour, foncier, sol et eau,
+ * récapitulatif, puis AgroID. Avec ou sans réseau (file d'envoi) ; brouillon gardé à chaque
+ * changement et repris à la réouverture.
  */
-export default function NewParcelScreen() {
+export default function EnrolmentScreen() {
   const { status, workspace, expire } = useSession();
   const params = useLocalSearchParams<{ producteur?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [producer, setProducer] = useState<PickedProducer | null>(null);
-  const [name, setName] = useState("");
-  const [owner, setOwner] = useState<Owner>("unknown");
-  const [ownerName, setOwnerName] = useState("");
-  const [tenure, setTenure] = useState<(typeof TENURES)[number][0]>("unknown");
-  const [arrangement, setArrangement] = useState<(typeof ARRANGEMENTS)[number][0]>("rental");
-  const [rent, setRent] = useState<(typeof RENTS)[number][0] | "">("");
-  const [rentAmount, setRentAmount] = useState("");
-  const [rentShare, setRentShare] = useState("");
-  const [site, setSite] = useState<SiteValues>({ evidence: "declared" });
-  const [mode, setMode] = useState<Mode>("walk");
-  const [recording, setRecording] = useState(false);
-  const [points, setPoints] = useState<Fix[]>([]);
+  const [d, setD] = useState<Draft>(EMPTY);
+  const [ready, setReady] = useState(false);
+  const [resumed, setResumed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<Created | null>(null);
-  const { fix, error: gpsError, supported } = useLiveFix(!created && status === "signedIn");
+  const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
+  const [proposed, setProposed] = useState<string | null>(null);
+  const personal = workspace === "personal";
+  const { fix, error: gpsError, supported } = useLiveFix(ready && !done && d.step === 1 && status === "signedIn");
   const refs = useSiteReferentials(workspace);
+  const update = useCallback((patch: Partial<Draft>) => setD((cur) => ({ ...cur, ...patch })), []);
+  const setPoints = useCallback((fn: (pts: Fix[]) => Fix[]) => setD((cur) => ({ ...cur, points: fn(cur.points) })), []);
 
-  // Exploitant prérempli depuis la fiche producteur.
+  // Brouillon repris (ou exploitant prérempli depuis sa fiche).
   useEffect(() => {
-    if (!params.producteur || !workspace || workspace === "personal") return;
-    const id = params.producteur;
-    void findLocalProducer(workspace, id).then((local) => {
-      if (local) setProducer(local);
-      else
-        api
-          .request<PickedProducer>(`/api/v1/producers/${id}/`, { workspace })
-          .then(setProducer)
-          .catch(() => undefined);
+    if (!workspace) return;
+    let cancelled = false;
+    void (async () => {
+      const saved = await loadDraft<Draft>(workspace);
+      if (cancelled) return;
+      // Un relevé déjà commencé n'est jamais écrasé : il est repris en priorité.
+      const started = saved && (saved.points.length > 0 || saved.position);
+      if (params.producteur && !started) {
+        const id = params.producteur;
+        const local = await findLocalProducer(workspace, id);
+        const producer =
+          local ?? (await api.request<PickedProducer>(`/api/v1/producers/${id}/`, { workspace }).catch(() => null));
+        if (!cancelled) setD({ ...EMPTY, producer, step: producer ? 1 : 0 });
+      } else if (saved) {
+        const { meta: _meta, ...rest } = saved;
+        setD({ ...EMPTY, ...rest });
+        setResumed(true);
+      } else if (personal) {
+        setD({ ...EMPTY, step: 1 });
+      }
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace, params.producteur, personal]);
+
+  // Numéro d'adhérent proposé pour un nouveau producteur.
+  useEffect(() => {
+    if (!workspace || personal) return;
+    api
+      .request<{ proposed: string }>("/api/v1/producers/membership-number/", { workspace })
+      .then((r) => setProposed(r.proposed))
+      .catch(() => setProposed(null));
+  }, [workspace, personal]);
+
+  // Brouillon enregistré à chaque changement, sans délai : quitter l'écran juste après un point
+  // ne doit pas le perdre (écritures IndexedDB faites dans l'ordre).
+  const who = d.producer
+    ? `${d.producer.first_name} ${d.producer.last_name}`.trim()
+    : d.newProducer
+      ? `${d.newProducer.first} ${d.newProducer.last}`.trim()
+      : "";
+  useEffect(() => {
+    if (!ready || !workspace || done) return;
+    void saveDraft(workspace, d, {
+      step: d.step,
+      saved_at: new Date().toISOString(),
+      label: [d.name.trim() || "Parcelle", who].filter(Boolean).join(" · "),
     });
-  }, [params.producteur, workspace]);
+  }, [d, ready, workspace, done, who]);
 
-  // Tour du champ : chaque nouvelle position précise s'ajoute au tracé.
+  const goBack = useCallback(() => {
+    setError(null);
+    if (d.step > (personal ? 1 : 0)) {
+      update({ step: d.step - 1 });
+      return true;
+    }
+    if (router.canGoBack()) router.back();
+    else router.replace("/accueil");
+    return true;
+  }, [d.step, personal, router, update]);
+
+  // Bouton retour d'Android : étape précédente.
+  const backRef = useRef(goBack);
+  backRef.current = goBack;
   useEffect(() => {
-    if (recording && mode === "walk" && fix) setPoints((pts) => acceptFix(pts, fix, "walk"));
-  }, [fix, recording, mode]);
+    if (Platform.OS !== "android") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => (done ? false : backRef.current()));
+    return () => sub.remove();
+  }, [done]);
 
-  const ring = useMemo(() => points.map((p) => p.position), [points]);
-  const area = ringAreaM2(ring);
-  const gap = closingGapM(ring);
-  const tone = TONE[accuracyTone(fix?.accuracy ?? null)];
-  const located = mode === "position" ? Boolean(fix && fix.accuracy <= 25) : points.length >= 3;
-  const ownerOk = owner !== "other" || ownerName.trim().length > 1;
+  const ring = useMemo(() => d.points.map((p) => p.position), [d.points]);
 
   if (status !== "signedIn") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
-  const personal = workspace === "personal";
-  const operatorKnown = personal || Boolean(producer);
-  const ready = located && ownerOk && (owner !== "operator" || operatorKnown);
 
-  const reset = () => {
-    setPoints([]);
-    setRecording(false);
+  const close = () => {
+    const leave = () => (router.canGoBack() ? router.back() : router.replace("/accueil"));
+    const touched = d.producer || d.newProducer || d.points.length || d.position || d.name;
+    if (!touched) return leave();
+    confirmAction(
+      "Quitter l'enrôlement ?",
+      "Votre saisie est gardée sur le téléphone : vous la reprendrez depuis l'accueil.",
+      "Quitter",
+      leave,
+    );
   };
 
-  async function submit() {
+  const restart = () =>
+    confirmAction("Recommencer ?", "Le brouillon en cours sera effacé.", "Recommencer", () => {
+      void clearDraft(workspace);
+      setD({ ...EMPTY, step: personal ? 1 : 0 });
+      setResumed(false);
+      setCandidates(null);
+      setError(null);
+    });
+
+  // ── Validation des étapes ──────────────────────────────────────────────
+  const np = d.newProducer;
+  const producerOk = personal || Boolean(d.producer) || Boolean(np && np.first.trim() && np.last.trim());
+  const located = d.mode === "position" ? Boolean(d.position) : d.points.length >= 3;
+  const ownerOk = d.land.owner !== "other" || d.land.ownerName.trim().length > 1;
+  const area = d.mode === "position" ? null : ringAreaM2(ring);
+
+  // ── Envoi ─────────────────────────────────────────────────────────────
+  async function ensureProducer(confirmNew = false): Promise<string | null> {
+    if (personal) return null;
+    if (d.producer) return d.producer.id;
+    if (d.producerRef) return d.producerRef;
+    if (!np) return null;
+    const sent = await submitOp(api, {
+      workspace: workspace as string,
+      entity_type: "producer",
+      params: {},
+      label: [`${np.first.trim()} ${np.last.trim()}`, np.locality.trim()].filter(Boolean).join(" · "),
+      payload: {
+        first_name: np.first.trim(),
+        last_name: np.last.trim(),
+        sex: np.sex,
+        locality_text: np.locality.trim(),
+        phone_number: np.phone.trim() ? toInternationalPhone(np.phone, np.country) : "",
+        relationship_type: "member",
+        membership_number: np.membership.trim(),
+        confirm_new: confirmNew,
+      },
+    });
+    const ref = sent.kind === "applied" ? sent.id : `@op:${sent.op.id}`;
+    update({ producerRef: ref });
+    return ref;
+  }
+
+  async function finish(confirmNew = false) {
     setError(null);
-    setRecording(false);
     setBusy(true);
-    const body: Record<string, unknown> = { local_name: name.trim(), operator: personal ? null : (producer?.id ?? null) };
-    if (owner !== "unknown") {
-      body.ownership = { owner, owner_name: owner === "other" ? ownerName.trim() : "", tenure_type: tenure };
-      if (owner === "other" && (personal || producer)) {
-        body.arrangement_type = arrangement;
-        if (rent) {
-          const amount = Number(rentAmount.replace(/\s/g, ""));
-          const share = Number(rentShare.replace(",", "."));
-          body.lease = {
-            rent_type: rent,
-            rent_amount_xof: rent === "cash" && rentAmount.trim() && Number.isFinite(amount) ? Math.round(amount) : null,
-            harvest_share_percent: rent === "harvest_share" && rentShare.trim() && share > 0 && share <= 100 ? share.toFixed(2) : null,
-          };
-        }
-      }
-    }
-    if (hasSiteData(site)) body.site = siteBody(site);
-    if (mode === "position") {
-      body.position = fix ? fix.position : null;
-      body.capture_method = "gps_points";
-    } else {
-      body.geometry = toPolygon(points);
-      body.capture_method = mode === "walk" ? "gps_walk" : "gps_points";
-      body.gps_accuracy_m = medianAccuracy(points);
-      body.captured_at = new Date((points[points.length - 1] as Fix).at).toISOString();
-    }
-    const who = producer ? `${producer.first_name} ${producer.last_name}`.trim() : "";
     try {
+      let operator: string | null;
+      try {
+        operator = await ensureProducer(confirmNew);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          setCandidates(((e.body as { candidates?: Candidate[] }) ?? {}).candidates ?? []);
+          return;
+        }
+        throw e;
+      }
+      const body: Record<string, unknown> = { local_name: d.name.trim(), operator, ...landBody(d.land, true) };
+      if (hasSiteData(d.site)) body.site = siteBody(d.site);
+      if (d.mode === "position") {
+        body.position = d.position?.position ?? null;
+        body.capture_method = "gps_points";
+      } else {
+        body.geometry = toPolygon(d.points);
+        body.capture_method = d.mode === "walk" ? "gps_walk" : "gps_points";
+        body.gps_accuracy_m = medianAccuracy(d.points);
+        body.captured_at = new Date((d.points[d.points.length - 1] as Fix).at).toISOString();
+      }
       const sent = await submitOp(api, {
         workspace: workspace as string,
         entity_type: "parcel",
         params: {},
         payload: body,
-        label: [name.trim() || "Parcelle sans nom", who].filter(Boolean).join(" · "),
+        label: [d.name.trim() || "Parcelle sans nom", who].filter(Boolean).join(" · "),
       });
-      setCreated(
+      await clearDraft(workspace as string);
+      setDone(
         sent.kind === "applied"
-          ? { id: sent.id, agroid: String(sent.result.agroid ?? ""), status: String(sent.result.status ?? "") }
-          : { id: `@op:${sent.op.id}`, agroid: null, status: "", pending: true },
+          ? { id: sent.id, agroid: String(sent.result.agroid ?? ""), status: String(sent.result.status ?? ""), pending: false, area, who }
+          : { id: `@op:${sent.op.id}`, agroid: null, status: "", pending: true, area, who },
       );
     } catch (e) {
       if (e instanceof SessionExpiredError) return expire();
-      if (e instanceof NetworkError) setError("Pas de réseau : le relevé est conservé sur cet écran. Réessayez dès que le réseau revient.");
+      if (e instanceof NetworkError) setError("Pas de réseau : votre saisie est gardée. Réessayez dès que le réseau revient.");
       else if (e instanceof ApiError && e.status === 403) setError("Votre rôle ne permet pas d'enregistrer une parcelle.");
       else setError(e instanceof ApiError ? e.message : "Une erreur est survenue.");
     } finally {
@@ -244,275 +266,332 @@ export default function NewParcelScreen() {
     }
   }
 
-  if (created?.pending) {
-    const local = { id: created.id };
+  // ── Écran final : l'AgroID ────────────────────────────────────────────
+  if (done) {
+    const again = () => {
+      setDone(null);
+      setCandidates(null);
+      setResumed(false);
+      setD({ ...EMPTY, step: personal ? 1 : 0 });
+    };
+    const sameProducer = () => {
+      const keep = d.producer ?? (d.producerRef && np ? ({ id: d.producerRef, first_name: np.first, last_name: np.last, locality_text: np.locality, pending: d.producerRef.startsWith("@op:") } as PickedProducer) : null);
+      setDone(null);
+      setD({ ...EMPTY, producer: keep, step: keep || personal ? 1 : 0 });
+    };
+    const flagged = done.status === "pending_validation";
     return (
-      <View style={[styles.done, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
-        <View style={styles.badge}>
-          <CloudUpload size={34} color={colors.forest} />
-        </View>
-        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: 18 }}>Parcelle gardée sur le téléphone</T>
-        <T style={{ color: colors.muted, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
-          Pas de réseau : elle partira toute seule au retour du réseau, et recevra alors son AgroID. Vous pouvez continuer à
-          saisir : unités, cycle, sol et eau.
-        </T>
-        <View style={{ alignSelf: "stretch", gap: 10, marginTop: 28 }}>
-          <Button label="Ajouter une unité de culture" onPress={() => router.push({ pathname: "/parcelles/unite", params: local })} />
-          <Button label="Démarrer un cycle" variant="secondary" onPress={() => router.push({ pathname: "/cycles/nouveau", params: { parcelle: created.id } })} />
-          <Button label="Voir les envois" variant="secondary" onPress={() => router.push("/envois")} />
-          <Button
-            label="Enrôler une autre parcelle"
-            variant="secondary"
-            onPress={() => {
-              setCreated(null);
-              setName("");
-              setOwner("unknown");
-              setOwnerName("");
-              setTenure("unknown");
-              setRent("");
-              setRentAmount("");
-              setRentShare("");
-              setSite({ evidence: "declared" });
-              reset();
-            }}
-          />
-        </View>
-      </View>
-    );
-  }
-
-  if (created) {
-    const flagged = created.status === "pending_validation";
-    return (
-      <View style={[styles.done, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}>
-        <View style={styles.badge}>
-          <Fingerprint size={34} color={colors.forest} />
-        </View>
-        <T style={{ fontSize: 22, fontWeight: "700", textAlign: "center", marginTop: 18 }}>Parcelle enregistrée</T>
-        <T style={{ color: colors.muted, textAlign: "center", marginTop: 6 }}>Son identifiant unique :</T>
-        <T mono style={styles.agroid} accessibilityLabel={`AgroID ${created.agroid ?? ""}`}>
-          {created.agroid ?? "—"}
-        </T>
-        {flagged ? (
-          <View style={{ marginTop: 14, alignSelf: "stretch" }}>
-            <Alert tone="warning">Contour à vérifier (précision, surface ou chevauchement) : un agronome le contrôlera.</Alert>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.forest }} contentContainerStyle={{ paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24, paddingHorizontal: 20, gap: 16 }}>
+        <View style={{ alignItems: "center", gap: 10 }}>
+          <View style={styles.doneBadge}>
+            {done.pending ? <CloudUpload size={34} color={colors.forest} /> : <Check size={36} color={colors.forest} strokeWidth={3} />}
           </View>
-        ) : null}
-        <View style={{ alignSelf: "stretch", gap: 10, marginTop: 28 }}>
-          <Button label="Voir la fiche" onPress={() => router.replace({ pathname: "/parcelles/[id]", params: { id: created.id } })} />
-          <Button
-            label="Enrôler une autre parcelle"
-            variant="secondary"
-            onPress={() => {
-              setCreated(null);
-              setName("");
-              setOwner("unknown");
-              setOwnerName("");
-              setTenure("unknown");
-              setRent("");
-              setRentAmount("");
-              setRentShare("");
-              setSite({ evidence: "declared" });
-              reset();
-            }}
-          />
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ backgroundColor: colors.surface, paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: insets.bottom + 28, gap: 14 }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Retour" hitSlop={10} style={{ padding: 4 }}>
-            <ArrowLeft size={24} color={colors.ink} />
-          </Pressable>
-          <T style={{ fontSize: 22, fontWeight: "700" }} accessibilityRole="header">
-            Enrôler une parcelle
+          <T style={{ color: "#fff", fontSize: 24, fontWeight: "700", textAlign: "center" }}>
+            {done.pending ? "Parcelle gardée sur le téléphone" : "Parcelle enrôlée"}
+          </T>
+          <T style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 20 }}>
+            {done.pending
+              ? "Pas de réseau : elle partira toute seule au retour du réseau et recevra alors son AgroID."
+              : "Son identité numérique est créée."}
           </T>
         </View>
 
-        {error ? <Alert>{error}</Alert> : null}
-
-        <Card style={{ gap: 12 }}>
-          {personal ? null : (
-            <View style={{ gap: 6 }}>
-              <T style={styles.label}>Exploitant</T>
-              <ProducerPicker workspace={workspace} value={producer} onChange={setProducer} />
-            </View>
-          )}
-          <View style={{ gap: 6 }}>
-            <T style={styles.label}>Nom de la parcelle (facultatif)</T>
-            <Input accessibilityLabel="Nom de la parcelle" placeholder="ex. Casier Nord" value={name} onChangeText={setName} />
-          </View>
-        </Card>
-
-        <Card style={{ gap: 12 }}>
-          <T style={{ fontSize: 16, fontWeight: "700" }} accessibilityRole="header">
-            Foncier
-          </T>
-          <View style={{ gap: 6 }}>
-            <T style={styles.label}>Propriétaire de la parcelle</T>
-            <Chips
-              label="Propriétaire de la parcelle"
-              options={OWNERS.map((o) => [o.value, personal && o.personalLabel ? o.personalLabel : o.label] as const)}
-              value={owner}
-              onChange={(v) => v && setOwner(v)}
-            />
-            {owner === "operator" && !operatorKnown ? (
-              <T style={{ color: colors.warning, fontSize: 13 }}>Choisissez d&apos;abord l&apos;exploitant.</T>
-            ) : null}
-          </View>
-          {owner === "other" ? (
+        <Card style={{ alignItems: "center", gap: 10, padding: 20 }}>
+          {done.agroid ? (
             <>
-              <View style={{ gap: 6 }}>
-                <T style={styles.label}>Nom du propriétaire</T>
-                <Input accessibilityLabel="Nom du propriétaire" placeholder="ex. Famille Diallo" value={ownerName} onChangeText={setOwnerName} autoCapitalize="words" />
-              </View>
-              {personal || producer ? (
-                <View style={{ gap: 6 }}>
-                  <T style={styles.label}>L&apos;exploitant la cultive en</T>
-                  <Chips label="Mode d'exploitation" options={ARRANGEMENTS} value={arrangement} onChange={(v) => v && setArrangement(v)} />
-                </View>
-              ) : null}
-              {(personal || producer) && arrangement !== "other" ? (
-                <View style={{ gap: 6 }}>
-                  <T style={styles.label}>Contrepartie</T>
-                  <Chips label="Contrepartie" options={RENTS} value={rent} onChange={setRent} clearable />
-                  {rent === "cash" ? (
-                    <Input accessibilityLabel="Montant du loyer en FCFA par campagne" keyboardType="number-pad" placeholder="Loyer en FCFA par campagne" value={rentAmount} onChangeText={setRentAmount} maxLength={10} />
-                  ) : null}
-                  {rent === "harvest_share" ? (
-                    <Input accessibilityLabel="Part de la récolte en pourcentage" keyboardType="decimal-pad" placeholder="Part de la récolte (%) — ex. 33" value={rentShare} onChangeText={setRentShare} maxLength={5} />
-                  ) : null}
-                </View>
-              ) : null}
+              <T style={{ fontSize: 12, color: colors.muted, textTransform: "uppercase", letterSpacing: 1 }}>AgroID</T>
+              <T mono style={styles.agroid} accessibilityLabel={`AgroID ${done.agroid}`}>
+                {done.agroid}
+              </T>
+              <QrCode value={agroidUrl(done.agroid)} size={170} label={`QR code de l'AgroID ${done.agroid}`} />
             </>
-          ) : null}
-          {owner !== "unknown" ? (
-            <View style={{ gap: 6 }}>
-              <T style={styles.label}>Type de droit</T>
-              <Chips label="Type de droit" options={TENURES} value={tenure} onChange={(v) => v && setTenure(v)} />
-            </View>
-          ) : null}
-          <T style={{ color: colors.muted, fontSize: 13 }}>Déclaration du producteur : un document pourra la confirmer plus tard.</T>
+          ) : (
+            <>
+              <Fingerprint size={40} color={colors.lineStrong} />
+              <T style={{ color: colors.muted, textAlign: "center" }}>L&apos;AgroID et son QR code s&apos;afficheront après l&apos;envoi.</T>
+            </>
+          )}
+          <View style={{ alignSelf: "stretch", borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10, gap: 4 }}>
+            <T style={{ fontWeight: "700", textAlign: "center" }}>{d.name.trim() || "Parcelle sans nom"}</T>
+            <T style={{ color: colors.muted, textAlign: "center" }}>
+              {[done.who, done.area ? formatArea(done.area) : "Position seule"].filter(Boolean).join(" · ")}
+            </T>
+          </View>
         </Card>
+        {flagged ? <Alert tone="warning">Contour à vérifier (précision, surface ou chevauchement) : un agronome le contrôlera.</Alert> : null}
 
-        <SiteForm refs={refs} values={site} onChange={setSite} />
-
-        <View style={styles.segment} accessibilityRole="radiogroup">
-          {MODES.map((m) => (
-            <Pressable
-              key={m.value}
-              onPress={() => {
-                setMode(m.value);
-                reset();
-              }}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: mode === m.value }}
-              style={[styles.segmentItem, mode === m.value && styles.segmentOn]}
-            >
-              <T style={{ fontSize: 14, fontWeight: "700", color: mode === m.value ? "#fff" : colors.ink }}>{m.label}</T>
-            </Pressable>
-          ))}
+        <View style={{ gap: 10 }}>
+          {!done.pending ? (
+            <Button label="Voir la fiche de la parcelle" variant="secondary" onPress={() => router.replace({ pathname: "/parcelles/[id]", params: { id: done.id } })} />
+          ) : null}
+          <Button label="Ajouter une unité de culture" variant="secondary" onPress={() => router.push({ pathname: "/parcelles/unite", params: { id: done.id } })} />
+          <Button label="Démarrer un cycle" variant="secondary" onPress={() => router.push({ pathname: "/cycles/nouveau", params: { parcelle: done.id } })} />
+          {!personal && done.who ? <Button label={`Autre parcelle de ${done.who}`} variant="secondary" onPress={sameProducer} /> : null}
+          <Button label="Enrôler une autre parcelle" variant="secondary" onPress={again} />
+          <Pressable onPress={() => router.replace("/accueil")} accessibilityRole="button" style={{ padding: 12, alignItems: "center" }}>
+            <T style={{ color: "#fff", fontWeight: "700" }}>Retour à l&apos;accueil</T>
+          </Pressable>
         </View>
-        <T style={{ color: colors.muted, lineHeight: 20 }}>{MODES.find((m) => m.value === mode)?.hint}</T>
-
-        {!supported ? (
-          <Alert tone="info">Le relevé GPS se fait pour l&apos;instant dans l&apos;app navigateur (terrain.pestai.africa).</Alert>
-        ) : gpsError ? (
-          <Alert tone="warning">{gpsError}</Alert>
-        ) : null}
-
-        <View style={styles.gps}>
-          <View style={[styles.dot, { backgroundColor: tone.color }]} />
-          <T style={{ flex: 1, fontWeight: "700", color: tone.color }}>{tone.label}</T>
-          {fix ? <T mono>± {Math.round(fix.accuracy)} m</T> : null}
-        </View>
-
-        <TrackPreview points={points} current={fix} closed={!recording && points.length >= 3} />
-
-        {mode !== "position" ? (
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <T style={styles.statLabel}>Points</T>
-              <T mono style={styles.statValue}>{points.length}</T>
-            </View>
-            <View style={styles.stat}>
-              <T style={styles.statLabel}>Surface</T>
-              <T mono style={styles.statValue}>{points.length >= 3 ? formatArea(area) : "—"}</T>
-            </View>
-            <View style={styles.stat}>
-              <T style={styles.statLabel}>Périmètre</T>
-              <T mono style={styles.statValue}>{points.length >= 2 ? formatDistance(perimeterM(ring, points.length >= 3)) : "—"}</T>
-            </View>
-          </View>
-        ) : null}
-
-        {mode === "walk" && recording && gap !== null ? (
-          <T style={{ color: gap <= CLOSE_GAP_M ? colors.success : colors.muted, textAlign: "center" }}>
-            {gap <= CLOSE_GAP_M ? "Vous êtes revenu près du départ : vous pouvez terminer." : `Départ à ${formatDistance(gap)}`}
-          </T>
-        ) : null}
-
-        {mode === "walk" ? (
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Button
-              style={{ flex: 1 }}
-              label={recording ? "Pause" : points.length ? "Reprendre" : "Démarrer le tour"}
-              icon={recording ? <Pause size={18} color="#fff" /> : <Play size={18} color="#fff" />}
-              disabled={!supported || !fix}
-              onPress={() => setRecording((r) => !r)}
-            />
-            <Button label="" variant="secondary" accessibilityLabel="Recommencer" icon={<RotateCcw size={18} color={colors.ink} />} disabled={!points.length} onPress={reset} />
-          </View>
-        ) : mode === "corners" ? (
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Button
-              style={{ flex: 1 }}
-              label={`Ajouter ce coin (${points.length + 1})`}
-              icon={<Plus size={18} color="#fff" />}
-              disabled={!fix || fix.accuracy > 25}
-              onPress={() => fix && setPoints((pts) => acceptFix(pts, fix, "corners"))}
-            />
-            <Button label="" variant="secondary" accessibilityLabel="Annuler le dernier coin" icon={<Undo2 size={18} color={colors.ink} />} disabled={!points.length} onPress={() => setPoints((p) => p.slice(0, -1))} />
-          </View>
-        ) : null}
-
-        <Button
-          label={mode === "position" ? "Enregistrer à ma position" : "Terminer et attribuer l'AgroID"}
-          icon={mode === "position" ? <MapPin size={18} color="#fff" /> : <Check size={18} color="#fff" />}
-          disabled={!ready}
-          loading={busy}
-          onPress={submit}
-        />
-        {located && !ownerOk ? <T style={{ color: colors.muted, textAlign: "center" }}>Indiquez le nom du propriétaire.</T> : null}
-        {mode !== "position" && points.length > 0 && points.length < 3 ? (
-          <T style={{ color: colors.muted, textAlign: "center" }}>Il faut au moins 3 points pour former un contour.</T>
-        ) : null}
       </ScrollView>
-    </KeyboardAvoidingView>
+    );
+  }
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.surface }} />;
+
+  const banner = resumed ? (
+    <View style={styles.resumed}>
+      <T style={{ flex: 1, color: colors.forest, fontSize: 13 }}>Enrôlement repris là où vous l&apos;aviez laissé.</T>
+      <Pressable onPress={restart} accessibilityRole="button" hitSlop={8}>
+        <T style={{ color: colors.forest, fontWeight: "700", fontSize: 13 }}>Recommencer</T>
+      </Pressable>
+    </View>
+  ) : null;
+  const go = (step: number) => {
+    setError(null);
+    update({ step });
+  };
+
+  // ── Étapes ────────────────────────────────────────────────────────────
+  if (d.step === 0) {
+    return (
+      <StepShell
+        step={0}
+        title="Le producteur"
+        hint="Qui cultive cette parcelle ? Cherchez-le, ou enrôlez-le s'il n'est pas encore enregistré."
+        onBack={goBack}
+        onClose={close}
+        next={{
+          label: "Continuer",
+          onPress: () => go(1),
+          disabled: !producerOk,
+          reason: np ? "Indiquez le prénom et le nom." : "Choisissez l'exploitant ou enrôlez un nouveau producteur.",
+        }}
+      >
+        {banner}
+        <ProducerStep
+          workspace={workspace}
+          picked={d.producer}
+          onPick={(p) => update({ producer: p, newProducer: null, producerRef: null })}
+          draft={np}
+          onDraft={(p) => update({ newProducer: p, producerRef: null })}
+          proposedNumber={proposed}
+        />
+      </StepShell>
+    );
+  }
+
+  if (d.step === 1) {
+    return (
+      <StepShell
+        step={1}
+        title="Le contour"
+        onBack={goBack}
+        onClose={close}
+        next={{
+          label: "Continuer",
+          onPress: () => go(2),
+          disabled: !located,
+          reason: d.mode === "position" ? "Enregistrez la position de la parcelle." : "Il faut au moins 3 points pour former un contour.",
+        }}
+      >
+        {banner}
+        <CaptureStep
+          name={d.name}
+          onName={(name) => update({ name })}
+          mode={d.mode}
+          onMode={(mode) => update({ mode })}
+          points={d.points}
+          onPoints={setPoints}
+          position={d.position}
+          onPosition={(position) => update({ position })}
+          fix={fix}
+          gpsError={gpsError}
+          supported={supported}
+        />
+      </StepShell>
+    );
+  }
+
+  if (d.step === 2) {
+    return (
+      <StepShell
+        step={2}
+        title="Le foncier"
+        hint="À qui appartient la parcelle, et à quel titre l'exploitant la cultive."
+        onBack={goBack}
+        onClose={close}
+        next={{ label: "Continuer", onPress: () => go(3), disabled: !ownerOk, reason: "Indiquez le nom du propriétaire." }}
+      >
+        <LandStep value={d.land} onChange={(land) => update({ land })} personal={personal} />
+      </StepShell>
+    );
+  }
+
+  if (d.step === 3) {
+    return (
+      <StepShell
+        step={3}
+        title="Le sol et l'eau"
+        hint="Complétez ce que vous savez : « Ne sait pas » est une réponse. Tout est facultatif et se complète plus tard."
+        onBack={goBack}
+        onClose={close}
+        next={{
+          label: hasSiteData(d.site) ? "Continuer" : "Passer",
+          onPress: () => go(4),
+        }}
+      >
+        <SiteForm refs={refs} values={d.site} onChange={(site) => update({ site })} defaultOpen />
+      </StepShell>
+    );
+  }
+
+  // Récapitulatif
+  const siteFilled = Object.entries(d.site).filter(([k, v]) => v && k !== "evidence" && k !== "distance_to_village_km" && k !== "scheme_name" && k !== "other_detail");
+  return (
+    <StepShell
+      step={4}
+      title="Récapitulatif"
+      hint="Vérifiez avec le producteur avant d'attribuer l'AgroID."
+      onBack={goBack}
+      onClose={close}
+      next={{
+        label: "Attribuer l'AgroID",
+        icon: <Fingerprint size={18} color="#fff" />,
+        onPress: () => void finish(false),
+        loading: busy,
+        disabled: !producerOk || !located || !ownerOk || Boolean(candidates),
+        reason: candidates ? "Choisissez d'abord ci-dessus." : "Une étape est incomplète.",
+      }}
+    >
+      {error ? <Alert>{error}</Alert> : null}
+      {candidates ? (
+        <Card style={{ gap: 10, borderColor: "#F5C2BD" }}>
+          <T style={{ fontSize: 16, fontWeight: "700" }}>Ce producteur existe peut-être déjà</T>
+          <T style={{ color: colors.muted, lineHeight: 20 }}>Même téléphone, ou même nom dans la même localité. Vérifiez avec lui.</T>
+          {candidates.map((c) => (
+            <View key={c.id} style={styles.candidate}>
+              <View style={{ flex: 1 }}>
+                <T style={{ fontWeight: "700" }}>{c.display_name}</T>
+                <T style={{ color: colors.muted, fontSize: 13 }}>
+                  {[c.locality, c.phone_hint ? `tél. …${c.phone_hint}` : ""].filter(Boolean).join(" · ") || "Localité non renseignée"}
+                </T>
+              </View>
+              {c.in_organization ? (
+                <Button
+                  label="C'est lui"
+                  variant="secondary"
+                  onPress={() => {
+                    const [first, ...rest] = c.display_name.split(" ");
+                    update({ producer: { id: c.id, first_name: first ?? "", last_name: rest.join(" "), locality_text: c.locality }, newProducer: null, producerRef: null });
+                    setCandidates(null);
+                  }}
+                />
+              ) : c.can_attach ? (
+                <Button
+                  label="Rattacher"
+                  variant="secondary"
+                  loading={busy}
+                  onPress={async () => {
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      await api.request("/api/v1/producers/attach/", {
+                        method: "POST",
+                        workspace,
+                        body: { producer_id: c.id, relationship_type: "member", membership_number: np?.membership.trim() ?? "" },
+                      });
+                      const [first, ...rest] = c.display_name.split(" ");
+                      update({ producer: { id: c.id, first_name: first ?? "", last_name: rest.join(" "), locality_text: c.locality }, newProducer: null, producerRef: null });
+                      setCandidates(null);
+                    } catch (e) {
+                      setError(e instanceof NetworkError ? "Le rattachement demande le réseau." : e instanceof ApiError ? e.message : "Une erreur est survenue.");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+              ) : null}
+            </View>
+          ))}
+          <Button
+            label="Ce n'est pas lui : créer une nouvelle fiche"
+            variant="secondary"
+            loading={busy}
+            onPress={() => {
+              setCandidates(null);
+              void finish(true);
+            }}
+          />
+        </Card>
+      ) : null}
+
+      <Section Icon={Users} title="Producteur" onEdit={personal ? undefined : () => go(0)}>
+        {personal ? (
+          <T>Vous êtes l&apos;exploitant.</T>
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Avatar initials={initialsOf(d.producer?.first_name ?? np?.first ?? "", d.producer?.last_name ?? np?.last ?? "")} size={36} />
+            <View style={{ flex: 1 }}>
+              <T style={{ fontWeight: "700" }}>{who || "—"}</T>
+              <T style={{ color: colors.muted, fontSize: 13 }}>
+                {np && !d.producer ? "Nouveau producteur, enregistré avec la parcelle" : d.producer?.locality_text || ""}
+              </T>
+            </View>
+          </View>
+        )}
+      </Section>
+      <Section Icon={MapPin} title="Contour" onEdit={() => go(1)}>
+        <T style={{ fontWeight: "700" }}>{d.name.trim() || "Parcelle sans nom"}</T>
+        <T style={{ color: colors.muted }}>
+          {d.mode === "position"
+            ? `Position seule (± ${Math.round(d.position?.accuracy ?? 0)} m)`
+            : `${d.points.length} points · ${formatArea(area ?? 0)} · ${d.mode === "walk" ? "tour du champ" : "coin par coin"}`}
+        </T>
+      </Section>
+      <Section Icon={Layers} title="Foncier" onEdit={() => go(2)}>
+        <T>
+          {d.land.owner === "unknown"
+            ? "Propriétaire non renseigné"
+            : [
+                d.land.owner === "other" ? `Propriétaire : ${d.land.ownerName.trim()}` : `Propriétaire : ${label(OWNERS.map((o) => [o.value, personal && o.personalLabel ? o.personalLabel : o.label] as const), d.land.owner)}`,
+                label(TENURES, d.land.tenure),
+                d.land.owner === "other" ? label(ARRANGEMENTS, d.land.arrangement) : "",
+                d.land.owner === "other" && d.land.rent ? label(RENTS, d.land.rent) : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+        </T>
+      </Section>
+      <Section Icon={Droplets} title="Sol et eau" onEdit={() => go(3)}>
+        <T style={{ color: siteFilled.length ? colors.ink : colors.muted }}>
+          {siteFilled.length ? siteFilled.map(([k, v]) => labelOf(refs, k, v)).join(" · ") : "Rien de renseigné (à compléter plus tard)"}
+        </T>
+      </Section>
+    </StepShell>
+  );
+}
+
+function Section({ Icon, title, onEdit, children }: { Icon: typeof Users; title: string; onEdit?: () => void; children: React.ReactNode }) {
+  return (
+    <Card style={{ gap: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Icon size={18} color={colors.forest} />
+        <T style={{ flex: 1, fontSize: 13, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.6 }}>{title}</T>
+        {onEdit ? (
+          <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel={`Modifier : ${title}`} hitSlop={8} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Pencil size={14} color={colors.forest} />
+            <T style={{ color: colors.forest, fontWeight: "700", fontSize: 13 }}>Modifier</T>
+          </Pressable>
+        ) : null}
+      </View>
+      {children}
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 14, fontWeight: "700" },
-  picked: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.brand50 },
-  option: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: colors.surface },
-  segment: { flexDirection: "row", gap: 6, padding: 4, borderRadius: radius.md, backgroundColor: colors.subtle },
-  segmentItem: { flex: 1, height: 42, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  segmentOn: { backgroundColor: colors.forest },
-  gps: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: radius.md, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.line },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  stats: { flexDirection: "row", gap: 10 },
-  stat: { flex: 1, padding: 12, borderRadius: radius.md, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.line },
-  statLabel: { fontSize: 12, color: colors.muted },
-  statValue: { fontSize: 17, marginTop: 2 },
-  done: { flex: 1, backgroundColor: colors.canvas, paddingHorizontal: 24, alignItems: "center" },
-  badge: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center", backgroundColor: colors.brand50 },
-  agroid: { marginTop: 10, fontSize: 26, letterSpacing: 1, color: colors.forest },
+  resumed: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: radius.md, backgroundColor: colors.brand50 },
+  candidate: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: radius.sm, backgroundColor: colors.subtle },
+  doneBadge: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
+  agroid: { fontSize: 26, letterSpacing: 1, color: colors.forest },
 });

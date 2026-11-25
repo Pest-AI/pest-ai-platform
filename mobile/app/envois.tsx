@@ -1,7 +1,7 @@
-import { Redirect, useRouter } from "expo-router";
-import { AlertTriangle, ArrowLeft, Check, CloudUpload, Clock, Link2 } from "lucide-react-native";
+import { Redirect } from "expo-router";
+import { AlertTriangle, Check, CloudUpload, Clock, Link2 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Alert, Button, Card, T } from "@/components/ui";
@@ -39,7 +39,6 @@ const KIND_LABELS: Record<string, string> = {
 /** Envois : saisies gardées sur le téléphone, envoyées, ou à reprendre. */
 export default function SendsScreen() {
   const { status, workspace, expire } = useSession();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const online = useOnline();
   const { ops, syncing } = useOutbox();
@@ -102,14 +101,9 @@ export default function SendsScreen() {
       style={{ flex: 1, backgroundColor: colors.surface }}
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 32, gap: 14 }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/accueil"))} accessibilityRole="button" accessibilityLabel="Retour" hitSlop={10} style={{ padding: 4 }}>
-          <ArrowLeft size={24} color={colors.ink} />
-        </Pressable>
-        <T style={{ fontSize: 22, fontWeight: "700" }} accessibilityRole="header">
-          Envois
-        </T>
-      </View>
+      <T style={{ fontSize: 28, fontWeight: "700", marginTop: 8 }} accessibilityRole="header">
+        Envois
+      </T>
 
       <Card style={{ gap: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>

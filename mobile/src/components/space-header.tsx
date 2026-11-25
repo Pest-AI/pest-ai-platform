@@ -1,4 +1,5 @@
-import { usePathname, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
+import type * as React from "react";
 import { ArrowLeftRight, LogOut } from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,16 +9,10 @@ import { confirmLogout } from "@/lib/confirm";
 import { useSession } from "@/lib/session";
 import { colors, radius } from "@/theme";
 
-const TABS = [
-  { href: "/accueil", label: "Parcelles" },
-  { href: "/producteurs", label: "Producteurs" },
-] as const;
-
-/** En-tête des écrans d'espace : périmètre actif, déconnexion, onglets. */
-export function SpaceHeader({ scopeName }: { scopeName: string }) {
+/** En-tête des écrans principaux : titre, périmètre actif, compte (déconnexion). */
+export function SpaceHeader({ scopeName, title, subtitle, children }: { scopeName: string; title?: string; subtitle?: string; children?: React.ReactNode }) {
   const { me, signOut } = useSession();
   const router = useRouter();
-  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.top, { paddingTop: insets.top + 12 }]}>
@@ -46,22 +41,15 @@ export function SpaceHeader({ scopeName }: { scopeName: string }) {
           <LogOut size={16} color="rgba(255,255,255,0.8)" />
         </Pressable>
       </View>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {TABS.map((tab) => {
-          const active = pathname === tab.href;
-          return (
-            <Pressable
-              key={tab.href}
-              onPress={() => !active && router.replace(tab.href)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              style={[styles.tab, active && styles.tabActive]}
-            >
-              <T style={[styles.tabLabel, active && { color: colors.forest }]}>{tab.label}</T>
-            </Pressable>
-          );
-        })}
-      </View>
+      {title ? (
+        <View>
+          {subtitle ? <T style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>{subtitle}</T> : null}
+          <T style={styles.title} accessibilityRole="header">
+            {title}
+          </T>
+        </View>
+      ) : null}
+      {children}
     </View>
   );
 }
@@ -80,8 +68,5 @@ const styles = StyleSheet.create({
   },
   scopeName: { color: "#fff", fontSize: 15, fontWeight: "700", flexShrink: 1 },
   me: { flexDirection: "row", alignItems: "center", gap: 8 },
-  tabs: { flexDirection: "row", gap: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 12, padding: 4 },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 9 },
-  tabActive: { backgroundColor: "#fff" },
-  tabLabel: { color: "rgba(255,255,255,0.85)", fontWeight: "700", fontSize: 14 },
+  title: { color: "#fff", fontSize: 26, fontWeight: "700", marginTop: 2 },
 });

@@ -1,395 +1,256 @@
-import { Redirect, useRouter } from "expo-router";
-import { ChevronRight, CloudOff, Fingerprint, Footprints, ScanLine, List, LocateFixed, Map as MapIcon, RefreshCw, Search, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import {
+  ChevronRight,
+  CloudUpload,
+  Fingerprint,
+  Layers,
+  Map as MapIcon,
+  MapPin,
+  Play,
+  ScanLine,
+  Droplets,
+  UserPlus,
+  Users,
+} from "lucide-react-native";
+import { useCallback, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ParcelSvgMap } from "@/components/parcel-svg-map";
 import { SpaceHeader } from "@/components/space-header";
 import { SyncStrip } from "@/components/sync-strip";
-import { Alert, Button, Input, StatusPill, T } from "@/components/ui";
-import { matchesParcel } from "@/lib/agroid";
-import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
-import { api } from "@/lib/client";
-import { distanceM, formatArea, formatDistance } from "@/lib/geo";
-import { TYPE_LABELS, roleLabel } from "@/lib/labels";
-import { useOnline } from "@/lib/network";
-import { loadCropReferentials, syncProducers } from "@/lib/field-data";
-import { cachedGet, cachedOnly } from "@/lib/offline-cache";
+import { Alert, T } from "@/components/ui";
+import { type DraftMeta, loadDraft } from "@/lib/enrolment-draft";
+import type { PickedProducer } from "@/lib/field-data";
+import { roleLabel } from "@/lib/labels";
+import { cachedOnly } from "@/lib/offline-cache";
 import { useOutbox } from "@/lib/outbox";
-import { PARCEL_STATUS_LABELS, STATUS_TONES } from "@/lib/parcel-labels";
-import { type CachedParcel, type ParcelSnapshot, freshness, isStale, loadSnapshot, syncParcels } from "@/lib/parcel-cache";
-import { usePosition } from "@/lib/position";
+import { freshness } from "@/lib/parcel-cache";
 import { useSession } from "@/lib/session";
-import type { Organization, WorkspaceContext } from "@/lib/types";
+import { useSpaceData } from "@/lib/space-data";
 import { colors, radius } from "@/theme";
 
-/**
- * Accueil de l'espace : les parcelles, consultables hors ligne.
- * Copie locale affichée d'abord, puis mise à jour si le réseau le permet.
- */
-export default function ParcelsHome() {
-  const { status, me, workspace, expire } = useSession();
+const STEPS = [
+  { label: "Producteur", Icon: Users },
+  { label: "Contour", Icon: MapPin },
+  { label: "Foncier", Icon: Layers },
+  { label: "Sol et eau", Icon: Droplets },
+  { label: "AgroID", Icon: Fingerprint },
+];
+
+/** Accueil de l'app terrain : enrôler, reprendre un brouillon, raccourcis, état de l'espace. */
+export default function Home() {
+  const { status, me, workspace } = useSession();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const online = useOnline();
-  const { fix, error: positionError, locate } = usePosition();
-  const [org, setOrg] = useState<Organization | null>(null);
-  const [canView, setCanView] = useState<boolean | null>(null);
-  const [canCreate, setCanCreate] = useState(false);
-  const [snapshot, setSnapshot] = useState<ParcelSnapshot | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [view, setView] = useState<"liste" | "carte">("liste");
-  const [selected, setSelected] = useState<CachedParcel | null>(null);
-  const [now, setNow] = useState(() => new Date());
-
-  const applyPermissions = useCallback((context: WorkspaceContext) => {
-    const allowed = context.permissions.some((c) => c === "parcels.view" || c === "personal.parcels.view");
-    setCanView(allowed);
-    setCanCreate(context.permissions.some((c) => c === "parcels.create" || c === "personal.parcels.register"));
-    return allowed;
-  }, []);
-
-  const sync = useCallback(async () => {
-    if (!workspace) return;
-    setSyncing(true);
-    setError(null);
-    try {
-      const [{ data: organization }, { data: context }] = await Promise.all([
-        cachedGet<Organization>(api, "/api/v1/organization/", { workspace }),
-        cachedGet<WorkspaceContext>(api, "/api/v1/workspace/", { workspace }),
-      ]);
-      setOrg(organization);
-      const allowed = applyPermissions(context);
-      if (allowed) {
-        setSnapshot(await syncParcels(api, workspace, new Date(), organization.short_name || organization.name));
-      }
-      // Producteurs gardés pour choisir l'exploitant hors ligne (sans bloquer l'accueil).
-      if (context.permissions.includes("producers.view")) void syncProducers(api, workspace).catch(() => undefined);
-      // Listes des formulaires terrain (cultures, campagnes, sol et eau) gardées pour le hors-ligne.
-      void loadCropReferentials(api, workspace).catch(() => undefined);
-      void cachedGet(api, "/api/v1/parcels/site-referentials/", { workspace }).catch(() => undefined);
-      setNow(new Date());
-    } catch (e) {
-      if (e instanceof SessionExpiredError) return expire();
-      setError(
-        e instanceof NetworkError
-          ? "Pas de réseau : les parcelles affichées sont celles de la dernière mise à jour."
-          : e instanceof ApiError
-            ? e.message
-            : "Une erreur est survenue.",
-      );
-    } finally {
-      setSyncing(false);
-    }
-  }, [workspace, expire, applyPermissions]);
-
-  // Copie locale d'abord (hors ligne), puis mise à jour si elle date de plus de 10 minutes.
-  useEffect(() => {
-    if (!workspace) return;
-    let cancelled = false;
-    // Droits et nom de l'espace gardés : l'enrôlement reste possible hors ligne.
-    void cachedOnly<WorkspaceContext>("/api/v1/workspace/", { workspace }).then((c) => {
-      if (!cancelled && c) applyPermissions(c);
-    });
-    void cachedOnly<Organization>("/api/v1/organization/", { workspace }).then((o) => {
-      if (!cancelled && o) setOrg(o);
-    });
-    void loadSnapshot(workspace).then((cached) => {
-      if (cancelled) return;
-      if (cached) {
-        setSnapshot(cached);
-        setCanView(true);
-      }
-      if (!cached || isStale(cached.synced_at)) void sync();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace, sync, applyPermissions]);
-
-  // Saisies terrain envoyées : la liste des parcelles est remise à jour.
+  const { org, canView, canCreate, snapshot, syncing, error, sync, now, permissions } = useSpaceData();
   const { ops } = useOutbox();
-  const appliedCount = ops.filter((o) => o.workspace === workspace && o.status === "applied").length;
-  const seenApplied = useRef<number | null>(null);
-  useEffect(() => {
-    if (seenApplied.current !== null && appliedCount > seenApplied.current && online) void sync();
-    seenApplied.current = appliedCount;
-  }, [appliedCount, online, sync]);
+  const [draft, setDraft] = useState<DraftMeta | null>(null);
+  const [producerCount, setProducerCount] = useState<number | null>(null);
 
-  // Fraîcheur affichée : rafraîchie chaque minute.
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const parcels = useMemo(() => {
-    const all = snapshot?.parcels ?? [];
-    const found = all.filter((p) => matchesParcel(query, p));
-    if (!fix) return found;
-    return [...found].sort(
-      (a, b) =>
-        (a.centroid ? distanceM(fix.position, a.centroid) : Infinity) -
-        (b.centroid ? distanceM(fix.position, b.centroid) : Infinity),
-    );
-  }, [snapshot, query, fix]);
+  // Brouillon et copies relus à chaque retour sur l'accueil.
+  useFocusEffect(
+    useCallback(() => {
+      if (!workspace) return;
+      void loadDraft(workspace).then((d) => setDraft(d?.meta ?? null));
+      void cachedOnly<PickedProducer[]>("producers:all", { workspace }).then((p) => setProducerCount(p ? p.length : null));
+    }, [workspace]),
+  );
 
   if (status === "signedOut") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
 
   const membership = me?.memberships.find((m) => m.workspace === workspace);
   const scopeName = org?.short_name || org?.name || membership?.organization_name || snapshot?.label || "…";
+  const personal = workspace === "personal";
+  const mine = ops.filter((o) => o.workspace === workspace);
+  const waiting = mine.filter((o) => o.status === "pending").length;
+  const recent = mine
+    .filter((o) => o.entity_type === "parcel")
+    .slice(-4)
+    .reverse();
+  const canAddProducer = permissions.includes("producers.create");
 
-  const header = (
-    <View>
-      <SpaceHeader scopeName={scopeName} />
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 12 }}>
-        <View>
-          <T style={{ fontSize: 12, color: colors.muted }}>
-            {membership
-              ? `${org ? `${TYPE_LABELS[org.organization_type] ?? ""} · ` : ""}${roleLabel(membership.roles)}`
-              : "Données gardées sur ce téléphone"}
-          </T>
-          <T style={styles.h1} accessibilityRole="header">
-            Parcelles
-          </T>
-        </View>
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.surface }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      refreshControl={<RefreshControl refreshing={syncing} onRefresh={() => void sync()} tintColor={colors.forest} />}
+    >
+      <SpaceHeader
+        scopeName={scopeName}
+        title={me?.first_name ? `Bonjour ${me.first_name}` : "Bonjour"}
+        subtitle={membership ? roleLabel(membership.roles) : "Données gardées sur ce téléphone"}
+      />
 
-        {/* Fraîcheur des données */}
-        <View style={styles.fresh}>
-          {online ? <RefreshCw size={15} color={colors.muted} /> : <CloudOff size={15} color={colors.warning} />}
-          <T style={{ flex: 1, fontSize: 13, color: online ? colors.muted : colors.warning }}>
-            {snapshot
-              ? `${snapshot.parcels.length} parcelle${snapshot.parcels.length > 1 ? "s" : ""} · mises à jour ${freshness(snapshot.synced_at, now)}`
-              : syncing
-                ? "Chargement des parcelles…"
-                : "Pas encore de parcelles sur ce téléphone"}
-          </T>
-          <Pressable
-            onPress={() => void sync()}
-            disabled={syncing || !online}
-            accessibilityRole="button"
-            accessibilityLabel="Mettre à jour"
-            hitSlop={8}
-          >
-            {syncing ? (
-              <ActivityIndicator size="small" color={colors.forest} />
-            ) : (
-              <T style={{ fontSize: 13, fontWeight: "700", color: online ? colors.forest : colors.lineStrong }}>Mettre à jour</T>
-            )}
-          </Pressable>
-        </View>
-
+      <View style={{ padding: 16, gap: 16 }}>
         <SyncStrip workspace={workspace} />
 
         {canCreate ? (
-          <Button label="Enrôler une parcelle" icon={<Footprints size={18} color="#fff" />} onPress={() => router.push("/parcelles/nouvelle")} />
-        ) : null}
-        {canView ? (
-          <Button
-            label="Scanner un AgroID"
-            variant="secondary"
-            icon={<ScanLine size={18} color={colors.ink} />}
-            onPress={() => router.push("/scanner")}
-          />
-        ) : null}
-
-        {error ? <Alert tone={snapshot ? "info" : "danger"}>{error}</Alert> : null}
-        {snapshot?.truncated ? (
-          <Alert tone="info">Seules 1 000 parcelles sont gardées hors ligne ; utilisez la recherche en ligne pour les autres.</Alert>
-        ) : null}
-        {canView === false ? <Alert tone="info">Les parcelles ne sont pas accessibles avec votre rôle.</Alert> : null}
-
-        {canView && snapshot && snapshot.parcels.length > 0 ? (
-          <>
-            <Input
-              icon={<Search size={18} color={colors.muted} />}
-              placeholder="AgroID, nom de parcelle ou exploitant"
-              value={query}
-              onChangeText={(t) => {
-                setQuery(t);
-                setSelected(null);
-              }}
-              accessibilityLabel="Rechercher une parcelle"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              returnKeyType="search"
-              end={
-                query ? (
-                  <Pressable onPress={() => setQuery("")} accessibilityLabel="Effacer" hitSlop={8} style={{ paddingHorizontal: 12 }}>
-                    <X size={18} color={colors.muted} />
-                  </Pressable>
-                ) : undefined
-              }
-            />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={styles.segment}>
-                {(
-                  [
-                    ["liste", "Liste", List],
-                    ["carte", "Carte", MapIcon],
-                  ] as const
-                ).map(([key, label, Icon]) => (
-                  <Pressable
-                    key={key}
-                    onPress={() => setView(key)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: view === key }}
-                    style={[styles.segmentItem, view === key && styles.segmentActive]}
-                  >
-                    <Icon size={16} color={view === key ? colors.forest : colors.muted} />
-                    <T style={{ fontWeight: "700", color: view === key ? colors.forest : colors.muted }}>{label}</T>
-                  </Pressable>
-                ))}
-              </View>
-              <Pressable onPress={locate} accessibilityRole="button" accessibilityLabel="Ma position" style={styles.locate}>
-                <LocateFixed size={18} color={fix ? "#2F6FDB" : colors.forest} />
-              </Pressable>
+          <View style={styles.hero}>
+            <T style={styles.heroKicker}>Enrôlement</T>
+            <T style={styles.heroTitle}>{draft ? "Un enrôlement est en cours" : "Enrôler une parcelle"}</T>
+            <T style={styles.heroText}>
+              {draft
+                ? `${draft.label || "Parcelle"} · étape ${draft.step + 1} sur 5 · enregistré ${freshness(draft.saved_at, now)}`
+                : "Cinq étapes guidées, avec ou sans réseau, jusqu'à l'identifiant AgroID."}
+            </T>
+            <View style={styles.path}>
+              {STEPS.map(({ label, Icon }, i) => {
+                const done = draft ? i < draft.step : false;
+                const current = draft ? i === draft.step : i === 0;
+                return (
+                  <View key={label} style={styles.pathStep}>
+                    <View style={[styles.pathDot, done && styles.pathDone, current && styles.pathCurrent]}>
+                      <Icon size={16} color={current ? colors.forest : done ? colors.night : "rgba(255,255,255,0.85)"} />
+                    </View>
+                    <T style={styles.pathLabel} numberOfLines={1}>
+                      {label}
+                    </T>
+                  </View>
+                );
+              })}
             </View>
-            {positionError ? <T style={{ fontSize: 12, color: colors.muted }}>{positionError}</T> : null}
-            {fix ? (
-              <T style={{ fontSize: 12, color: colors.muted }}>
-                Triées de la plus proche à la plus éloignée (précision {Math.round(fix.accuracy)} m).
+            <Pressable
+              onPress={() => router.push("/parcelles/nouvelle")}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.heroButton, pressed && { opacity: 0.85 }]}
+            >
+              <Play size={18} color={colors.forest} />
+              <T style={{ color: colors.forest, fontWeight: "700", fontSize: 16 }}>
+                {draft ? "Reprendre l'enrôlement" : "Commencer"}
               </T>
-            ) : null}
-            {view === "carte" ? (
-              <View style={{ gap: 10 }}>
-                <ParcelSvgMap
-                  parcels={parcels}
-                  selectedId={selected?.id}
-                  onSelect={setSelected}
-                  position={fix?.position ?? null}
-                />
-                {selected ? (
-                  <ParcelRow parcel={selected} fix={fix?.position ?? null} onPress={() => router.push(`/parcelles/${selected.id}`)} />
-                ) : (
-                  <T style={{ fontSize: 13, color: colors.muted, textAlign: "center" }}>
-                    Touchez une parcelle pour voir son identité. Carte disponible hors ligne (sans fond satellite).
-                  </T>
-                )}
-              </View>
-            ) : null}
-          </>
+            </Pressable>
+          </View>
         ) : null}
-      </View>
-    </View>
-  );
 
-  const listMode = view === "liste" && canView && snapshot && snapshot.parcels.length > 0;
-
-  return (
-    <FlatList
-      style={{ flex: 1, backgroundColor: colors.surface }}
-      data={listMode ? parcels : []}
-      keyExtractor={(p) => p.id}
-      ListHeaderComponent={header}
-      ListHeaderComponentStyle={{ marginBottom: 12 }}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-      refreshControl={<RefreshControl refreshing={syncing && Boolean(snapshot)} onRefresh={() => void sync()} tintColor={colors.forest} />}
-      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-      renderItem={({ item }) => (
-        <View style={{ marginHorizontal: 16 }}>
-          <ParcelRow parcel={item} fix={fix?.position ?? null} onPress={() => router.push(`/parcelles/${item.id}`)} />
+        <View style={styles.stats}>
+          <Stat label="Parcelles" value={snapshot ? String(snapshot.parcels.length) : "—"} onPress={() => router.replace("/parcelles")} />
+          {personal ? null : (
+            <Stat label="Producteurs" value={producerCount === null ? "—" : String(producerCount)} onPress={() => router.replace("/producteurs")} />
+          )}
+          <Stat label="À envoyer" value={String(waiting)} tone={waiting ? "warning" : undefined} onPress={() => router.replace("/envois")} />
         </View>
-      )}
-      ListEmptyComponent={
-        <>
-          {!canView || view === "carte" ? null : syncing && !snapshot ? (
-          <ActivityIndicator color={colors.forest} style={{ marginTop: 24 }} />
-        ) : snapshot && snapshot.parcels.length > 0 ? (
-          <View style={styles.empty}>
-            <T style={{ fontSize: 16, fontWeight: "700" }}>Aucune parcelle pour « {query} »</T>
-            <T style={{ fontSize: 14, color: colors.muted, textAlign: "center", marginTop: 4 }}>
-              Vérifiez l&apos;AgroID : O et 0, I et 1 sont acceptés indifféremment.
-            </T>
+
+        <View style={{ gap: 10 }}>
+          <T style={styles.section}>Raccourcis</T>
+          <View style={styles.grid}>
+            {canAddProducer && !personal ? (
+              <Action Icon={UserPlus} label="Nouveau producteur" onPress={() => router.push("/producteurs/nouveau")} />
+            ) : null}
+            {canView ? <Action Icon={ScanLine} label="Scanner un AgroID" onPress={() => router.push("/scanner")} /> : null}
+            {canView ? <Action Icon={MapIcon} label="Carte des parcelles" onPress={() => router.replace("/parcelles")} /> : null}
+            <Action Icon={CloudUpload} label="Envois" onPress={() => router.replace("/envois")} />
           </View>
-        ) : snapshot ? (
-          <View style={styles.empty}>
-            <Fingerprint size={28} color={colors.forest} />
-            <T style={{ fontSize: 16, fontWeight: "700", marginTop: 10 }}>Aucune parcelle pour le moment</T>
-            <T style={{ fontSize: 14, color: colors.muted, textAlign: "center", marginTop: 4 }}>
-              Le relevé des contours depuis le téléphone arrive avec la collecte terrain.
-            </T>
-          </View>
-        ) : !online ? (
-          <View style={{ marginHorizontal: 16, gap: 10 }}>
-            <Alert tone="info">Connectez-vous une première fois avec du réseau pour garder les parcelles sur ce téléphone.</Alert>
-            <Button label="Réessayer" variant="secondary" onPress={() => void sync()} />
+        </View>
+
+        {recent.length ? (
+          <View style={{ gap: 10 }}>
+            <T style={styles.section}>Dernières parcelles enrôlées</T>
+            {recent.map((o) => {
+              const r = (o.result ?? {}) as { id?: string; agroid?: string };
+              const sent = o.status === "applied" && r.id;
+              return (
+                <Pressable
+                  key={o.id}
+                  onPress={() => (sent ? router.push(`/parcelles/${r.id}`) : router.replace("/envois"))}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.8 }]}
+                >
+                  <View style={styles.rowIcon}>
+                    <Fingerprint size={20} color={colors.forest} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <T style={{ fontWeight: "700" }} numberOfLines={1}>
+                      {o.label}
+                    </T>
+                    {sent && r.agroid ? (
+                      <T mono style={{ fontSize: 13, color: colors.forest }}>
+                        {r.agroid}
+                      </T>
+                    ) : (
+                      <T style={{ fontSize: 13, color: o.status === "pending" ? colors.warning : colors.danger }}>
+                        {o.status === "pending" ? "En attente d'envoi" : "À reprendre"}
+                      </T>
+                    )}
+                  </View>
+                  <ChevronRight size={18} color={colors.muted} />
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
-        </>
-      }
-    />
+
+        {error && !snapshot ? <Alert tone="info">{error}</Alert> : null}
+      </View>
+    </ScrollView>
   );
 }
 
-function ParcelRow({ parcel: p, fix, onPress }: { parcel: CachedParcel; fix: [number, number] | null; onPress: () => void }) {
+function Stat({ label, value, onPress, tone }: { label: string; value: string; onPress: () => void; tone?: "warning" }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${p.agroid ?? "Brouillon"} ${p.local_name}`}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.subtle }]}
-    >
-      <View style={{ flex: 1, gap: 6 }}>
-        <View style={styles.agroid}>
-          <Fingerprint size={13} color={colors.gold} />
-          <T mono style={{ color: "#fff", fontSize: 13 }}>
-            {p.agroid ?? "En attente"}
-          </T>
-        </View>
-        <T style={{ fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
-          {p.local_name || "Parcelle sans nom"}
-        </T>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <StatusPill tone={STATUS_TONES[p.status] ?? "neutral"} label={PARCEL_STATUS_LABELS[p.status] ?? p.status} />
-          <T mono style={{ fontSize: 13, color: colors.muted }}>
-            {formatArea(p.area_m2)}
-          </T>
-          {fix && p.centroid ? (
-            <T mono style={{ fontSize: 13, color: "#2F6FDB" }}>
-              à {formatDistance(distanceM(fix, p.centroid))}
-            </T>
-          ) : null}
-        </View>
-        {p.operator_name ? (
-          <T style={{ fontSize: 13, color: colors.muted }} numberOfLines={1}>
-            {p.operator_name}
-          </T>
-        ) : null}
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label} : ${value}`} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.8 }]}>
+      <T mono style={{ fontSize: 24, color: tone ? colors.warning : colors.ink }}>
+        {value}
+      </T>
+      <T style={{ fontSize: 12, color: colors.muted }}>{label}</T>
+    </Pressable>
+  );
+}
+
+function Action({ Icon, label, onPress }: { Icon: typeof UserPlus; label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.action, pressed && { opacity: 0.8 }]}>
+      <View style={styles.actionIcon}>
+        <Icon size={22} color={colors.forest} />
       </View>
-      <ChevronRight size={18} color={colors.muted} />
+      <T style={{ fontWeight: "700", fontSize: 14 }}>{label}</T>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  h1: { fontSize: 28, fontWeight: "700", marginTop: 2 },
-  fresh: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.canvas,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  segment: { flex: 1, flexDirection: "row", backgroundColor: colors.subtle, borderRadius: 12, padding: 4 },
-  segmentItem: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingVertical: 8, borderRadius: 9 },
-  segmentActive: { backgroundColor: colors.canvas },
-  locate: {
-    width: 46,
-    borderRadius: 12,
-    backgroundColor: colors.canvas,
-    borderWidth: 1,
-    borderColor: colors.line,
+  hero: { backgroundColor: colors.forest, borderRadius: radius.xl, padding: 18, gap: 8 },
+  heroKicker: { color: colors.gold, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
+  heroTitle: { color: "#fff", fontSize: 22, fontWeight: "700" },
+  heroText: { color: "rgba(255,255,255,0.8)", lineHeight: 20 },
+  path: { flexDirection: "row", marginTop: 8, marginBottom: 4 },
+  pathStep: { flex: 1, alignItems: "center", gap: 6 },
+  pathDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
+  pathDone: { backgroundColor: colors.gold },
+  pathCurrent: { backgroundColor: "#fff" },
+  pathLabel: { color: "rgba(255,255,255,0.85)", fontSize: 11 },
+  heroButton: {
+    marginTop: 6,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  stats: { flexDirection: "row", gap: 10 },
+  stat: { flex: 1, backgroundColor: colors.canvas, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 2 },
+  section: { fontSize: 13, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.6 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  action: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    backgroundColor: colors.canvas,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    gap: 10,
+  },
+  actionIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.brand50, alignItems: "center", justifyContent: "center" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -398,26 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 14,
+    padding: 12,
   },
-  agroid: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.night,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  empty: {
-    marginHorizontal: 16,
-    alignItems: "center",
-    backgroundColor: colors.canvas,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-  },
+  rowIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.brand50, alignItems: "center", justifyContent: "center" },
 });

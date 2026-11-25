@@ -108,16 +108,13 @@ export default function ProducersScreen() {
 
   const header = (
     <View>
-      <SpaceHeader scopeName={org?.short_name || org?.name || membership?.organization_name || "…"} />
+      <SpaceHeader
+        scopeName={org?.short_name || org?.name || membership?.organization_name || "…"}
+        title="Producteurs"
+        subtitle={`${TYPE_LABELS[org?.organization_type ?? ""] ?? ""} · ${roleLabel(membership?.roles ?? [])}`}
+      />
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 18 }}>
-        <T style={{ fontSize: 12, color: colors.muted }}>
-          {TYPE_LABELS[org?.organization_type ?? ""] ?? ""} · {roleLabel(membership?.roles ?? [])}
-        </T>
-        <T style={styles.h1} accessibilityRole="header">
-          Producteurs
-        </T>
-
+      <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
         <View style={styles.stat}>
           <T style={styles.statLabel}>Producteurs rattachés</T>
           <T mono style={styles.statValue}>
