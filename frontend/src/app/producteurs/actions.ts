@@ -30,6 +30,7 @@ export type ProducerValues = {
   membershipNumber: string;
   householdSize: string;
   householdWorkers: string;
+  section: string;
 };
 
 export type CreateState =
@@ -59,6 +60,7 @@ function readValues(form: FormData): ProducerValues {
     membershipNumber: get("membership_number"),
     householdSize: get("household_size"),
     householdWorkers: get("household_farm_workers"),
+    section: get("section"),
   };
 }
 
@@ -99,6 +101,7 @@ export async function createProducer(_prev: CreateState, form: FormData): Promis
       ...profileBody(values),
       relationship_type: values.relationship as Relationship,
       membership_number: values.membershipNumber,
+      section: values.section,
       confirm_new: form.get("confirm_new") === "1",
     },
   });
@@ -139,6 +142,7 @@ export async function updateProducer(_prev: CreateState, form: FormData): Promis
       ...profileBody(values),
       relationship_type: values.relationship as Relationship,
       membership_number: values.membershipNumber,
+      section: values.section,
     },
   });
   if (!data) return { status: "error", message: apiErrorMessage(error), values };

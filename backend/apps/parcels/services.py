@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.core import services as core_services
 from apps.parcels import agroid as agroid_format
 from apps.parcels import geometry as geo
+from apps.parcels import site_referentials as site_ref
 from apps.parcels import validation
 from apps.parcels.models import (
     AccessBasis,
@@ -30,6 +31,7 @@ from apps.parcels.models import (
     ParcelOrganizationLink,
     ParcelOwnership,
     ParcelRegistrationChannel,
+    ParcelSiteProfile,
     ParcelStatus,
     ProducerParcelAccess,
 )
@@ -421,6 +423,10 @@ def assign_operator(
     recorded_by_organization=None,
     recorded_by_producer=None,
     replace_primary: bool = False,
+    rent_type: str = "",
+    rent_amount_xof: int | None = None,
+    harvest_share_percent=None,
+    agreement_end_date: date | None = None,
 ) -> ParcelOperatorAssignment:
     """Désigne un exploitant. Un seul exploitant principal à la fois (D-06).
 
@@ -458,6 +464,10 @@ def assign_operator(
         arrangement_type=arrangement_type,
         verification_status=verification,
         start_date=start_date,
+        rent_type=rent_type or "",
+        rent_amount_xof=rent_amount_xof,
+        harvest_share_percent=harvest_share_percent,
+        agreement_end_date=agreement_end_date,
         created_by=by,
         updated_by=by,
         server_received_at=timezone.now(),
@@ -626,3 +636,84 @@ def retire_cultivation_unit(unit: CultivationUnit, *, by, reason: str) -> Cultiv
     unit.updated_by = by
     unit.save(update_fields=["status", "valid_to", "updated_by", "updated_at"])
     return core_services.archive(unit, by=by, reason=reason)
+
+
+# ── Profil de site : sol, eau, irrigation, accès (J18d) ────────────────────
+
+
+@transaction.atomic
+def record_site_profile(
+    parcel: Parcel,
+    *,
+    by,
+    evidence: str,
+    observed_on: date | None = None,
+    recorded_by_organization=None,
+    recorded_by_producer=None,
+    **fields,
+) -> ParcelSiteProfile:
+    """Ajoute une version complète du profil de site (la plus récente fait foi)."""
+    if parcel.status == ParcelStatus.RETIRED:
+        raise ValidationError("Parcelle retirée.")
+    allowed = {
+        *site_ref.SITE_FIELDS,
+        "scheme_name",
+        "distance_to_village_km",
+        "other_detail",
+        "notes",
+    }
+    unknown = set(fields) - allowed
+    if unknown:
+        raise ValidationError({name: "Champ inconnu." for name in unknown})
+    data = {
+        k: ("" if v is None and k not in ("distance_to_village_km",) else v)
+        for k, v in fields.items()
+    }
+    if not any(data.get(k) for k in site_ref.SITE_FIELDS):
+        raise ValidationError("Renseignez au moins une information sur le sol, l'eau ou l'accès.")
+    if recorded_by_producer is not None and evidence != site_ref.Evidence.DECLARED:
+        raise ValidationError({"evidence": "Une déclaration du producteur reste « déclarée »."})
+    profile = ParcelSiteProfile(
+        parcel=parcel,
+        evidence=evidence,
+        observed_on=observed_on or timezone.localdate(),
+        created_by=by,
+        updated_by=by,
+        server_received_at=timezone.now(),
+        **_recorder(recorded_by_organization, recorded_by_producer),
+        **data,
+    )
+    profile.full_clean()
+    profile.save()
+    return profile
+
+
+def current_site_profile(parcel: Parcel) -> ParcelSiteProfile | None:
+    return parcel.site_profiles.order_by("-created_at").first()
+
+
+COMPLETENESS_BLOCKS = (
+    ("contour", "Contour relevé"),
+    ("operator", "Exploitant"),
+    ("tenure", "Foncier"),
+    ("water", "Eau et irrigation"),
+    ("soil", "Sol"),
+    ("cycle", "Cycle de culture"),
+)
+
+
+def completeness(parcel: Parcel) -> dict:
+    """Taux de complétude de la fiche AgroID (addendum v2.3) : blocs renseignés / blocs."""
+    profile = current_site_profile(parcel)
+    geometry = parcel.geometries.filter(is_current=True).first()
+    done = {
+        "contour": geometry is not None,
+        "operator": parcel.operators.filter(end_date__isnull=True).exists(),
+        "tenure": parcel.ownerships.filter(end_date__isnull=True).exists(),
+        "water": bool(profile and profile.water_regime),
+        "soil": bool(profile and (profile.soil_local_type or profile.soil_texture)),
+        "cycle": parcel.crop_cycles.filter(is_archived=False).exists(),
+    }
+    blocks = [{"key": k, "label": label, "done": done[k]} for k, label in COMPLETENESS_BLOCKS]
+    filled = sum(1 for b in blocks if b["done"])
+    return {"percent": round(100 * filled / len(blocks)), "blocks": blocks}

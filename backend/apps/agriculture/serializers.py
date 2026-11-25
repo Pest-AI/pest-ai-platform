@@ -16,8 +16,10 @@ from apps.agriculture.models import (
     HarvestRecord,
     MeasurementMethod,
     OperationType,
+    PlantingMethod,
     RecordSource,
     SeasonType,
+    SeedSource,
 )
 
 # ── Référentiel ──────────────────────────────────────────────────────────
@@ -137,6 +139,7 @@ class CropCycleSerializer(serializers.ModelSerializer):
     declared_crop = CropRefSerializer(read_only=True)
     confirmed_crop = CropRefSerializer(read_only=True, allow_null=True)
     variety = CropVarietySerializer(read_only=True, allow_null=True)
+    previous_crop = CropRefSerializer(read_only=True, allow_null=True)
     campaign = serializers.SerializerMethodField()
     operator = serializers.SerializerMethodField()
     cultivation_unit = serializers.SerializerMethodField()
@@ -164,6 +167,10 @@ class CropCycleSerializer(serializers.ModelSerializer):
             "harvest_end_date",
             "declared_area_m2",
             "status",
+            "seed_source",
+            "planting_method",
+            "previous_crop",
+            "previous_fallow",
             "total_harvest_kg",
             "is_archived",
             "row_version",
@@ -271,7 +278,36 @@ DATE_FIELDS = (
 )
 
 
-class CropCycleCreateSerializer(serializers.Serializer):
+class _CycleContextFields(serializers.Serializer):
+    """Semence, implantation et précédent cultural (J18d, addendum v2.3)."""
+
+    seed_source = serializers.ChoiceField(
+        choices=SeedSource.choices, required=False, allow_blank=True
+    )
+    planting_method = serializers.ChoiceField(
+        choices=PlantingMethod.choices, required=False, allow_blank=True
+    )
+    previous_crop = serializers.SlugRelatedField(
+        slug_field="code",
+        queryset=Crop.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="Culture de la saison précédente (code), ou null.",
+    )
+    previous_fallow = serializers.BooleanField(
+        required=False, help_text="La saison précédente, la parcelle était en jachère."
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("previous_fallow") and attrs.get("previous_crop"):
+            raise serializers.ValidationError(
+                {"previous_crop": "Jachère ou culture précédente, pas les deux."}
+            )
+        return attrs
+
+
+class CropCycleCreateSerializer(_CycleContextFields):
     parcel = serializers.UUIDField()
     cultivation_unit = serializers.UUIDField(required=False, allow_null=True)
     campaign = serializers.UUIDField(required=False, allow_null=True)
@@ -299,7 +335,7 @@ class CropCycleCreateSerializer(serializers.Serializer):
     )
 
 
-class CropCycleUpdateSerializer(serializers.Serializer):
+class CropCycleUpdateSerializer(_CycleContextFields):
     campaign = serializers.UUIDField(required=False, allow_null=True)
     variety = serializers.PrimaryKeyRelatedField(
         queryset=CropVariety.objects.filter(is_active=True), required=False, allow_null=True

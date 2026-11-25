@@ -11,6 +11,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.parcels import geometry as geo
+from apps.parcels import site_referentials as site_ref
 from apps.parcels import validation
 from apps.parcels.models import (
     AccessLevel,
@@ -24,6 +25,8 @@ from apps.parcels.models import (
     ParcelGeometry,
     ParcelOperatorAssignment,
     ParcelOwnership,
+    ParcelSiteProfile,
+    RentType,
     TenureType,
 )
 
@@ -157,6 +160,10 @@ class OperatorSerializer(serializers.ModelSerializer):
             "producer_name",
             "operator_role",
             "arrangement_type",
+            "rent_type",
+            "rent_amount_xof",
+            "harvest_share_percent",
+            "agreement_end_date",
             "verification_status",
             "start_date",
             "end_date",
@@ -217,6 +224,111 @@ class ParcelListSerializer(serializers.ModelSerializer):
         return {"producer": str(current.producer_id), "name": _producer_name(current.producer)}
 
 
+# ── Profil de site (J18d) ────────────────────────────────────────────────
+
+
+class SiteProfileSerializer(serializers.ModelSerializer):
+    """Version du profil de site : sol, eau et irrigation, accès."""
+
+    class Meta:
+        model = ParcelSiteProfile
+        fields = [
+            "id",
+            *site_ref.SITE_FIELDS,
+            "scheme_name",
+            "distance_to_village_km",
+            "other_detail",
+            "evidence",
+            "observed_on",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+def _site_write_fields():
+    fields = {
+        name: serializers.ChoiceField(choices=choices.choices, required=False, allow_blank=True)
+        for name, choices in site_ref.SITE_FIELDS.items()
+    }
+    fields.update(
+        scheme_name=serializers.CharField(max_length=150, required=False, allow_blank=True),
+        distance_to_village_km=serializers.DecimalField(
+            max_digits=5,
+            decimal_places=1,
+            min_value=Decimal("0"),
+            max_value=Decimal("500"),
+            required=False,
+            allow_null=True,
+        ),
+        other_detail=serializers.CharField(max_length=200, required=False, allow_blank=True),
+        notes=serializers.CharField(required=False, allow_blank=True),
+        evidence=serializers.ChoiceField(
+            choices=site_ref.Evidence.choices, default=site_ref.Evidence.DECLARED
+        ),
+        observed_on=serializers.DateField(required=False),
+    )
+    return fields
+
+
+SiteProfileWriteSerializer = type(
+    "SiteProfileWriteSerializer",
+    (serializers.Serializer,),
+    {
+        **_site_write_fields(),
+        "__doc__": "Nouvelle version complète du profil de site (la précédente est conservée).",
+    },
+)
+
+
+class SiteHistorySerializer(serializers.Serializer):
+    current = SiteProfileSerializer(allow_null=True)
+    history = SiteProfileSerializer(many=True)
+
+
+class ReferentialItemSerializer(serializers.Serializer):
+    value = serializers.CharField()
+    label = serializers.CharField()
+
+
+class SiteReferentialsSerializer(serializers.Serializer):
+    """Listes du profil de site (proposées, à valider par l'agronome)."""
+
+    fields = serializers.DictField(child=ReferentialItemSerializer(many=True))
+    evidence = ReferentialItemSerializer(many=True)
+    tenure_types = ReferentialItemSerializer(many=True)
+    rent_types = ReferentialItemSerializer(many=True)
+
+
+class CompletenessBlockSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    done = serializers.BooleanField()
+
+
+class CompletenessSerializer(serializers.Serializer):
+    percent = serializers.IntegerField()
+    blocks = CompletenessBlockSerializer(many=True)
+
+
+class LeaseTermsSerializer(serializers.Serializer):
+    """Conditions d'une location, d'un métayage ou d'un prêt (J18d)."""
+
+    rent_type = serializers.ChoiceField(choices=RentType.choices, required=False, allow_blank=True)
+    rent_amount_xof = serializers.IntegerField(
+        min_value=0, max_value=100_000_000, required=False, allow_null=True
+    )
+    harvest_share_percent = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        max_value=Decimal("100"),
+        required=False,
+        allow_null=True,
+    )
+    agreement_end_date = serializers.DateField(required=False, allow_null=True)
+
+
 class ParcelDetailSerializer(ParcelListSerializer):
     """Fiche parcelle dans l'espace actif."""
 
@@ -226,6 +338,12 @@ class ParcelDetailSerializer(ParcelListSerializer):
     units = serializers.SerializerMethodField()
     access = serializers.SerializerMethodField(
         help_text="Droits de l'espace actif sur cette parcelle : view ou manage."
+    )
+    site_profile = serializers.SerializerMethodField(
+        help_text="Profil de site courant (sol, eau, accès), ou null."
+    )
+    completeness = serializers.SerializerMethodField(
+        help_text="Taux de complétude de la fiche AgroID et blocs renseignés."
     )
 
     class Meta(ParcelListSerializer.Meta):
@@ -238,10 +356,25 @@ class ParcelDetailSerializer(ParcelListSerializer):
             "operators",
             "units",
             "access",
+            "site_profile",
+            "completeness",
             "updated_at",
             "row_version",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(SiteProfileSerializer(allow_null=True))
+    def get_site_profile(self, obj):
+        from apps.parcels.services import current_site_profile
+
+        current = current_site_profile(obj)
+        return SiteProfileSerializer(current).data if current else None
+
+    @extend_schema_field(CompletenessSerializer)
+    def get_completeness(self, obj):
+        from apps.parcels.services import completeness
+
+        return completeness(obj)
 
     @extend_schema_field(GeometryVersionSerializer(allow_null=True))
     def get_current_geometry(self, obj):
@@ -348,6 +481,14 @@ class ParcelCreateSerializer(GeometryInputMixin):
         allow_null=True,
         help_text="Foncier déclaré (statut « déclarée ») : enregistré avec la parcelle.",
     )
+    lease = LeaseTermsSerializer(
+        required=False, allow_null=True, help_text="Conditions d'exploitation, avec `operator`."
+    )
+    site = SiteProfileWriteSerializer(
+        required=False,
+        allow_null=True,
+        help_text="Sol, eau et irrigation, accès : première version du profil de site.",
+    )
 
     def validate_position(self, value):
         if value is None:
@@ -401,7 +542,7 @@ class OwnershipCreateSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
-class OperatorCreateSerializer(serializers.Serializer):
+class OperatorCreateSerializer(LeaseTermsSerializer):
     producer = serializers.UUIDField()
     operator_role = serializers.ChoiceField(choices=OperatorRole.choices)
     arrangement_type = serializers.ChoiceField(

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Chips } from "@/components/chips";
+import { SiteForm } from "@/components/site-form";
 import { TrackPreview } from "@/components/track-preview";
 import { Alert, Button, Card, Input, T } from "@/components/ui";
 import { ApiError, NetworkError, SessionExpiredError } from "@/lib/api";
@@ -22,6 +24,7 @@ import {
   useLiveFix,
 } from "@/lib/gps-track";
 import { useSession } from "@/lib/session";
+import { type SiteValues, hasSiteData, siteBody, useSiteReferentials } from "@/lib/site";
 import type { Paginated, Producer } from "@/lib/types";
 import { colors, radius } from "@/theme";
 
@@ -34,6 +37,7 @@ const OWNERS: { value: Owner; label: string; personalLabel?: string }[] = [
   { value: "unknown", label: "Ne sait pas" },
 ];
 const TENURES = [
+  ["communal_allocation", "Affectation communale"],
   ["customary_right", "Droit coutumier"],
   ["family_land", "Terre familiale"],
   ["titled_property", "Titre foncier"],
@@ -48,34 +52,14 @@ const ARRANGEMENTS = [
   ["loan", "Prêt"],
   ["other", "Autre"],
 ] as const;
+const RENTS = [
+  ["cash", "En argent"],
+  ["harvest_share", "Part de récolte"],
+  ["in_kind", "En nature"],
+  ["free", "Gratuit"],
+  ["unknown", "Ne sait pas"],
+] as const;
 
-function Chips<V extends string>({
-  options,
-  value,
-  onChange,
-  label,
-}: {
-  options: readonly (readonly [V, string])[];
-  value: V;
-  onChange: (v: V) => void;
-  label: string;
-}) {
-  return (
-    <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      {options.map(([v, text]) => (
-        <Pressable
-          key={v}
-          onPress={() => onChange(v)}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: value === v }}
-          style={[styles.chip, value === v && styles.chipOn]}
-        >
-          <T style={{ fontSize: 14, fontWeight: "700", color: value === v ? colors.forest : colors.ink }}>{text}</T>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
 type Created = { id: string; agroid: string | null; status: string; current_geometry?: { validation?: { status?: string } } | null };
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -150,6 +134,10 @@ export default function NewParcelScreen() {
   const [ownerName, setOwnerName] = useState("");
   const [tenure, setTenure] = useState<(typeof TENURES)[number][0]>("unknown");
   const [arrangement, setArrangement] = useState<(typeof ARRANGEMENTS)[number][0]>("rental");
+  const [rent, setRent] = useState<(typeof RENTS)[number][0] | "">("");
+  const [rentAmount, setRentAmount] = useState("");
+  const [rentShare, setRentShare] = useState("");
+  const [site, setSite] = useState<SiteValues>({ evidence: "declared" });
   const [mode, setMode] = useState<Mode>("walk");
   const [recording, setRecording] = useState(false);
   const [points, setPoints] = useState<Fix[]>([]);
@@ -157,6 +145,7 @@ export default function NewParcelScreen() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
   const { fix, error: gpsError, supported } = useLiveFix(!created && status === "signedIn");
+  const refs = useSiteReferentials(workspace);
 
   // Exploitant prérempli depuis la fiche producteur.
   useEffect(() => {
@@ -197,8 +186,20 @@ export default function NewParcelScreen() {
     const body: Record<string, unknown> = { local_name: name.trim(), operator: personal ? null : (producer?.id ?? null) };
     if (owner !== "unknown") {
       body.ownership = { owner, owner_name: owner === "other" ? ownerName.trim() : "", tenure_type: tenure };
-      if (owner === "other" && (personal || producer)) body.arrangement_type = arrangement;
+      if (owner === "other" && (personal || producer)) {
+        body.arrangement_type = arrangement;
+        if (rent) {
+          const amount = Number(rentAmount.replace(/\s/g, ""));
+          const share = Number(rentShare.replace(",", "."));
+          body.lease = {
+            rent_type: rent,
+            rent_amount_xof: rent === "cash" && rentAmount.trim() && Number.isFinite(amount) ? Math.round(amount) : null,
+            harvest_share_percent: rent === "harvest_share" && rentShare.trim() && share > 0 && share <= 100 ? share.toFixed(2) : null,
+          };
+        }
+      }
     }
+    if (hasSiteData(site)) body.site = siteBody(site);
     if (mode === "position") {
       body.position = fix ? fix.position : null;
       body.capture_method = "gps_points";
@@ -248,6 +249,10 @@ export default function NewParcelScreen() {
               setOwner("unknown");
               setOwnerName("");
               setTenure("unknown");
+              setRent("");
+              setRentAmount("");
+              setRentShare("");
+              setSite({ evidence: "declared" });
               reset();
             }}
           />
@@ -296,7 +301,7 @@ export default function NewParcelScreen() {
               label="Propriétaire de la parcelle"
               options={OWNERS.map((o) => [o.value, personal && o.personalLabel ? o.personalLabel : o.label] as const)}
               value={owner}
-              onChange={setOwner}
+              onChange={(v) => v && setOwner(v)}
             />
             {owner === "operator" && !operatorKnown ? (
               <T style={{ color: colors.warning, fontSize: 13 }}>Choisissez d&apos;abord l&apos;exploitant.</T>
@@ -311,7 +316,19 @@ export default function NewParcelScreen() {
               {personal || producer ? (
                 <View style={{ gap: 6 }}>
                   <T style={styles.label}>L&apos;exploitant la cultive en</T>
-                  <Chips label="Mode d'exploitation" options={ARRANGEMENTS} value={arrangement} onChange={setArrangement} />
+                  <Chips label="Mode d'exploitation" options={ARRANGEMENTS} value={arrangement} onChange={(v) => v && setArrangement(v)} />
+                </View>
+              ) : null}
+              {(personal || producer) && arrangement !== "other" ? (
+                <View style={{ gap: 6 }}>
+                  <T style={styles.label}>Contrepartie</T>
+                  <Chips label="Contrepartie" options={RENTS} value={rent} onChange={setRent} clearable />
+                  {rent === "cash" ? (
+                    <Input accessibilityLabel="Montant du loyer en FCFA par campagne" keyboardType="number-pad" placeholder="Loyer en FCFA par campagne" value={rentAmount} onChangeText={setRentAmount} maxLength={10} />
+                  ) : null}
+                  {rent === "harvest_share" ? (
+                    <Input accessibilityLabel="Part de la récolte en pourcentage" keyboardType="decimal-pad" placeholder="Part de la récolte (%) — ex. 33" value={rentShare} onChangeText={setRentShare} maxLength={5} />
+                  ) : null}
                 </View>
               ) : null}
             </>
@@ -319,11 +336,13 @@ export default function NewParcelScreen() {
           {owner !== "unknown" ? (
             <View style={{ gap: 6 }}>
               <T style={styles.label}>Type de droit</T>
-              <Chips label="Type de droit" options={TENURES} value={tenure} onChange={setTenure} />
+              <Chips label="Type de droit" options={TENURES} value={tenure} onChange={(v) => v && setTenure(v)} />
             </View>
           ) : null}
           <T style={{ color: colors.muted, fontSize: 13 }}>Déclaration du producteur : un document pourra la confirmer plus tard.</T>
         </Card>
+
+        <SiteForm refs={refs} values={site} onChange={setSite} />
 
         <View style={styles.segment} accessibilityRole="radiogroup">
           {MODES.map((m) => (
@@ -422,9 +441,6 @@ export default function NewParcelScreen() {
 
 const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "700" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.canvas },
-  chipOn: { borderColor: colors.forest, backgroundColor: colors.brand50 },
   picked: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: radius.md, backgroundColor: colors.brand50 },
   option: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: colors.surface },
   segment: { flexDirection: "row", gap: 6, padding: 4, borderRadius: radius.md, backgroundColor: colors.subtle },

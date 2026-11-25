@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 
 import { currentWorkspace, getApi } from "@/lib/api/client";
 import { apiErrorMessage } from "@/lib/api/errors";
+import { previousFromForm } from "@/lib/agriculture";
 
 export type FormState = { status: "idle" | "error" | "done"; message?: string };
 
@@ -106,6 +107,9 @@ export async function createCycle(_prev: FormState, form: FormData): Promise<For
       expected_harvest_date: optionalDate(form, "expected_harvest_date"),
       declared_area_m2: optionalNumber(form, "declared_area_m2"),
       status,
+      seed_source: (text(form, "seed_source") || "") as never,
+      planting_method: (text(form, "planting_method") || "") as never,
+      ...previousFromForm(text(form, "previous")),
     },
   });
   if (!response.ok || !data) {
@@ -126,9 +130,12 @@ export async function updateCycle(_prev: FormState, form: FormData): Promise<For
     if (form.has(name)) body[name] = optionalDate(form, name);
   }
   if (form.has("declared_area_m2")) body.declared_area_m2 = optionalNumber(form, "declared_area_m2");
+  if (form.has("seed_source")) body.seed_source = text(form, "seed_source");
+  if (form.has("planting_method")) body.planting_method = text(form, "planting_method");
+  const extra: Record<string, unknown> = form.has("previous") ? previousFromForm(text(form, "previous")) : {};
   const { error, response } = await ctx.api.PATCH("/api/v1/crop-cycles/{id}/", {
     params: { header: ctx.header, path: { id } },
-    body: body as never,
+    body: { ...body, ...extra } as never,
   });
   if (!response.ok) return { status: "error", message: forbidden(response.status) ?? apiErrorMessage(error) };
   revalidatePath(`/cycles/${id}`);

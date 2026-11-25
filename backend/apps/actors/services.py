@@ -88,7 +88,9 @@ def _set_primary_phone(producer: Producer, phone: str | None, by) -> None:
         contact.save(update_fields=["is_primary", "updated_by", "updated_at"])
 
 
-def _open_assignment(producer, organization, by, relationship_type, membership_number, start_date):
+def _open_assignment(
+    producer, organization, by, relationship_type, membership_number, start_date, section=""
+):
     if selectors.active_assignment(producer, organization):
         raise ValidationError({"producer": "Ce producteur est déjà rattaché à votre organisation."})
     try:
@@ -102,6 +104,7 @@ def _open_assignment(producer, organization, by, relationship_type, membership_n
                     organization, relationship_type, membership_number
                 ),
                 start_date=start_date or timezone.localdate(),
+                section=(section or "").strip(),
                 created_by=by,
                 updated_by=by,
             )
@@ -119,6 +122,7 @@ def register_producer(
     membership_number: str | None = None,
     start_date: date | None = None,
     confirm_new: bool = False,
+    section: str = "",
     **profile,
 ) -> Producer:
     """Cas A : une organisation enregistre un producteur (sans compte) et le rattache.
@@ -149,7 +153,13 @@ def register_producer(
     producer.save()
     _set_primary_phone(producer, phone_number, registered_by)
     _open_assignment(
-        producer, organization, registered_by, relationship_type, membership_number, start_date
+        producer,
+        organization,
+        registered_by,
+        relationship_type,
+        membership_number,
+        start_date,
+        section,
     )
     security_event(
         PRODUCER_CHANGE,
@@ -170,6 +180,7 @@ def attach_producer(
     relationship_type: str | None = None,
     membership_number: str | None = None,
     start_date: date | None = None,
+    section: str = "",
 ) -> ProducerOrganizationAssignment:
     """Rattache une fiche existante (doublon détecté, ou retour d'un ancien membre).
 
@@ -186,7 +197,13 @@ def attach_producer(
             }
         )
     assignment = _open_assignment(
-        producer, organization, attached_by, relationship_type, membership_number, start_date
+        producer,
+        organization,
+        attached_by,
+        relationship_type,
+        membership_number,
+        start_date,
+        section,
     )
     security_event(
         PRODUCER_CHANGE,
@@ -282,6 +299,8 @@ def update_assignment(*, assignment: ProducerOrganizationAssignment, updated_by,
         raise ValidationError({"assignment": "Ce rattachement est clos."})
     if "relationship_type" in fields:
         assignment.relationship_type = fields["relationship_type"]
+    if "section" in fields:
+        assignment.section = (fields["section"] or "").strip()
     if "membership_number" in fields:
         number = (fields["membership_number"] or "").strip().upper() or None
         if number is None and assignment.relationship_type == RelationshipType.MEMBER:

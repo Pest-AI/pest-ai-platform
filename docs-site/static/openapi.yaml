@@ -2501,6 +2501,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/ParcelDetail'
           description: ''
+  /api/v1/parcels/{id}/site/:
+    get:
+      operationId: parcels_site_retrieve
+      summary: 'Profil de site : courant et historique'
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteHistory'
+          description: ''
+    post:
+      operationId: parcels_site_create
+      description: 'Ajoute une version complète (sol, eau et irrigation, accès) ;
+        la précédente reste dans l''historique. Envoyez toutes les valeurs connues,
+        pas seulement celles qui changent. Espace personnel : niveau de preuve « déclaré
+        ».'
+      summary: Mettre à jour le profil de site
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Un(une) Chaîne UUID identifiant ce(cette) parcelle.
+        required: true
+      tags:
+      - parcels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteProfileWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SiteProfileWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SiteProfileWriteRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteProfile'
+          description: ''
   /api/v1/parcels/{id}/units/:
     post:
       operationId: parcels_units_create
@@ -2716,6 +2792,34 @@ paths:
                         status: active
                         area_m2: '9987.42'
                         validation_status: valid
+          description: ''
+  /api/v1/parcels/site-referentials/:
+    get:
+      operationId: parcels_site_referentials_retrieve
+      description: 'Valeurs proposées pour le sol, l''eau et l''irrigation, l''accès,
+        le niveau de preuve, les types de droit foncier et de loyer (addendum v2.3,
+        à valider par l''agronome). Les écrans les lisent ici : elles évoluent sans
+        nouvelle version des apps.'
+      summary: Listes du profil de site
+      parameters:
+      - in: header
+        name: X-Workspace
+        schema:
+          type: string
+        description: 'Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`.
+          La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`).
+          Absent ou mal formé : 400. Pas d''adhésion active : 403.'
+        required: true
+      tags:
+      - parcels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteReferentials'
           description: ''
   /api/v1/parcels/summary/:
     get:
@@ -3504,6 +3608,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        section:
+          type: string
+          readOnly: true
+          description: Section, groupement ou village de rattachement dans l'organisation.
         start_date:
           type: string
           format: date
@@ -3522,6 +3630,7 @@ components:
       - is_active
       - membership_number
       - relationship_type
+      - section
       - start_date
     AttachProducerRequest:
       type: object
@@ -3534,6 +3643,10 @@ components:
         membership_number:
           type: string
           maxLength: 50
+        section:
+          type: string
+          description: Section, groupement ou village de rattachement dans l'organisation.
+          maxLength: 100
         start_date:
           type: string
           format: date
@@ -3673,6 +3786,31 @@ components:
         * `import_xlsx` - Import Excel
         * `import_json` - Import JSON
         * `import_gpx` - Import GPX
+    Completeness:
+      type: object
+      properties:
+        percent:
+          type: integer
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessBlock'
+      required:
+      - blocks
+      - percent
+    CompletenessBlock:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        done:
+          type: boolean
+      required:
+      - done
+      - key
+      - label
     ConfirmCropRequest:
       type: object
       properties:
@@ -3817,6 +3955,21 @@ components:
           allOf:
           - $ref: '#/components/schemas/CropCycleStatusEnum'
           readOnly: true
+        seed_source:
+          type: string
+          readOnly: true
+        planting_method:
+          type: string
+          readOnly: true
+        previous_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          nullable: true
+        previous_fallow:
+          type: boolean
+          readOnly: true
+          description: La saison précédente, la parcelle était en jachère.
         total_harvest_kg:
           type: string
           format: decimal
@@ -3853,7 +4006,11 @@ components:
       - operator
       - parcel
       - planned_sowing_date
+      - planting_method
+      - previous_crop
+      - previous_fallow
       - row_version
+      - seed_source
       - sowing_date
       - status
       - total_harvest_kg
@@ -3862,7 +4019,24 @@ components:
       - variety
     CropCycleCreateRequest:
       type: object
+      description: Semence, implantation et précédent cultural (J18d, addendum v2.3).
       properties:
+        seed_source:
+          oneOf:
+          - $ref: '#/components/schemas/SeedSourceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        planting_method:
+          oneOf:
+          - $ref: '#/components/schemas/PlantingMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        previous_crop:
+          type: string
+          minLength: 1
+          description: Culture de la saison précédente (code), ou null.
+          nullable: true
+        previous_fallow:
+          type: boolean
+          description: La saison précédente, la parcelle était en jachère.
         parcel:
           type: string
           format: uuid
@@ -4011,6 +4185,21 @@ components:
           allOf:
           - $ref: '#/components/schemas/CropCycleStatusEnum'
           readOnly: true
+        seed_source:
+          type: string
+          readOnly: true
+        planting_method:
+          type: string
+          readOnly: true
+        previous_crop:
+          allOf:
+          - $ref: '#/components/schemas/CropRef'
+          readOnly: true
+          nullable: true
+        previous_fallow:
+          type: boolean
+          readOnly: true
+          description: La saison précédente, la parcelle était en jachère.
         total_harvest_kg:
           type: string
           format: decimal
@@ -4067,7 +4256,11 @@ components:
       - overlaps
       - parcel
       - planned_sowing_date
+      - planting_method
+      - previous_crop
+      - previous_fallow
       - row_version
+      - seed_source
       - sowing_date
       - status
       - total_harvest_kg
@@ -4274,6 +4467,28 @@ components:
       required:
       - owner
       - tenure_type
+    EvidenceEnum:
+      enum:
+      - declared
+      - observed
+      - measured
+      type: string
+      description: |-
+        * `declared` - Déclaré par le producteur
+        * `observed` - Constaté par l'agent
+        * `measured` - Mesuré ou analysé
+    FloodingEnum:
+      enum:
+      - never
+      - rainy_season
+      - prolonged
+      - unknown
+      type: string
+      description: |-
+        * `never` - Jamais inondée
+        * `rainy_season` - Inondée en hivernage
+        * `prolonged` - Inondation prolongée
+        * `unknown` - Ne sait pas
     GeometryVersion:
       type: object
       properties:
@@ -4730,6 +4945,46 @@ components:
             $ref: '#/components/schemas/RolesEnum'
       required:
       - phone_number
+    IrrigationMethodEnum:
+      enum:
+      - gravity
+      - pump_gravity
+      - sprinkler
+      - drip
+      - manual
+      - none
+      - unknown
+      type: string
+      description: |-
+        * `gravity` - Gravitaire
+        * `pump_gravity` - Motopompe puis gravitaire
+        * `sprinkler` - Aspersion
+        * `drip` - Goutte-à-goutte
+        * `manual` - Manuel (arrosoir)
+        * `none` - Aucune
+        * `unknown` - Ne sait pas
+    LeaseTermsRequest:
+      type: object
+      description: Conditions d'une location, d'un métayage ou d'un prêt (J18d).
+      properties:
+        rent_type:
+          oneOf:
+          - $ref: '#/components/schemas/RentTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        rent_amount_xof:
+          type: integer
+          maximum: 100000000
+          minimum: 0
+          nullable: true
+        harvest_share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        agreement_end_date:
+          type: string
+          format: date
+          nullable: true
     LinkRequestRequest:
       type: object
       properties:
@@ -5139,6 +5394,27 @@ components:
           allOf:
           - $ref: '#/components/schemas/ArrangementTypeEnum'
           readOnly: true
+        rent_type:
+          allOf:
+          - $ref: '#/components/schemas/RentTypeEnum'
+          readOnly: true
+        rent_amount_xof:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Loyer en FCFA par campagne (en argent).
+        harvest_share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        agreement_end_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+          description: Fin de l'accord, si connue.
         verification_status:
           allOf:
           - $ref: '#/components/schemas/OperatorVerificationEnum'
@@ -5156,18 +5432,41 @@ components:
           type: boolean
           readOnly: true
       required:
+      - agreement_end_date
       - arrangement_type
       - end_date
+      - harvest_share_percent
       - id
       - is_current
       - operator_role
       - producer
       - producer_name
+      - rent_amount_xof
+      - rent_type
       - start_date
       - verification_status
     OperatorCreateRequest:
       type: object
+      description: Conditions d'une location, d'un métayage ou d'un prêt (J18d).
       properties:
+        rent_type:
+          oneOf:
+          - $ref: '#/components/schemas/RentTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        rent_amount_xof:
+          type: integer
+          maximum: 100000000
+          minimum: 0
+          nullable: true
+        harvest_share_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        agreement_end_date:
+          type: string
+          format: date
+          nullable: true
         producer:
           type: string
           format: uuid
@@ -5765,6 +6064,17 @@ components:
           nullable: true
           description: 'Foncier déclaré (statut « déclarée ») : enregistré avec la
             parcelle.'
+        lease:
+          allOf:
+          - $ref: '#/components/schemas/LeaseTermsRequest'
+          nullable: true
+          description: Conditions d'exploitation, avec `operator`.
+        site:
+          allOf:
+          - $ref: '#/components/schemas/SiteProfileWriteRequest'
+          nullable: true
+          description: 'Sol, eau et irrigation, accès : première version du profil
+            de site.'
     ParcelDetail:
       type: object
       description: Fiche parcelle dans l'espace actif.
@@ -5844,6 +6154,17 @@ components:
           type: string
           readOnly: true
           description: 'Droits de l''espace actif sur cette parcelle : view ou manage.'
+        site_profile:
+          allOf:
+          - $ref: '#/components/schemas/SiteProfile'
+          nullable: true
+          readOnly: true
+          description: Profil de site courant (sol, eau, accès), ou null.
+        completeness:
+          allOf:
+          - $ref: '#/components/schemas/Completeness'
+          readOnly: true
+          description: Taux de complétude de la fiche AgroID et blocs renseignés.
         updated_at:
           type: string
           format: date-time
@@ -5856,6 +6177,7 @@ components:
       - agroid
       - agroid_assigned_at
       - centroid
+      - completeness
       - country_code
       - created_at
       - current_area_m2
@@ -5867,6 +6189,7 @@ components:
       - primary_operator
       - registration_channel
       - row_version
+      - site_profile
       - status
       - units
       - updated_at
@@ -6121,7 +6444,24 @@ components:
           $ref: '#/components/schemas/CampaignStatusEnum'
     PatchedCropCycleUpdateRequest:
       type: object
+      description: Semence, implantation et précédent cultural (J18d, addendum v2.3).
       properties:
+        seed_source:
+          oneOf:
+          - $ref: '#/components/schemas/SeedSourceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        planting_method:
+          oneOf:
+          - $ref: '#/components/schemas/PlantingMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        previous_crop:
+          type: string
+          minLength: 1
+          description: Culture de la saison précédente (code), ou null.
+          nullable: true
+        previous_fallow:
+          type: boolean
+          description: La saison précédente, la parcelle était en jachère.
         campaign:
           type: string
           format: uuid
@@ -6310,6 +6650,10 @@ components:
         membership_number:
           type: string
           maxLength: 50
+        section:
+          type: string
+          description: Section, groupement ou village de rattachement dans l'organisation.
+          maxLength: 100
     PendingLink:
       type: object
       properties:
@@ -6336,6 +6680,18 @@ components:
       - organization
       - parcel_id
       - requested_at
+    PerceivedFertilityEnum:
+      enum:
+      - good
+      - medium
+      - poor
+      - unknown
+      type: string
+      description: |-
+        * `good` - Bonne
+        * `medium` - Moyenne
+        * `poor` - Faible
+        * `unknown` - Ne sait pas
     PersonalAccessRequest:
       type: object
       properties:
@@ -6443,6 +6799,16 @@ components:
       required:
       - first_name
       - last_name
+    PlantingMethodEnum:
+      enum:
+      - direct_sowing
+      - transplanting
+      - unknown
+      type: string
+      description: |-
+        * `direct_sowing` - Semis direct
+        * `transplanting` - Repiquage
+        * `unknown` - Ne sait pas
     PlatformAgent:
       type: object
       description: Adhésion d'un agent terrain, avec son organisation d'affectation.
@@ -6896,6 +7262,10 @@ components:
           type: string
           description: 'Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123).'
           maxLength: 50
+        section:
+          type: string
+          description: Section, groupement ou village de rattachement dans l'organisation.
+          maxLength: 100
         start_date:
           type: string
           format: date
@@ -6935,6 +7305,20 @@ components:
       description: |-
         * `active` - Actif
         * `inactive` - Inactif
+    PumpAccessEnum:
+      enum:
+      - individual
+      - collective
+      - rented
+      - none
+      - unknown
+      type: string
+      description: |-
+        * `individual` - Individuelle
+        * `collective` - Collective (GIE, groupement)
+        * `rented` - Louée
+        * `none` - Aucune
+        * `unknown` - Ne sait pas
     ReasonRequest:
       type: object
       properties:
@@ -6954,6 +7338,16 @@ components:
         * `field_agent` - Agent de terrain
         * `producer_declared` - Déclaré par le producteur
         * `agronomist` - Agronome
+    ReferentialItem:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
     RelationshipTypeEnum:
       enum:
       - member
@@ -6964,6 +7358,20 @@ components:
         * `member` - Membre
         * `beneficiary` - Bénéficiaire
         * `client` - Client
+    RentTypeEnum:
+      enum:
+      - cash
+      - harvest_share
+      - in_kind
+      - free
+      - unknown
+      type: string
+      description: |-
+        * `cash` - En argent
+        * `harvest_share` - Part de la récolte
+        * `in_kind` - En nature
+        * `free` - Gratuit
+        * `unknown` - Ne sait pas
     ReviewRequest:
       type: object
       properties:
@@ -6974,6 +7382,16 @@ components:
           maxLength: 1000
       required:
       - decision
+    RoadAccessEnum:
+      enum:
+      - all_season
+      - dry_season
+      - unknown
+      type: string
+      description: |-
+        * `all_season` - En toute saison
+        * `dry_season` - En saison sèche seulement
+        * `unknown` - Ne sait pas
     RoleCodeRequest:
       type: object
       properties:
@@ -7015,6 +7433,32 @@ components:
         * `agronomist` - agronomist
         * `producer` - producer
         * `program_manager` - program_manager
+    SalinityEnum:
+      enum:
+      - none
+      - slight
+      - strong
+      - unknown
+      type: string
+      description: |-
+        * `none` - Aucune
+        * `slight` - Légère
+        * `strong` - Forte (taches blanches, croûtes)
+        * `unknown` - Ne sait pas
+    SchemeTypeEnum:
+      enum:
+      - saed_large
+      - piv
+      - private
+      - none
+      - unknown
+      type: string
+      description: |-
+        * `saed_large` - Grand aménagement (SAED)
+        * `piv` - Périmètre irrigué villageois (PIV)
+        * `private` - Périmètre privé
+        * `none` - Aucun aménagement
+        * `unknown` - Ne sait pas
     SeasonTypeEnum:
       enum:
       - rainy
@@ -7027,6 +7471,22 @@ components:
         * `cold_dry` - Contre-saison froide
         * `hot_dry` - Contre-saison chaude
         * `other` - Autre
+    SeedSourceEnum:
+      enum:
+      - certified_purchased
+      - farm_saved
+      - program
+      - local_market
+      - other
+      - unknown
+      type: string
+      description: |-
+        * `certified_purchased` - Certifiée, achetée
+        * `farm_saved` - Ressemée (récolte précédente)
+        * `program` - Fournie par un programme
+        * `local_market` - Achetée au marché, non certifiée
+        * `other` - Autre
+        * `unknown` - Ne sait pas
     SexEnum:
       enum:
       - female
@@ -7037,9 +7497,276 @@ components:
         * `female` - Femme
         * `male` - Homme
         * `unspecified` - Non précisé
+    SiteHistory:
+      type: object
+      properties:
+        current:
+          allOf:
+          - $ref: '#/components/schemas/SiteProfile'
+          nullable: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/SiteProfile'
+      required:
+      - current
+      - history
+    SiteProfile:
+      type: object
+      description: 'Version du profil de site : sol, eau et irrigation, accès.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        soil_local_type:
+          type: string
+          readOnly: true
+        soil_texture:
+          type: string
+          readOnly: true
+        salinity:
+          type: string
+          readOnly: true
+        flooding:
+          type: string
+          readOnly: true
+        slope:
+          type: string
+          readOnly: true
+        perceived_fertility:
+          type: string
+          readOnly: true
+        water_regime:
+          type: string
+          readOnly: true
+        water_source:
+          type: string
+          readOnly: true
+        irrigation_method:
+          type: string
+          readOnly: true
+        scheme_type:
+          type: string
+          readOnly: true
+        pump_access:
+          type: string
+          readOnly: true
+        water_availability:
+          type: string
+          readOnly: true
+        road_access:
+          type: string
+          readOnly: true
+        scheme_name:
+          type: string
+          readOnly: true
+          description: Périmètre, casier ou maille.
+        distance_to_village_km:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          readOnly: true
+          nullable: true
+        other_detail:
+          type: string
+          readOnly: true
+          description: Précision quand « Autre » est choisi.
+        evidence:
+          allOf:
+          - $ref: '#/components/schemas/EvidenceEnum'
+          readOnly: true
+        observed_on:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - distance_to_village_km
+      - evidence
+      - flooding
+      - id
+      - irrigation_method
+      - notes
+      - observed_on
+      - other_detail
+      - perceived_fertility
+      - pump_access
+      - road_access
+      - salinity
+      - scheme_name
+      - scheme_type
+      - slope
+      - soil_local_type
+      - soil_texture
+      - water_availability
+      - water_regime
+      - water_source
+    SiteProfileWriteRequest:
+      type: object
+      description: Nouvelle version complète du profil de site (la précédente est
+        conservée).
+      properties:
+        soil_local_type:
+          oneOf:
+          - $ref: '#/components/schemas/SoilLocalTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        soil_texture:
+          oneOf:
+          - $ref: '#/components/schemas/SoilTextureEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        salinity:
+          oneOf:
+          - $ref: '#/components/schemas/SalinityEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        flooding:
+          oneOf:
+          - $ref: '#/components/schemas/FloodingEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        slope:
+          oneOf:
+          - $ref: '#/components/schemas/SlopeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        perceived_fertility:
+          oneOf:
+          - $ref: '#/components/schemas/PerceivedFertilityEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        water_regime:
+          oneOf:
+          - $ref: '#/components/schemas/WaterRegimeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        water_source:
+          oneOf:
+          - $ref: '#/components/schemas/WaterSourceEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        irrigation_method:
+          oneOf:
+          - $ref: '#/components/schemas/IrrigationMethodEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        scheme_type:
+          oneOf:
+          - $ref: '#/components/schemas/SchemeTypeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        pump_access:
+          oneOf:
+          - $ref: '#/components/schemas/PumpAccessEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        water_availability:
+          oneOf:
+          - $ref: '#/components/schemas/WaterAvailabilityEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        road_access:
+          oneOf:
+          - $ref: '#/components/schemas/RoadAccessEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        scheme_name:
+          type: string
+          maxLength: 150
+        distance_to_village_km:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        other_detail:
+          type: string
+          maxLength: 200
+        notes:
+          type: string
+        evidence:
+          allOf:
+          - $ref: '#/components/schemas/EvidenceEnum'
+          default: declared
+        observed_on:
+          type: string
+          format: date
+    SiteReferentials:
+      type: object
+      description: Listes du profil de site (proposées, à valider par l'agronome).
+      properties:
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ReferentialItem'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferentialItem'
+        tenure_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferentialItem'
+        rent_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferentialItem'
+      required:
+      - evidence
+      - fields
+      - rent_types
+      - tenure_types
+    SlopeEnum:
+      enum:
+      - flat
+      - gentle
+      - steep
+      - unknown
+      type: string
+      description: |-
+        * `flat` - Plate
+        * `gentle` - Légère pente
+        * `steep` - Forte pente
+        * `unknown` - Ne sait pas
+    SoilLocalTypeEnum:
+      enum:
+      - hollalde
+      - fonde
+      - falo
+      - dieri
+      - dior
+      - deck
+      - deck_dior
+      - other
+      - unknown
+      type: string
+      description: |-
+        * `hollalde` - Hollaldé (argileux de cuvette)
+        * `fonde` - Fondé (levée limoneuse)
+        * `falo` - Falo (berge du fleuve)
+        * `dieri` - Diéri (sableux, hors crue)
+        * `dior` - Dior (sableux)
+        * `deck` - Deck (argileux, humifère)
+        * `deck_dior` - Deck-dior
+        * `other` - Autre
+        * `unknown` - Ne sait pas
+    SoilTextureEnum:
+      enum:
+      - sandy
+      - sandy_loam
+      - loam
+      - clay_loam
+      - clay
+      - unknown
+      type: string
+      description: |-
+        * `sandy` - Sableuse
+        * `sandy_loam` - Sablo-limoneuse
+        * `loam` - Limoneuse
+        * `clay_loam` - Argilo-limoneuse
+        * `clay` - Argileuse
+        * `unknown` - Ne sait pas
     TenureTypeEnum:
       enum:
       - titled_property
+      - communal_allocation
       - customary_right
       - family_land
       - lease
@@ -7049,6 +7776,7 @@ components:
       type: string
       description: |-
         * `titled_property` - Titre foncier
+        * `communal_allocation` - Affectation communale (domaine national)
         * `customary_right` - Droit coutumier
         * `family_land` - Terre familiale
         * `lease` - Bail
@@ -7170,6 +7898,48 @@ components:
       - overlaps
       - review
       - status
+    WaterAvailabilityEnum:
+      enum:
+      - year_round
+      - seasonal
+      - unknown
+      type: string
+      description: |-
+        * `year_round` - Toute l'année
+        * `seasonal` - Saisonnière
+        * `unknown` - Ne sait pas
+    WaterRegimeEnum:
+      enum:
+      - rainfed
+      - irrigated
+      - flood_recession
+      - mixed
+      - unknown
+      type: string
+      description: |-
+        * `rainfed` - Pluvial
+        * `irrigated` - Irrigué
+        * `flood_recession` - Décrue
+        * `mixed` - Mixte
+        * `unknown` - Ne sait pas
+    WaterSourceEnum:
+      enum:
+      - river_canal
+      - borehole
+      - well
+      - pond
+      - network
+      - other
+      - unknown
+      type: string
+      description: |-
+        * `river_canal` - Fleuve ou canal
+        * `borehole` - Forage
+        * `well` - Puits
+        * `pond` - Mare ou marigot
+        * `network` - Réseau d'eau
+        * `other` - Autre
+        * `unknown` - Ne sait pas
     WebAccessToken:
       type: object
       properties:

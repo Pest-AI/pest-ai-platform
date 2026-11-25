@@ -107,3 +107,25 @@ export function yieldTHa(kg: number | string | null | undefined, areaM2: number 
 export function todayIso(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
+
+/** Origine de la semence (J18d, addendum v2.3 ; à valider par l'agronome). */
+export const SEED_SOURCES: Record<string, string> = {
+  certified_purchased: "Certifiée, achetée",
+  farm_saved: "Ressemée (récolte précédente)",
+  program: "Fournie par un programme",
+  local_market: "Achetée au marché, non certifiée",
+  other: "Autre",
+  unknown: "Ne sait pas",
+};
+
+export const PLANTING_METHODS: Record<string, string> = {
+  direct_sowing: "Semis direct",
+  transplanting: "Repiquage",
+  unknown: "Ne sait pas",
+};
+
+/** Champ « précédent cultural » d'un formulaire : « fallow » (jachère), un code de culture, ou vide. */
+export function previousFromForm(value: string): { previous_crop: string | null; previous_fallow: boolean } {
+  if (value === "fallow") return { previous_crop: null, previous_fallow: true };
+  return { previous_crop: value || null, previous_fallow: false };
+}

@@ -1,7 +1,7 @@
 import * as Linking from "expo-linking";
-import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CloudOff, Fingerprint, Navigation, ShieldCheck, TriangleAlert, UserRound } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, CheckCircle2, Circle, CloudOff, Droplets, Fingerprint, Navigation, ShieldCheck, TriangleAlert, UserRound } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +13,7 @@ import { formatArea } from "@/lib/geo";
 import { CAPTURE_LABELS, PARCEL_STATUS_LABELS, STATUS_TONES, VALIDATION_LABELS } from "@/lib/parcel-labels";
 import { type CachedParcel, freshness, loadSnapshot } from "@/lib/parcel-cache";
 import { useSession } from "@/lib/session";
+import { FIELD_LABELS, SOIL_FIELDS, WATER_FIELDS, labelOf, useSiteReferentials } from "@/lib/site";
 import type { components } from "@/lib/schema";
 import { colors, radius } from "@/theme";
 
@@ -30,6 +31,8 @@ export default function ParcelScreen() {
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  const refs = useSiteReferentials(workspace);
 
   useEffect(() => {
     if (!workspace || !id) return;
@@ -56,7 +59,19 @@ export default function ParcelScreen() {
     return () => {
       cancelled = true;
     };
-  }, [workspace, id, expire]);
+  }, [workspace, id, expire, reload]);
+
+  // Retour de l'écran « Sol, eau et accès » : fiche rechargée.
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      setReload((r) => r + 1);
+    }, []),
+  );
 
   if (status === "signedOut") return <Redirect href="/connexion" />;
   if (!workspace) return <Redirect href="/espaces" />;
@@ -70,6 +85,14 @@ export default function ParcelScreen() {
   const validation = detail?.current_geometry?.validation;
   const operators = detail?.operators ?? [];
   const owners = detail?.owners ?? [];
+  const site = detail?.site_profile ?? null;
+  const completeness = detail?.completeness ?? null;
+  const canEdit = detail?.access === "manage";
+  const siteLines = site
+    ? [...WATER_FIELDS, ...SOIL_FIELDS]
+        .filter((f) => (site as Record<string, unknown>)[f])
+        .map((f) => [FIELD_LABELS[f] ?? f, labelOf(refs, f, (site as Record<string, string>)[f])] as const)
+    : [];
 
   const directions = () => {
     if (!centroid) return;
@@ -111,6 +134,28 @@ export default function ParcelScreen() {
               </T>
             </View>
           </View>
+
+          {completeness ? (
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+                <T style={styles.h2}>Fiche AgroID</T>
+                <T mono style={{ fontSize: 20, color: completeness.percent === 100 ? colors.success : colors.forest }}>
+                  {completeness.percent} %
+                </T>
+              </View>
+              <View style={styles.bar} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: completeness.percent }}>
+                <View style={[styles.barFill, { width: `${completeness.percent}%` }]} />
+              </View>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {completeness.blocks.map((b) => (
+                  <View key={b.key} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    {b.done ? <CheckCircle2 size={14} color={colors.success} /> : <Circle size={14} color={colors.muted} />}
+                    <T style={{ fontSize: 13, color: b.done ? colors.ink : colors.muted }}>{b.label}</T>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           {offline ? (
             <View style={styles.offline}>
@@ -159,6 +204,35 @@ export default function ParcelScreen() {
                   Version {detail.current_geometry.version} ·{" "}
                   {CAPTURE_LABELS[detail.current_geometry.capture_method] ?? detail.current_geometry.capture_method}
                 </T>
+              ) : null}
+            </View>
+          ) : null}
+
+          {detail ? (
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Droplets size={18} color={colors.forest} />
+                <T style={styles.h2}>Sol et eau</T>
+              </View>
+              {siteLines.length ? (
+                siteLines.map(([label, value]) => (
+                  <View key={label} style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, marginTop: 8 }}>
+                    <T style={{ color: colors.muted, fontSize: 14 }}>{label}</T>
+                    <T style={{ fontWeight: "700", fontSize: 14, flexShrink: 1, textAlign: "right" }}>{value}</T>
+                  </View>
+                ))
+              ) : (
+                <T style={{ color: colors.muted, marginTop: 6 }}>Pas encore renseigné.</T>
+              )}
+              {site?.scheme_name ? <T style={{ marginTop: 8, fontSize: 14 }}>{site.scheme_name}</T> : null}
+              {canEdit ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: "/parcelles/site", params: { id: id ?? "", agroid: agroid ?? "" } })}
+                  accessibilityRole="button"
+                  style={[styles.cta, { marginTop: 12, backgroundColor: colors.canvas, borderWidth: 1, borderColor: colors.forest }]}
+                >
+                  <T style={{ color: colors.forest, fontWeight: "700" }}>{site ? "Mettre à jour" : "Compléter sol et eau"}</T>
+                </Pressable>
               ) : null}
             </View>
           ) : null}
@@ -220,6 +294,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 12,
   },
+  bar: { height: 8, borderRadius: 4, backgroundColor: colors.subtle, marginTop: 10, overflow: "hidden" },
+  barFill: { height: 8, borderRadius: 4, backgroundColor: colors.forest },
   cta: {
     flexDirection: "row",
     gap: 8,

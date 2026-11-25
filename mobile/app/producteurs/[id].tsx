@@ -104,6 +104,7 @@ export default function ProducerScreen() {
                 N° {p.assignment.membership_number}
               </T>
             ) : null}
+            {p.assignment?.section ? <T style={{ marginTop: 4, color: colors.muted, fontSize: 13 }}>{p.assignment.section}</T> : null}
             <T mono style={{ marginTop: 4, color: colors.muted, fontSize: 13 }} accessibilityLabel={`Identifiant producteur ${p.producer_code}`}>
               {p.producer_code}
             </T>

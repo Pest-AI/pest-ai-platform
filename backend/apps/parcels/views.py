@@ -43,6 +43,7 @@ from apps.organizations.models import Organization
 from apps.parcels import agroid as agroid_format
 from apps.parcels import geometry as geo
 from apps.parcels import imports, selectors, serializers, services
+from apps.parcels import site_referentials as site_ref
 from apps.parcels.importers import MAX_BYTES, ImportFileError
 from apps.parcels.models import (
     AccessLevel,
@@ -53,6 +54,8 @@ from apps.parcels.models import (
     ParcelOperatorAssignment,
     ParcelOrganizationLink,
     ParcelRegistrationChannel,
+    RentType,
+    TenureType,
 )
 from apps.parcels.template import build_template
 
@@ -89,6 +92,9 @@ ORG_PERMISSIONS = {
     "retrieve": "parcels.view",
     "map": "parcels.view",
     "history": "parcels.view",
+    "site_referentials": "parcels.view",
+    "site": "parcels.view",
+    "record_site": "parcels.create",
     "create": "parcels.create",
     "geometries": "parcels.create",
     "partial_update": "parcels.manage",
@@ -111,6 +117,9 @@ PERSONAL_PERMISSIONS = {
     "retrieve": "personal.parcels.view",
     "map": "personal.parcels.view",
     "history": "personal.parcels.view",
+    "site_referentials": "personal.parcels.view",
+    "site": "personal.parcels.view",
+    "record_site": "personal.parcels.manage",
     "create": "personal.parcels.register",
     "geometries": "personal.parcels.manage",
     "partial_update": "personal.parcels.manage",
@@ -454,6 +463,7 @@ class ParcelViewSet(
                     role="primary",
                     start_date=timezone.localdate(),
                     arrangement_type=arrangement,
+                    **(data.get("lease") or {}),
                     **self._recorder(),
                 )
             if ownership:
@@ -466,6 +476,17 @@ class ParcelViewSet(
                     start_date=timezone.localdate(),
                     owner_producer=operator_for_ownership if by_operator else None,
                     owner_name="" if by_operator else ownership["owner_name"],
+                    **self._recorder(),
+                )
+            site = data.get("site")
+            if site and any(site.get(k) for k in site_ref.SITE_FIELDS):
+                if self.is_personal:
+                    site = {**site, "evidence": site_ref.Evidence.DECLARED}
+                _run(
+                    services.record_site_profile,
+                    parcel,
+                    by=request.user,
+                    **site,
                     **self._recorder(),
                 )
         return self._detail(parcel, status.HTTP_201_CREATED)
@@ -593,6 +614,69 @@ class ParcelViewSet(
                 }
             )
         return Response({"type": "FeatureCollection", "truncated": truncated, "features": features})
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Listes du profil de site",
+        description="Valeurs proposées pour le sol, l'eau et l'irrigation, l'accès, le niveau de "
+        "preuve, les types de droit foncier et de loyer (addendum v2.3, à valider par "
+        "l'agronome). Les écrans les lisent ici : elles évoluent sans nouvelle version des apps.",
+        responses=serializers.SiteReferentialsSerializer,
+    )
+    @action(detail=False, methods=["get"], url_path="site-referentials")
+    def site_referentials(self, request):
+        def items(choices):
+            return [{"value": v, "label": str(label)} for v, label in choices.choices]
+
+        return Response(
+            {
+                "fields": site_ref.catalog(),
+                "evidence": items(site_ref.Evidence),
+                "tenure_types": items(TenureType),
+                "rent_types": items(RentType),
+            }
+        )
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Profil de site : courant et historique",
+        responses=serializers.SiteHistorySerializer,
+    )
+    @action(detail=True, methods=["get"])
+    def site(self, request, pk=None):
+        parcel = self.get_object()
+        history = list(parcel.site_profiles.order_by("-created_at"))
+        return Response(
+            {
+                "current": serializers.SiteProfileSerializer(history[0]).data if history else None,
+                "history": serializers.SiteProfileSerializer(history, many=True).data,
+            }
+        )
+
+    @extend_schema(
+        tags=["parcels"],
+        summary="Mettre à jour le profil de site",
+        description="Ajoute une version complète (sol, eau et irrigation, accès) ; la précédente "
+        "reste dans l'historique. Envoyez toutes les valeurs connues, pas seulement celles qui "
+        "changent. Espace personnel : niveau de preuve « déclaré ».",
+        request=serializers.SiteProfileWriteSerializer,
+        responses={201: serializers.SiteProfileSerializer},
+    )
+    @site.mapping.post
+    def record_site(self, request, pk=None):
+        parcel = self.get_object()
+        self._writable(parcel)
+        serializer = serializers.SiteProfileWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        if self.is_personal:
+            data["evidence"] = site_ref.Evidence.DECLARED
+        profile = _run(
+            services.record_site_profile, parcel, by=request.user, **data, **self._recorder()
+        )
+        return Response(
+            serializers.SiteProfileSerializer(profile).data, status=status.HTTP_201_CREATED
+        )
 
     @extend_schema(
         tags=["parcels"],
@@ -807,6 +891,10 @@ class ParcelViewSet(
             start_date=data["start_date"],
             arrangement_type=data["arrangement_type"],
             replace_primary=data["replace_primary"],
+            rent_type=data.get("rent_type", ""),
+            rent_amount_xof=data.get("rent_amount_xof"),
+            harvest_share_percent=data.get("harvest_share_percent"),
+            agreement_end_date=data.get("agreement_end_date"),
             **self._recorder(),
         )
         return Response(

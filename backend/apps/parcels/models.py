@@ -26,6 +26,7 @@ from django.db.models import Q
 
 from apps.core.models import ArchivableModel, BaseModel, ImmutableFieldsMixin, SyncModel
 from apps.parcels import agroid as agroid_format
+from apps.parcels import site_referentials as ref
 
 
 class ParcelRegistrationChannel(models.TextChoices):
@@ -286,6 +287,7 @@ class ParcelGeometry(ImmutableFieldsMixin, BaseModel, SyncModel):
 
 class TenureType(models.TextChoices):
     TITLED_PROPERTY = "titled_property", "Titre foncier"
+    COMMUNAL_ALLOCATION = "communal_allocation", "Affectation communale (domaine national)"
     CUSTOMARY_RIGHT = "customary_right", "Droit coutumier"
     FAMILY_LAND = "family_land", "Terre familiale"
     LEASE = "lease", "Bail"
@@ -417,6 +419,16 @@ class ArrangementType(models.TextChoices):
     UNKNOWN = "unknown", "Inconnu"
 
 
+class RentType(models.TextChoices):
+    """Contrepartie d'une location, d'un métayage ou d'un prêt (J18d)."""
+
+    CASH = "cash", "En argent"
+    HARVEST_SHARE = "harvest_share", "Part de la récolte"
+    IN_KIND = "in_kind", "En nature"
+    FREE = "free", "Gratuit"
+    UNKNOWN = "unknown", "Ne sait pas"
+
+
 class OperatorVerification(models.TextChoices):
     DECLARED = "declared", "Déclarée"
     CONFIRMED_BY_ORGANIZATION = "confirmed_by_organization", "Confirmée par l'organisation"
@@ -461,6 +473,17 @@ class ParcelOperatorAssignment(ImmutableFieldsMixin, BaseModel, SyncModel):
     recorded_by_producer = models.ForeignKey(
         "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    # Conditions d'exploitation (J18d) : location, métayage ou prêt.
+    rent_type = models.CharField(max_length=32, choices=RentType.choices, blank=True, default="")
+    rent_amount_xof = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Loyer en FCFA par campagne (en argent)."
+    )
+    harvest_share_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    agreement_end_date = models.DateField(
+        null=True, blank=True, help_text="Fin de l'accord, si connue."
+    )
 
     class Meta:
         db_table = "parcels_operator_assignment"
@@ -485,6 +508,14 @@ class ParcelOperatorAssignment(ImmutableFieldsMixin, BaseModel, SyncModel):
             models.CheckConstraint(
                 condition=Q(arrangement_type__in=ArrangementType.values),
                 name="operator_arrangement_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(rent_type__in=["", *RentType.values]), name="operator_rent_type_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(harvest_share_percent__isnull=True)
+                | Q(harvest_share_percent__gt=0, harvest_share_percent__lte=100),
+                name="operator_harvest_share_range",
             ),
             models.CheckConstraint(
                 condition=Q(verification_status__in=OperatorVerification.values),
@@ -658,6 +689,89 @@ class ProducerParcelAccess(ImmutableFieldsMixin, BaseModel):
             ),
             models.Index(fields=["parcel"], name="producer_access_parcel_idx"),
         ]
+
+
+class ParcelSiteProfile(ImmutableFieldsMixin, BaseModel, SyncModel):
+    """Profil de site d'une parcelle : sol, eau et irrigation, accès (J18d, addendum v2.3).
+
+    Historisé : chaque mise à jour ajoute une version complète ; la plus récente est le
+    profil courant. Une version ne se modifie ni ne se supprime (garanti par PostgreSQL).
+    """
+
+    Evidence = ref.Evidence
+    IMMUTABLE_FIELDS = (
+        "parcel",
+        *ref.SITE_FIELDS,
+        "scheme_name",
+        "distance_to_village_km",
+        "other_detail",
+        "evidence",
+        "observed_on",
+        "recorded_by_organization",
+        "recorded_by_producer",
+        "notes",
+    )
+
+    parcel = models.ForeignKey(Parcel, on_delete=models.PROTECT, related_name="site_profiles")
+    soil_local_type = models.CharField(max_length=32, blank=True, default="")
+    soil_texture = models.CharField(max_length=32, blank=True, default="")
+    salinity = models.CharField(max_length=32, blank=True, default="")
+    flooding = models.CharField(max_length=32, blank=True, default="")
+    slope = models.CharField(max_length=32, blank=True, default="")
+    perceived_fertility = models.CharField(max_length=32, blank=True, default="")
+    water_regime = models.CharField(max_length=32, blank=True, default="")
+    water_source = models.CharField(max_length=32, blank=True, default="")
+    irrigation_method = models.CharField(max_length=32, blank=True, default="")
+    scheme_type = models.CharField(max_length=32, blank=True, default="")
+    scheme_name = models.CharField(
+        max_length=150, blank=True, default="", help_text="Périmètre, casier ou maille."
+    )
+    pump_access = models.CharField(max_length=32, blank=True, default="")
+    water_availability = models.CharField(max_length=32, blank=True, default="")
+    road_access = models.CharField(max_length=32, blank=True, default="")
+    distance_to_village_km = models.DecimalField(
+        max_digits=5, decimal_places=1, null=True, blank=True
+    )
+    other_detail = models.CharField(
+        max_length=200, blank=True, default="", help_text="Précision quand « Autre » est choisi."
+    )
+    evidence = models.CharField(max_length=32, choices=ref.Evidence.choices)
+    observed_on = models.DateField()
+    recorded_by_organization = models.ForeignKey(
+        "organizations.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    recorded_by_producer = models.ForeignKey(
+        "actors.Producer", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "parcels_site_profile"
+        verbose_name = "profil de site de parcelle"
+        verbose_name_plural = "profils de site de parcelles"
+        constraints = [
+            models.CheckConstraint(condition=_one_recorder(), name="site_one_recorder"),
+            models.CheckConstraint(
+                condition=Q(evidence__in=ref.Evidence.values), name="site_evidence_valid"
+            ),
+            models.CheckConstraint(
+                condition=Q(distance_to_village_km__isnull=True)
+                | Q(distance_to_village_km__gte=0, distance_to_village_km__lte=500),
+                name="site_distance_range",
+            ),
+            *[
+                models.CheckConstraint(
+                    condition=Q(**{f"{field}__in": ["", *choices.values]}),
+                    name=f"site_{field}_valid",
+                )
+                for field, choices in ref.SITE_FIELDS.items()
+            ],
+        ]
+        indexes = [models.Index(fields=["parcel", "-created_at"], name="site_parcel_recent_idx")]
 
 
 class CultivationUnitStatus(models.TextChoices):

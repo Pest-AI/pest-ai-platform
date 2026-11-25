@@ -59,6 +59,7 @@ export default function NewProducerScreen() {
   const [membership, setMembership] = useState("");
   const [proposed, setProposed] = useState<string | null>(null);
   const [household, setHousehold] = useState("");
+  const [section, setSection] = useState("");
   const [workers, setWorkers] = useState("");
   const [language, setLanguage] = useState("fr");
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
@@ -111,6 +112,7 @@ export default function NewProducerScreen() {
           phone_number: phone.trim() ? toInternationalPhone(phone, country) : "",
           relationship_type: "member",
           membership_number: membership.trim(),
+          section: section.trim(),
           household_size: size,
           household_farm_workers: active,
           confirm_new: confirmNew,
@@ -225,6 +227,10 @@ export default function NewProducerScreen() {
               <T style={styles.label}>Dont actifs aux champs</T>
               <Input accessibilityLabel="Actifs aux champs" value={workers} onChangeText={setWorkers} keyboardType="number-pad" maxLength={3} placeholder="Facultatif" />
             </View>
+          </View>
+          <View style={{ gap: 6 }}>
+            <T style={styles.label}>Section ou groupement (facultatif)</T>
+            <Input accessibilityLabel="Section ou groupement" placeholder="ex. Section de Guédé-Chantier" value={section} onChangeText={setSection} />
           </View>
           <View style={{ gap: 6 }}>
             <T style={styles.label}>N° d&apos;adhérent</T>

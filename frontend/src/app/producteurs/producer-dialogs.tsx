@@ -94,6 +94,13 @@ function ProducerFields({
         <Input id={id("locality")} name="locality_text" placeholder="ex. Guédé" defaultValue={values?.locality} />
       </div>
 
+      <div className="space-y-1.5">
+        <Label htmlFor={id("section")}>
+          Section ou groupement <span className="font-normal text-muted">(facultatif)</span>
+        </Label>
+        <Input id={id("section")} name="section" placeholder="ex. Section de Guédé-Chantier" defaultValue={values?.section} />
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor={id("hh")}>Personnes dans le ménage</Label>
@@ -153,6 +160,7 @@ function HiddenValues({ values }: { values: ProducerValues }) {
     ["relationship_type", values.relationship],
     ["membership_number", values.membershipNumber],
     ["household_size", values.householdSize],
+    ["section", values.section],
     ["household_farm_workers", values.householdWorkers],
   ];
   return (

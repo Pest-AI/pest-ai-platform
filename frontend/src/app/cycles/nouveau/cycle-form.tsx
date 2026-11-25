@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PLANTING_METHODS, SEED_SOURCES } from "@/lib/agriculture";
 import { formatArea } from "@/lib/parcels";
 import { cn } from "@/lib/utils";
 
@@ -248,6 +249,48 @@ export function CycleForm({
             inputMode="decimal"
             placeholder={parcel?.area_m2 ? `parcelle : ${Math.round(Number(parcel.area_m2))} m²` : "ex. 5000"}
           />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="seed_source">
+              Semence <span className="font-normal text-muted">(facultatif)</span>
+            </Label>
+            <select id="seed_source" name="seed_source" defaultValue="" className={SELECT}>
+              <option value="">Non renseignée</option>
+              {Object.entries(SEED_SOURCES).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="planting_method">
+              Implantation <span className="font-normal text-muted">(facultatif)</span>
+            </Label>
+            <select id="planting_method" name="planting_method" defaultValue="" className={SELECT}>
+              <option value="">Non renseignée</option>
+              {Object.entries(PLANTING_METHODS).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="previous">
+            Saison précédente <span className="font-normal text-muted">(facultatif)</span>
+          </Label>
+          <select id="previous" name="previous" defaultValue="" className={SELECT}>
+            <option value="">Non renseignée</option>
+            <option value="fallow">Jachère</option>
+            {crops.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name_fr}
+              </option>
+            ))}
+          </select>
         </div>
         {parcel && !parcel.operator ? (
           <p className="text-[12px] leading-5 text-muted">

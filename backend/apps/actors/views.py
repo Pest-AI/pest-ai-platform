@@ -206,6 +206,7 @@ class ProducerViewSet(
                 phone_number=data.pop("phone_number", "") or None,
                 relationship_type=data.pop("relationship_type", None),
                 membership_number=data.pop("membership_number", None),
+                section=data.pop("section", ""),
                 start_date=data.pop("start_date", None),
                 confirm_new=data.pop("confirm_new", False),
                 **data,
@@ -228,7 +229,9 @@ class ProducerViewSet(
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         assignment_fields = {
-            k: data.pop(k) for k in ("relationship_type", "membership_number") if k in data
+            k: data.pop(k)
+            for k in ("relationship_type", "membership_number", "section")
+            if k in data
         }
         kwargs = {"phone_number": data.pop("phone_number")} if "phone_number" in data else {}
         _run(services.update_producer, producer=producer, updated_by=request.user, **kwargs, **data)

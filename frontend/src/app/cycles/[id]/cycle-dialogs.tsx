@@ -1,5 +1,6 @@
 "use client";
 
+import { PLANTING_METHODS, SEED_SOURCES } from "@/lib/agriculture";
 import { BadgeCheck, CalendarClock, LoaderCircle, Plus, Wheat } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 
@@ -74,14 +75,25 @@ export function CycleStatusActions({ cycleId, status }: { cycleId: string; statu
 export function EditDatesButton({
   cycleId,
   values,
+  crops,
 }: {
   cycleId: string;
-  values: { sowing_date: string | null; transplanting_date: string | null; expected_harvest_date: string | null; harvest_end_date: string | null; declared_area_m2: string | null };
+  values: {
+    sowing_date: string | null;
+    transplanting_date: string | null;
+    expected_harvest_date: string | null;
+    harvest_end_date: string | null;
+    declared_area_m2: string | null;
+    seed_source: string;
+    planting_method: string;
+    previous: string;
+  };
+  crops: { code: string; name_fr: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState<FormState, FormData>(updateCycle, IDLE);
   useCloseOnDone(state, () => setOpen(false));
-  const field = (name: keyof typeof values, label: string) => (
+  const field = (name: "sowing_date" | "transplanting_date" | "expected_harvest_date" | "harvest_end_date", label: string) => (
     <div className="space-y-1.5">
       <Label htmlFor={`d-${name}`}>{label}</Label>
       <Input id={`d-${name}`} name={name} type="date" defaultValue={values[name] ?? ""} />
@@ -91,9 +103,9 @@ export function EditDatesButton({
     <>
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         <CalendarClock aria-hidden />
-        Modifier les dates
+        Modifier
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Dates et surface du cycle">
+      <Modal open={open} onClose={() => setOpen(false)} title="Dates, surface et implantation">
         <form action={action} className="space-y-4 px-6 py-5">
           <input type="hidden" name="cycle_id" value={cycleId} />
           {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
@@ -106,6 +118,42 @@ export function EditDatesButton({
           <div className="space-y-1.5">
             <Label htmlFor="d-area">Surface cultivée (m²)</Label>
             <Input id="d-area" name="declared_area_m2" inputMode="decimal" defaultValue={values.declared_area_m2 ?? ""} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="d-seed">Semence</Label>
+              <select id="d-seed" name="seed_source" defaultValue={values.seed_source} className={SELECT}>
+                <option value="">Non renseignée</option>
+                {Object.entries(SEED_SOURCES).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="d-planting">Implantation</Label>
+              <select id="d-planting" name="planting_method" defaultValue={values.planting_method} className={SELECT}>
+                <option value="">Non renseignée</option>
+                {Object.entries(PLANTING_METHODS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="d-previous">Saison précédente</Label>
+            <select id="d-previous" name="previous" defaultValue={values.previous} className={SELECT}>
+              <option value="">Non renseignée</option>
+              <option value="fallow">Jachère</option>
+              {crops.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name_fr}
+                </option>
+              ))}
+            </select>
           </div>
           <Footer pending={pending} label="Enregistrer" onCancel={() => setOpen(false)} />
         </form>

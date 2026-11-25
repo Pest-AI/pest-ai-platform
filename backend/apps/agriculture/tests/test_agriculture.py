@@ -503,3 +503,23 @@ def test_filtres_campagne_et_culture_des_parcelles(admin, parcel, admin_user, in
     # …et les cycles d'un autre espace ne comptent jamais.
     me = client_for(independent.user, "personal")
     assert me.get(f"{parcels}?crop=rice").json()["count"] == 0
+
+
+def test_semence_implantation_et_precedent(admin, parcel):
+    cycle = new_cycle(
+        admin,
+        parcel,
+        seed_source="certified_purchased",
+        planting_method="transplanting",
+        previous_crop="onion",
+    )
+    assert cycle["seed_source"] == "certified_purchased"
+    assert cycle["planting_method"] == "transplanting"
+    assert cycle["previous_crop"]["code"] == "onion" and cycle["previous_fallow"] is False
+    url = f"{CYCLES}{cycle['id']}/"
+    both = admin.patch(url, {"previous_fallow": True, "previous_crop": "rice"}, format="json")
+    assert both.status_code == 400
+    res = admin.patch(url, {"previous_fallow": True, "previous_crop": None}, format="json")
+    assert res.status_code == 200 and res.json()["previous_fallow"] is True
+    assert res.json()["previous_crop"] is None
+    assert admin.patch(url, {"seed_source": "magic"}, format="json").status_code == 400

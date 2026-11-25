@@ -1,3 +1,4 @@
+import { PLANTING_METHODS, SEED_SOURCES } from "@/lib/agriculture";
 import { ArrowLeft, Sprout, Wheat } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -131,7 +132,11 @@ export default async function CyclePage({
                   expected_harvest_date: c.expected_harvest_date,
                   harvest_end_date: c.harvest_end_date,
                   declared_area_m2: c.declared_area_m2,
+                  seed_source: c.seed_source,
+                  planting_method: c.planting_method,
+                  previous: c.previous_fallow ? "fallow" : (c.previous_crop?.code ?? ""),
                 }}
+                crops={(cropsResult.data ?? []).map((k) => ({ code: k.code, name_fr: k.name_fr }))}
               />
             ) : null}
           </div>
@@ -158,6 +163,9 @@ export default async function CyclePage({
             <Fact label="Fin de récolte">{shortDate(c.harvest_end_date)}</Fact>
             <Fact label="Surface cultivée">{c.declared_area_m2 ? formatArea(c.declared_area_m2) : "—"}</Fact>
             <Fact label="Rendement">{yieldText ?? "—"}</Fact>
+            <Fact label="Semence">{SEED_SOURCES[c.seed_source] ?? "—"}</Fact>
+            <Fact label="Implantation">{PLANTING_METHODS[c.planting_method] ?? "—"}</Fact>
+            <Fact label="Saison précédente">{c.previous_fallow ? "Jachère" : (c.previous_crop?.name_fr ?? "—")}</Fact>
           </dl>
           {ctx.can("crop_cycles.confirm") && !c.is_archived ? (
             <div className="mt-4 border-t border-line pt-4">

@@ -1131,6 +1131,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/parcels/{id}/site/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profil de site : courant et historique */
+        get: operations["parcels_site_retrieve"];
+        put?: never;
+        /**
+         * Mettre à jour le profil de site
+         * @description Ajoute une version complète (sol, eau et irrigation, accès) ; la précédente reste dans l'historique. Envoyez toutes les valeurs connues, pas seulement celles qui changent. Espace personnel : niveau de preuve « déclaré ».
+         */
+        post: operations["parcels_site_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/parcels/{id}/units/": {
         parameters: {
             query?: never;
@@ -1200,6 +1221,26 @@ export interface paths {
          * @description `FeatureCollection` des contours courants dans l'emprise `bbox` (obligatoire). Au plus 1000 parcelles : si `truncated` vaut true, zoomez. Propriétés : id, agroid, local_name, status, area_m2, validation_status. Filtres `status`, `producer`, `campaign` et `crop` comme la liste.
          */
         get: operations["parcels_map_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parcels/site-referentials/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listes du profil de site
+         * @description Valeurs proposées pour le sol, l'eau et l'irrigation, l'accès, le niveau de preuve, les types de droit foncier et de loyer (addendum v2.3, à valider par l'agronome). Les écrans les lisent ici : elles évoluent sans nouvelle version des apps.
+         */
+        get: operations["parcels_site_referentials_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1599,6 +1640,8 @@ export interface components {
             readonly id: string;
             readonly relationship_type: components["schemas"]["RelationshipTypeEnum"];
             readonly membership_number: string | null;
+            /** @description Section, groupement ou village de rattachement dans l'organisation. */
+            readonly section: string;
             /** Format: date */
             readonly start_date: string;
             /** Format: date */
@@ -1610,6 +1653,8 @@ export interface components {
             producer_id: string;
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
             membership_number?: string;
+            /** @description Section, groupement ou village de rattachement dans l'organisation. */
+            section?: string;
             /** Format: date */
             start_date?: string;
         };
@@ -1671,6 +1716,15 @@ export interface components {
          * @enum {string}
          */
         CaptureMethodEnum: "gps_walk" | "gps_points" | "manual_drawing" | "manual_coordinates" | "import_geojson" | "import_kml" | "import_shapefile" | "import_csv" | "import_xlsx" | "import_json" | "import_gpx";
+        Completeness: {
+            percent: number;
+            blocks: components["schemas"]["CompletenessBlock"][];
+        };
+        CompletenessBlock: {
+            key: string;
+            label: string;
+            done: boolean;
+        };
         ConfirmCropRequest: {
             /** @description rice, onion, tomato, maize, chili… */
             crop: string;
@@ -1725,6 +1779,11 @@ export interface components {
             /** Format: decimal */
             readonly declared_area_m2: string | null;
             readonly status: components["schemas"]["CropCycleStatusEnum"];
+            readonly seed_source: string;
+            readonly planting_method: string;
+            readonly previous_crop: components["schemas"]["CropRef"] | null;
+            /** @description La saison précédente, la parcelle était en jachère. */
+            readonly previous_fallow: boolean;
             /** Format: decimal */
             readonly total_harvest_kg: string | null;
             readonly is_archived: boolean;
@@ -1734,7 +1793,14 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /** @description Semence, implantation et précédent cultural (J18d, addendum v2.3). */
         CropCycleCreateRequest: {
+            seed_source?: components["schemas"]["SeedSourceEnum"] | components["schemas"]["BlankEnum"];
+            planting_method?: components["schemas"]["PlantingMethodEnum"] | components["schemas"]["BlankEnum"];
+            /** @description Culture de la saison précédente (code), ou null. */
+            previous_crop?: string | null;
+            /** @description La saison précédente, la parcelle était en jachère. */
+            previous_fallow?: boolean;
             /** Format: uuid */
             parcel: string;
             /** Format: uuid */
@@ -1797,6 +1863,11 @@ export interface components {
             /** Format: decimal */
             readonly declared_area_m2: string | null;
             readonly status: components["schemas"]["CropCycleStatusEnum"];
+            readonly seed_source: string;
+            readonly planting_method: string;
+            readonly previous_crop: components["schemas"]["CropRef"] | null;
+            /** @description La saison précédente, la parcelle était en jachère. */
+            readonly previous_fallow: boolean;
             /** Format: decimal */
             readonly total_harvest_kg: string | null;
             readonly is_archived: boolean;
@@ -1904,6 +1975,21 @@ export interface components {
             owner_name?: string;
             tenure_type: components["schemas"]["TenureTypeEnum"];
         };
+        /**
+         * @description * `declared` - Déclaré par le producteur
+         *     * `observed` - Constaté par l'agent
+         *     * `measured` - Mesuré ou analysé
+         * @enum {string}
+         */
+        EvidenceEnum: "declared" | "observed" | "measured";
+        /**
+         * @description * `never` - Jamais inondée
+         *     * `rainy_season` - Inondée en hivernage
+         *     * `prolonged` - Inondation prolongée
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        FloodingEnum: "never" | "rainy_season" | "prolonged" | "unknown";
         GeometryVersion: {
             /** Format: uuid */
             readonly id: string;
@@ -2094,6 +2180,26 @@ export interface components {
             last_name: string;
             roles?: components["schemas"]["RolesEnum"][];
         };
+        /**
+         * @description * `gravity` - Gravitaire
+         *     * `pump_gravity` - Motopompe puis gravitaire
+         *     * `sprinkler` - Aspersion
+         *     * `drip` - Goutte-à-goutte
+         *     * `manual` - Manuel (arrosoir)
+         *     * `none` - Aucune
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        IrrigationMethodEnum: "gravity" | "pump_gravity" | "sprinkler" | "drip" | "manual" | "none" | "unknown";
+        /** @description Conditions d'une location, d'un métayage ou d'un prêt (J18d). */
+        LeaseTermsRequest: {
+            rent_type?: components["schemas"]["RentTypeEnum"] | components["schemas"]["BlankEnum"];
+            rent_amount_xof?: number | null;
+            /** Format: decimal */
+            harvest_share_percent?: string | null;
+            /** Format: date */
+            agreement_end_date?: string | null;
+        };
         LinkRequestRequest: {
             /** @description AgroID communiqué par le producteur. */
             agroid: string;
@@ -2272,6 +2378,16 @@ export interface components {
             readonly producer_name: string;
             readonly operator_role: components["schemas"]["OperatorRoleEnum"];
             readonly arrangement_type: components["schemas"]["ArrangementTypeEnum"];
+            readonly rent_type: components["schemas"]["RentTypeEnum"];
+            /** @description Loyer en FCFA par campagne (en argent). */
+            readonly rent_amount_xof: number | null;
+            /** Format: decimal */
+            readonly harvest_share_percent: string | null;
+            /**
+             * Format: date
+             * @description Fin de l'accord, si connue.
+             */
+            readonly agreement_end_date: string | null;
             readonly verification_status: components["schemas"]["OperatorVerificationEnum"];
             /** Format: date */
             readonly start_date: string;
@@ -2279,7 +2395,14 @@ export interface components {
             readonly end_date: string | null;
             readonly is_current: boolean;
         };
+        /** @description Conditions d'une location, d'un métayage ou d'un prêt (J18d). */
         OperatorCreateRequest: {
+            rent_type?: components["schemas"]["RentTypeEnum"] | components["schemas"]["BlankEnum"];
+            rent_amount_xof?: number | null;
+            /** Format: decimal */
+            harvest_share_percent?: string | null;
+            /** Format: date */
+            agreement_end_date?: string | null;
             /** Format: uuid */
             producer: string;
             operator_role: components["schemas"]["OperatorRoleEnum"];
@@ -2613,6 +2736,10 @@ export interface components {
             arrangement_type?: components["schemas"]["ArrangementTypeEnum"];
             /** @description Foncier déclaré (statut « déclarée ») : enregistré avec la parcelle. */
             ownership?: components["schemas"]["EnrolmentOwnershipRequest"] | null;
+            /** @description Conditions d'exploitation, avec `operator`. */
+            lease?: components["schemas"]["LeaseTermsRequest"] | null;
+            /** @description Sol, eau et irrigation, accès : première version du profil de site. */
+            site?: components["schemas"]["SiteProfileWriteRequest"] | null;
         };
         /** @description Fiche parcelle dans l'espace actif. */
         ParcelDetail: {
@@ -2641,6 +2768,10 @@ export interface components {
             readonly units: components["schemas"]["CultivationUnit"][];
             /** @description Droits de l'espace actif sur cette parcelle : view ou manage. */
             readonly access: string;
+            /** @description Profil de site courant (sol, eau, accès), ou null. */
+            readonly site_profile: components["schemas"]["SiteProfile"] | null;
+            /** @description Taux de complétude de la fiche AgroID et blocs renseignés. */
+            readonly completeness: components["schemas"]["Completeness"];
             /** Format: date-time */
             readonly updated_at: string;
             readonly row_version: number;
@@ -2746,7 +2877,14 @@ export interface components {
             end_date?: string | null;
             status?: components["schemas"]["CampaignStatusEnum"];
         };
+        /** @description Semence, implantation et précédent cultural (J18d, addendum v2.3). */
         PatchedCropCycleUpdateRequest: {
+            seed_source?: components["schemas"]["SeedSourceEnum"] | components["schemas"]["BlankEnum"];
+            planting_method?: components["schemas"]["PlantingMethodEnum"] | components["schemas"]["BlankEnum"];
+            /** @description Culture de la saison précédente (code), ou null. */
+            previous_crop?: string | null;
+            /** @description La saison précédente, la parcelle était en jachère. */
+            previous_fallow?: boolean;
             /** Format: uuid */
             campaign?: string | null;
             /** Format: uuid */
@@ -2826,6 +2964,8 @@ export interface components {
             phone_number?: string;
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
             membership_number?: string;
+            /** @description Section, groupement ou village de rattachement dans l'organisation. */
+            section?: string;
         };
         PendingLink: {
             /** Format: uuid */
@@ -2839,6 +2979,14 @@ export interface components {
             /** Format: date */
             requested_at: string;
         };
+        /**
+         * @description * `good` - Bonne
+         *     * `medium` - Moyenne
+         *     * `poor` - Faible
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        PerceivedFertilityEnum: "good" | "medium" | "poor" | "unknown";
         PersonalAccessRequest: {
             /** Format: uuid */
             producer: string;
@@ -2873,6 +3021,13 @@ export interface components {
             household_size?: number | null;
             household_farm_workers?: number | null;
         };
+        /**
+         * @description * `direct_sowing` - Semis direct
+         *     * `transplanting` - Repiquage
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        PlantingMethodEnum: "direct_sowing" | "transplanting" | "unknown";
         /** @description Adhésion d'un agent terrain, avec son organisation d'affectation. */
         PlatformAgent: {
             /** Format: uuid */
@@ -3039,6 +3194,8 @@ export interface components {
             relationship_type?: components["schemas"]["RelationshipTypeEnum"];
             /** @description Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123). */
             membership_number?: string;
+            /** @description Section, groupement ou village de rattachement dans l'organisation. */
+            section?: string;
             /**
              * Format: date
              * @description Début du rattachement (défaut : aujourd'hui).
@@ -3067,6 +3224,15 @@ export interface components {
          * @enum {string}
          */
         ProducerStatusEnum: "active" | "inactive";
+        /**
+         * @description * `individual` - Individuelle
+         *     * `collective` - Collective (GIE, groupement)
+         *     * `rented` - Louée
+         *     * `none` - Aucune
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        PumpAccessEnum: "individual" | "collective" | "rented" | "none" | "unknown";
         ReasonRequest: {
             reason: string;
         };
@@ -3077,6 +3243,10 @@ export interface components {
          * @enum {string}
          */
         RecordSourceEnum: "field_agent" | "producer_declared" | "agronomist";
+        ReferentialItem: {
+            value: string;
+            label: string;
+        };
         /**
          * @description * `member` - Membre
          *     * `beneficiary` - Bénéficiaire
@@ -3084,10 +3254,26 @@ export interface components {
          * @enum {string}
          */
         RelationshipTypeEnum: "member" | "beneficiary" | "client";
+        /**
+         * @description * `cash` - En argent
+         *     * `harvest_share` - Part de la récolte
+         *     * `in_kind` - En nature
+         *     * `free` - Gratuit
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        RentTypeEnum: "cash" | "harvest_share" | "in_kind" | "free" | "unknown";
         ReviewRequest: {
             decision: components["schemas"]["DecisionEnum"];
             note?: string;
         };
+        /**
+         * @description * `all_season` - En toute saison
+         *     * `dry_season` - En saison sèche seulement
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        RoadAccessEnum: "all_season" | "dry_season" | "unknown";
         RoleCodeRequest: {
             role: components["schemas"]["RoleEnum"];
         };
@@ -3113,6 +3299,23 @@ export interface components {
          */
         RolesEnum: "organization_admin" | "cooperative_manager" | "field_agent" | "agronomist" | "producer" | "program_manager";
         /**
+         * @description * `none` - Aucune
+         *     * `slight` - Légère
+         *     * `strong` - Forte (taches blanches, croûtes)
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SalinityEnum: "none" | "slight" | "strong" | "unknown";
+        /**
+         * @description * `saed_large` - Grand aménagement (SAED)
+         *     * `piv` - Périmètre irrigué villageois (PIV)
+         *     * `private` - Périmètre privé
+         *     * `none` - Aucun aménagement
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SchemeTypeEnum: "saed_large" | "piv" | "private" | "none" | "unknown";
+        /**
          * @description * `rainy` - Hivernage
          *     * `cold_dry` - Contre-saison froide
          *     * `hot_dry` - Contre-saison chaude
@@ -3121,14 +3324,124 @@ export interface components {
          */
         SeasonTypeEnum: "rainy" | "cold_dry" | "hot_dry" | "other";
         /**
+         * @description * `certified_purchased` - Certifiée, achetée
+         *     * `farm_saved` - Ressemée (récolte précédente)
+         *     * `program` - Fournie par un programme
+         *     * `local_market` - Achetée au marché, non certifiée
+         *     * `other` - Autre
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SeedSourceEnum: "certified_purchased" | "farm_saved" | "program" | "local_market" | "other" | "unknown";
+        /**
          * @description * `female` - Femme
          *     * `male` - Homme
          *     * `unspecified` - Non précisé
          * @enum {string}
          */
         SexEnum: "female" | "male" | "unspecified";
+        SiteHistory: {
+            current: components["schemas"]["SiteProfile"] | null;
+            history: components["schemas"]["SiteProfile"][];
+        };
+        /** @description Version du profil de site : sol, eau et irrigation, accès. */
+        SiteProfile: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly soil_local_type: string;
+            readonly soil_texture: string;
+            readonly salinity: string;
+            readonly flooding: string;
+            readonly slope: string;
+            readonly perceived_fertility: string;
+            readonly water_regime: string;
+            readonly water_source: string;
+            readonly irrigation_method: string;
+            readonly scheme_type: string;
+            readonly pump_access: string;
+            readonly water_availability: string;
+            readonly road_access: string;
+            /** @description Périmètre, casier ou maille. */
+            readonly scheme_name: string;
+            /** Format: decimal */
+            readonly distance_to_village_km: string | null;
+            /** @description Précision quand « Autre » est choisi. */
+            readonly other_detail: string;
+            readonly evidence: components["schemas"]["EvidenceEnum"];
+            /** Format: date */
+            readonly observed_on: string;
+            readonly notes: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /** @description Nouvelle version complète du profil de site (la précédente est conservée). */
+        SiteProfileWriteRequest: {
+            soil_local_type?: components["schemas"]["SoilLocalTypeEnum"] | components["schemas"]["BlankEnum"];
+            soil_texture?: components["schemas"]["SoilTextureEnum"] | components["schemas"]["BlankEnum"];
+            salinity?: components["schemas"]["SalinityEnum"] | components["schemas"]["BlankEnum"];
+            flooding?: components["schemas"]["FloodingEnum"] | components["schemas"]["BlankEnum"];
+            slope?: components["schemas"]["SlopeEnum"] | components["schemas"]["BlankEnum"];
+            perceived_fertility?: components["schemas"]["PerceivedFertilityEnum"] | components["schemas"]["BlankEnum"];
+            water_regime?: components["schemas"]["WaterRegimeEnum"] | components["schemas"]["BlankEnum"];
+            water_source?: components["schemas"]["WaterSourceEnum"] | components["schemas"]["BlankEnum"];
+            irrigation_method?: components["schemas"]["IrrigationMethodEnum"] | components["schemas"]["BlankEnum"];
+            scheme_type?: components["schemas"]["SchemeTypeEnum"] | components["schemas"]["BlankEnum"];
+            pump_access?: components["schemas"]["PumpAccessEnum"] | components["schemas"]["BlankEnum"];
+            water_availability?: components["schemas"]["WaterAvailabilityEnum"] | components["schemas"]["BlankEnum"];
+            road_access?: components["schemas"]["RoadAccessEnum"] | components["schemas"]["BlankEnum"];
+            scheme_name?: string;
+            /** Format: decimal */
+            distance_to_village_km?: string | null;
+            other_detail?: string;
+            notes?: string;
+            /** @default declared */
+            evidence: components["schemas"]["EvidenceEnum"];
+            /** Format: date */
+            observed_on?: string;
+        };
+        /** @description Listes du profil de site (proposées, à valider par l'agronome). */
+        SiteReferentials: {
+            fields: {
+                [key: string]: components["schemas"]["ReferentialItem"][];
+            };
+            evidence: components["schemas"]["ReferentialItem"][];
+            tenure_types: components["schemas"]["ReferentialItem"][];
+            rent_types: components["schemas"]["ReferentialItem"][];
+        };
+        /**
+         * @description * `flat` - Plate
+         *     * `gentle` - Légère pente
+         *     * `steep` - Forte pente
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SlopeEnum: "flat" | "gentle" | "steep" | "unknown";
+        /**
+         * @description * `hollalde` - Hollaldé (argileux de cuvette)
+         *     * `fonde` - Fondé (levée limoneuse)
+         *     * `falo` - Falo (berge du fleuve)
+         *     * `dieri` - Diéri (sableux, hors crue)
+         *     * `dior` - Dior (sableux)
+         *     * `deck` - Deck (argileux, humifère)
+         *     * `deck_dior` - Deck-dior
+         *     * `other` - Autre
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SoilLocalTypeEnum: "hollalde" | "fonde" | "falo" | "dieri" | "dior" | "deck" | "deck_dior" | "other" | "unknown";
+        /**
+         * @description * `sandy` - Sableuse
+         *     * `sandy_loam` - Sablo-limoneuse
+         *     * `loam` - Limoneuse
+         *     * `clay_loam` - Argilo-limoneuse
+         *     * `clay` - Argileuse
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        SoilTextureEnum: "sandy" | "sandy_loam" | "loam" | "clay_loam" | "clay" | "unknown";
         /**
          * @description * `titled_property` - Titre foncier
+         *     * `communal_allocation` - Affectation communale (domaine national)
          *     * `customary_right` - Droit coutumier
          *     * `family_land` - Terre familiale
          *     * `lease` - Bail
@@ -3137,7 +3450,7 @@ export interface components {
          *     * `unknown` - Inconnu
          * @enum {string}
          */
-        TenureTypeEnum: "titled_property" | "customary_right" | "family_land" | "lease" | "communal" | "other" | "unknown";
+        TenureTypeEnum: "titled_property" | "communal_allocation" | "customary_right" | "family_land" | "lease" | "communal" | "other" | "unknown";
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -3181,6 +3494,33 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /**
+         * @description * `year_round` - Toute l'année
+         *     * `seasonal` - Saisonnière
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        WaterAvailabilityEnum: "year_round" | "seasonal" | "unknown";
+        /**
+         * @description * `rainfed` - Pluvial
+         *     * `irrigated` - Irrigué
+         *     * `flood_recession` - Décrue
+         *     * `mixed` - Mixte
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        WaterRegimeEnum: "rainfed" | "irrigated" | "flood_recession" | "mixed" | "unknown";
+        /**
+         * @description * `river_canal` - Fleuve ou canal
+         *     * `borehole` - Forage
+         *     * `well` - Puits
+         *     * `pond` - Mare ou marigot
+         *     * `network` - Réseau d'eau
+         *     * `other` - Autre
+         *     * `unknown` - Ne sait pas
+         * @enum {string}
+         */
+        WaterSourceEnum: "river_canal" | "borehole" | "well" | "pond" | "network" | "other" | "unknown";
         WebAccessToken: {
             access: string;
         };
@@ -5102,6 +5442,62 @@ export interface operations {
             };
         };
     };
+    parcels_site_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteHistory"];
+                };
+            };
+        };
+    };
+    parcels_site_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path: {
+                /** @description Un(une) Chaîne UUID identifiant ce(cette) parcelle. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SiteProfileWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SiteProfileWriteRequest"];
+                "multipart/form-data": components["schemas"]["SiteProfileWriteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteProfile"];
+                };
+            };
+        };
+    };
     parcels_units_create: {
         parameters: {
             query?: never;
@@ -5222,6 +5618,28 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    parcels_site_referentials_retrieve: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Espace de travail dans lequel vous agissez : `org:<uuid-de-l-organisation>`. La valeur à utiliser est donnée par `GET /api/v1/me/` (champ `memberships[].workspace`). Absent ou mal formé : 400. Pas d'adhésion active : 403. */
+                "X-Workspace": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteReferentials"];
                 };
             };
         };

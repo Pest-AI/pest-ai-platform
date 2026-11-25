@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, History, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Circle, Droplets, History, Ruler, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -13,7 +13,12 @@ import { currentWorkspace, getApi } from "@/lib/api/client";
 import { COOPERATIVE_NAV } from "@/lib/navigation";
 import {
   CAPTURE_METHODS,
+  EVIDENCE_LABELS,
   OPERATOR_ROLE_LABELS,
+  SITE_FIELD_LABELS,
+  SITE_SOIL_FIELDS,
+  SITE_WATER_FIELDS,
+  arrangementLine,
   TENURE_LABELS,
   VALIDATION_STATUS,
   VERIFICATION_LABELS,
@@ -23,6 +28,7 @@ import {
 import { ORGANIZATION_TYPE_LABELS, formatDate, organizationInitials, primaryRoleLabel } from "@/lib/spaces";
 
 import { ReviewForm } from "../review-form";
+import { SiteDialog } from "../site-dialog";
 import { type CycleRow } from "@/components/cycle-table";
 import { CYCLE_STATUS } from "@/lib/agriculture";
 
@@ -60,13 +66,14 @@ export default async function ParcelPage({
   if (!workspace) redirect("/espaces");
   const api = await getApi();
   const header = { "X-Workspace": workspace };
-  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult, cyclesResult] = await Promise.all([
+  const [{ data: me }, orgResult, parcelResult, historyResult, contextResult, cyclesResult, refsResult] = await Promise.all([
     api.GET("/api/v1/me/"),
     api.GET("/api/v1/organization/", { params: { header } }),
     api.GET("/api/v1/parcels/{id}/", { params: { header, path: { id } } }),
     api.GET("/api/v1/parcels/{id}/history/", { params: { header, path: { id } } }),
     api.GET("/api/v1/workspace/", { headers: header }),
     api.GET("/api/v1/crop-cycles/", { params: { header, query: { parcel: id } } }),
+    api.GET("/api/v1/parcels/site-referentials/", { params: { header } }),
   ]);
   if (!me) redirect("/connexion?erreur=session");
   if (!orgResult.data) redirect("/espaces?erreur=acces");
@@ -86,6 +93,14 @@ export default async function ParcelPage({
   const validation = current ? VALIDATION_STATUS[current.validation.status] : null;
   const previous = (history?.geometries ?? []).filter((g) => !g.is_current).slice(0, 3).map((g) => g.geometry as Geometry);
   const needsReview = current && ["flagged", "pending"].includes(current.validation.status);
+  const siteRefs = refsResult.data?.fields ?? {};
+  const site = p.site_profile;
+  const siteValue = (f: string) => {
+    const raw = site ? (site as unknown as Record<string, string>)[f] : "";
+    return raw ? (siteRefs[f]?.find((i) => i.value === raw)?.label ?? raw) : "";
+  };
+  const siteRows = [...SITE_WATER_FIELDS, ...SITE_SOIL_FIELDS, "road_access"].filter((f) => siteValue(f));
+  const canEditSite = p.access === "manage" && p.status !== "retired";
 
   return (
     <AppShell
@@ -219,6 +234,79 @@ export default async function ParcelPage({
         </div>
 
         <div className="space-y-4">
+          <Card className="rounded-2xl p-5">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[16px] font-semibold">Fiche AgroID</h2>
+              <span className="tabular font-mono text-[22px] font-semibold text-brand-800">{p.completeness.percent} %</span>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-surface"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={p.completeness.percent}
+              aria-label="Complétude de la fiche"
+            >
+              <div className="h-full rounded-full bg-brand-700" style={{ width: `${p.completeness.percent}%` }} />
+            </div>
+            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px]">
+              {p.completeness.blocks.map((b) => (
+                <li key={b.key} className={b.done ? "flex items-center gap-1.5" : "flex items-center gap-1.5 text-muted"}>
+                  {b.done ? <CheckCircle2 className="size-3.5 text-success" aria-hidden /> : <Circle className="size-3.5" aria-hidden />}
+                  {b.label}
+                  <span className="sr-only">{b.done ? " : renseigné" : " : à compléter"}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <Card className="rounded-2xl p-5">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-[16px] font-semibold">
+                <Droplets className="size-4 text-leaf" aria-hidden />
+                Sol et eau
+              </h2>
+              {canEditSite ? (
+                <SiteDialog
+                  parcelId={p.id}
+                  refs={siteRefs}
+                  current={site ? (site as unknown as Record<string, string | null>) : null}
+                />
+              ) : null}
+            </div>
+            <div className="mt-3">
+              {siteRows.length ? (
+                <>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+                    {siteRows.map((f) => (
+                      <div key={f} className="contents">
+                        <dt className="text-muted">{SITE_FIELD_LABELS[f] ?? f}</dt>
+                        <dd className="font-medium">{siteValue(f)}</dd>
+                      </div>
+                    ))}
+                    {site?.scheme_name ? (
+                      <>
+                        <dt className="text-muted">Périmètre</dt>
+                        <dd className="font-medium">{site.scheme_name}</dd>
+                      </>
+                    ) : null}
+                    {site?.distance_to_village_km ? (
+                      <>
+                        <dt className="text-muted">Distance au village</dt>
+                        <dd className="tabular font-mono">{Number(site.distance_to_village_km).toLocaleString("fr-FR")} km</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                  <p className="mt-3 text-[12px] text-muted">
+                    {EVIDENCE_LABELS[site?.evidence ?? ""] ?? ""} · le {formatDate(site?.observed_on ?? "")}
+                  </p>
+                </>
+              ) : (
+                <Empty>Sol et eau pas encore renseignés.</Empty>
+              )}
+            </div>
+          </Card>
+
           <Section title="Exploitants" icon={UserRound}>
             {p.operators.length ? (
               <ul className="space-y-2">
@@ -231,6 +319,7 @@ export default async function ParcelPage({
                       {OPERATOR_ROLE_LABELS[o.operator_role] ?? o.operator_role} · depuis le {formatDate(o.start_date)} ·{" "}
                       {VERIFICATION_LABELS[o.verification_status] ?? o.verification_status}
                     </p>
+                    {arrangementLine(o) ? <p className="text-[12px] text-muted">{arrangementLine(o)}</p> : null}
                   </li>
                 ))}
               </ul>

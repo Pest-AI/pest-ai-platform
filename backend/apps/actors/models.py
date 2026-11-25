@@ -241,6 +241,12 @@ class ProducerOrganizationAssignment(ImmutableFieldsMixin, BaseModel):
         max_length=32, choices=RelationshipType.choices, default=RelationshipType.MEMBER
     )
     membership_number = models.CharField(max_length=50, null=True, blank=True)  # noqa: DJ001
+    section = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Section, groupement ou village de rattachement dans l'organisation.",
+    )
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
 

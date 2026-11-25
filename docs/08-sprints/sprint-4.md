@@ -62,6 +62,22 @@ Décisions du fondateur du 24/11/2026 (addendum v2.3, partie Producteur).
 
 Migrations : `organizations 0002`, `actors 0002` (ajout de colonnes, identifiants des producteurs existants, déclencheur d'immuabilité ; aucune donnée modifiée ni supprimée). Photo du producteur : avec les pièces jointes (J21). Pièce d'identité : non collectée (décision du 24/11).
 
+## J18d — Données d'enrôlement : sol, eau, foncier, cycle (livré)
+
+Addendum v2.3 au Database Design. **Listes proposées, en attente de validation par l'agronome** (Déthié Gueye, Vallée ; Ibrahima Babacar Fall, Niayes) : elles sont servies par l'API (`/api/v1/parcels/site-referentials/`), les apps n'ont pas à être republiées quand elles changent.
+
+| Livré | Vérification |
+|---|---|
+| **Profil de site historisé** (`ParcelSiteProfile`) : sol (nom local hollaldé, fondé, falo, diéri, dior, deck…, texture, salinité, inondation, pente, fertilité perçue), eau et irrigation (régime, source, mode, aménagement SAED/PIV/privé + nom du périmètre, motopompe, disponibilité), accès (route, distance au village) ; niveau de preuve (déclaré, constaté, mesuré). Chaque mise à jour ajoute une version complète ; PostgreSQL interdit de modifier ou supprimer une version | 4 tests API |
+| **Foncier complété** : type de droit « affectation communale (domaine national) » ; conditions d'exploitation (contrepartie en argent, part de récolte, en nature, gratuit ; loyer en FCFA, part en %, fin de l'accord) | 1 test API |
+| **Cycle de culture** : origine de la semence, semis direct ou repiquage, saison précédente (culture ou jachère, exclusifs) | 1 test API |
+| **Section ou groupement** du membre dans l'organisation | 1 test API |
+| **Taux de complétude de la fiche AgroID** : contour relevé, exploitant, foncier, eau, sol, cycle | Tests API, parcours navigateur |
+| App terrain : étapes Eau et irrigation, Sol, Accès à l'enrôlement (facultatives, « Ne sait pas » possible) ; contrepartie de la location ; fiche avec complétude et « Sol et eau » ; écran « Sol, eau et accès » pour compléter plus tard | Parcours navigateur |
+| Web OS : fiche parcelle avec complétude, « Sol et eau » (mise à jour en fenêtre), mode d'exploitation et contrepartie ; cycle avec semence, implantation, saison précédente ; section du membre | Parcours navigateur |
+
+Migrations : `actors 0003`, `parcels 0009`, `agriculture 0003` (ajouts seulement).
+
 ## Reporté (prévu par le Design, dépend d'autres apps)
 
 - `AgriculturalCampaign.program` : avec les programmes.

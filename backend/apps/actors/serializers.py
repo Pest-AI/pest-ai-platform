@@ -41,6 +41,7 @@ class AssignmentSerializer(serializers.ModelSerializer):
             "id",
             "relationship_type",
             "membership_number",
+            "section",
             "start_date",
             "end_date",
             "is_active",
@@ -162,6 +163,12 @@ class ProducerCreateSerializer(_ProfileFields):
         max_length=50,
         help_text="Vide pour un membre : numéro attribué automatiquement (PRÉFIXE-000123).",
     )
+    section = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        help_text="Section, groupement ou village de rattachement dans l'organisation.",
+    )
     start_date = serializers.DateField(
         required=False, help_text="Début du rattachement (défaut : aujourd'hui)."
     )
@@ -181,6 +188,12 @@ class ProducerUpdateSerializer(_ProfileFields):
     phone_number = serializers.CharField(required=False, allow_blank=True)
     relationship_type = serializers.ChoiceField(choices=RelationshipType.choices, required=False)
     membership_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    section = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        help_text="Section, groupement ou village de rattachement dans l'organisation.",
+    )
 
     def validate_phone_number(self, value):
         return _phone(value)
@@ -190,6 +203,12 @@ class AttachProducerSerializer(serializers.Serializer):
     producer_id = serializers.UUIDField()
     relationship_type = serializers.ChoiceField(choices=RelationshipType.choices, required=False)
     membership_number = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    section = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        help_text="Section, groupement ou village de rattachement dans l'organisation.",
+    )
     start_date = serializers.DateField(required=False)
 
 

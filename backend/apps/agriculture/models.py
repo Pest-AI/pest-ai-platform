@@ -168,6 +168,23 @@ class CropCycleStatus(models.TextChoices):
     ABANDONED = "abandoned", "Abandonné"
 
 
+class SeedSource(models.TextChoices):
+    """Origine de la semence (J18d, addendum v2.3 ; à valider par l'agronome)."""
+
+    CERTIFIED_PURCHASED = "certified_purchased", "Certifiée, achetée"
+    FARM_SAVED = "farm_saved", "Ressemée (récolte précédente)"
+    PROGRAM = "program", "Fournie par un programme"
+    LOCAL_MARKET = "local_market", "Achetée au marché, non certifiée"
+    OTHER = "other", "Autre"
+    UNKNOWN = "unknown", "Ne sait pas"
+
+
+class PlantingMethod(models.TextChoices):
+    DIRECT_SOWING = "direct_sowing", "Semis direct"
+    TRANSPLANTING = "transplanting", "Repiquage"
+    UNKNOWN = "unknown", "Ne sait pas"
+
+
 class CropCycle(ImmutableFieldsMixin, BaseModel, ArchivableModel, SpaceModel, SyncModel):
     """Culture effectivement pratiquée sur une parcelle (ou une unité) pendant une période.
 
@@ -233,6 +250,15 @@ class CropCycle(ImmutableFieldsMixin, BaseModel, ArchivableModel, SpaceModel, Sy
     status = models.CharField(
         max_length=32, choices=CropCycleStatus.choices, default=CropCycleStatus.PLANNED
     )
+    # J18d (addendum v2.3) : semence, implantation, précédent cultural.
+    seed_source = models.CharField(max_length=32, blank=True, default="")
+    planting_method = models.CharField(max_length=32, blank=True, default="")
+    previous_crop = models.ForeignKey(
+        Crop, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    previous_fallow = models.BooleanField(
+        default=False, help_text="La saison précédente, la parcelle était en jachère."
+    )
 
     class Meta:
         db_table = "agriculture_crop_cycle"
@@ -257,6 +283,18 @@ class CropCycle(ImmutableFieldsMixin, BaseModel, ArchivableModel, SpaceModel, Sy
             models.CheckConstraint(
                 condition=Q(confirmed_crop__isnull=True) | Q(confirmed_at__isnull=False),
                 name="crop_cycle_confirmation_dated",
+            ),
+            models.CheckConstraint(
+                condition=Q(seed_source__in=["", *SeedSource.values]),
+                name="crop_cycle_seed_source_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(planting_method__in=["", *PlantingMethod.values]),
+                name="crop_cycle_planting_method_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(previous_crop__isnull=True) | Q(previous_fallow=False),
+                name="crop_cycle_previous_crop_or_fallow",
             ),
         ]
         indexes = [

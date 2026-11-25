@@ -42,6 +42,7 @@ export const CAPTURE_METHODS: Record<string, string> = {
 
 export const TENURE_LABELS: Record<string, string> = {
   titled_property: "Titre foncier",
+  communal_allocation: "Affectation communale (domaine national)",
   customary_right: "Droit coutumier",
   family_land: "Terre familiale",
   lease: "Bail",
@@ -109,3 +110,62 @@ export function padBbox(b: Bbox, minSpan = 0.01): Bbox {
   const padLat = Math.max((d - bb) * 0.15, minSpan / 2);
   return [a - padLon, bb - padLat, c + padLon, d + padLat];
 }
+
+export const ARRANGEMENT_LABELS: Record<string, string> = {
+  owner_operated: "Exploitée par le propriétaire",
+  rental: "Location",
+  sharecropping: "Métayage",
+  loan: "Prêt",
+  family_allocation: "Attribution familiale",
+  cooperative_allocation: "Attribution par la coopérative",
+  other: "Autre arrangement",
+  unknown: "",
+};
+
+export const RENT_LABELS: Record<string, string> = {
+  cash: "loyer en argent",
+  harvest_share: "part de récolte",
+  in_kind: "en nature",
+  free: "gratuit",
+  unknown: "contrepartie inconnue",
+};
+
+/** « Location · loyer en argent 50 000 FCFA » ou « Métayage · part de récolte 33 % ». */
+export function arrangementLine(o: {
+  arrangement_type: string;
+  rent_type?: string;
+  rent_amount_xof?: number | null;
+  harvest_share_percent?: string | null;
+}): string {
+  const parts = [ARRANGEMENT_LABELS[o.arrangement_type] ?? o.arrangement_type].filter(Boolean);
+  if (o.rent_type) {
+    let rent = RENT_LABELS[o.rent_type] ?? o.rent_type;
+    if (o.rent_type === "cash" && o.rent_amount_xof) rent += ` ${o.rent_amount_xof.toLocaleString("fr-FR")} FCFA`;
+    if (o.rent_type === "harvest_share" && o.harvest_share_percent) rent += ` ${Number(o.harvest_share_percent).toLocaleString("fr-FR")} %`;
+    parts.push(rent);
+  }
+  return parts.join(" · ");
+}
+
+export const SITE_WATER_FIELDS = ["water_regime", "water_source", "irrigation_method", "scheme_type", "pump_access", "water_availability"] as const;
+export const SITE_SOIL_FIELDS = ["soil_local_type", "soil_texture", "salinity", "flooding", "slope", "perceived_fertility"] as const;
+export const SITE_FIELD_LABELS: Record<string, string> = {
+  water_regime: "Régime hydrique",
+  water_source: "Source d'eau",
+  irrigation_method: "Irrigation",
+  scheme_type: "Aménagement",
+  pump_access: "Motopompe",
+  water_availability: "Eau disponible",
+  soil_local_type: "Sol (nom local)",
+  soil_texture: "Texture",
+  salinity: "Salinité",
+  flooding: "Inondation",
+  slope: "Pente",
+  perceived_fertility: "Fertilité perçue",
+  road_access: "Accès",
+};
+export const EVIDENCE_LABELS: Record<string, string> = {
+  declared: "Déclaré par le producteur",
+  observed: "Constaté par l'agent",
+  measured: "Mesuré ou analysé",
+};

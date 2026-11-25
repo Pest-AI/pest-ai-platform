@@ -117,6 +117,7 @@ export default async function ProducerPage({
                   N° {p.assignment.membership_number}
                 </Badge>
               ) : null}
+              {p.assignment?.section ? <Badge tone="neutral">{p.assignment.section}</Badge> : null}
               {p.has_account ? (
                 <Badge tone="success">
                   <BadgeCheck aria-hidden />
@@ -142,6 +143,7 @@ export default async function ProducerPage({
                     relationship: p.assignment?.relationship_type ?? "member",
                     membershipNumber: p.assignment?.membership_number ?? "",
                     householdSize: p.household_size ? String(p.household_size) : "",
+                    section: p.assignment?.section ?? "",
                     householdWorkers:
                       p.household_farm_workers !== null && p.household_farm_workers !== undefined
                         ? String(p.household_farm_workers)
